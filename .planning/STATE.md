@@ -5,36 +5,35 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A playable AI Dungeon Master demo that runs live with visible Datadog LLM observability — the minimum viable path to hackathon prize eligibility.
-**Current focus:** Phase 1 — Scaffold
+**Current focus:** Phase 1 complete — ready for Phase 2 (Chat UI) and Phase 3 (Lore Graph Seed)
 
 ## Current Position
 
-Phase: 1 of 7 (Scaffold)
-Plan: 3 of 3 complete — Phase 1 scaffold fully implemented
-Status: All three scaffold plans executed; Phase 1 complete pending npm install + runtime verification
-Last activity: 2026-02-20 — Executed 01-03 gap-closure plan, softened config validation, deferred Neo4j validation, server now boots with partial env
+Phase: 1 of 7 (Scaffold) — COMPLETE
+Plan: 3/3 complete, verified
+Status: Phase 1 fully executed and verified (7/7 must-haves passed)
+Last activity: 2026-02-20 — Completed phase 1 execution and verification
 
-Progress: [██░░░░░░░░] 15%
+Progress: [██░░░░░░░░] 14%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0 (implementation complete, verification pending)
-- Average duration: — min
-- Total execution time: 0.0 hours
+- Total plans completed: 3
+- Average duration: ~3 min
+- Total execution time: ~0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-scaffold | 3 | ~10 min | ~3 min |
 
 **Recent Trend:**
-- Last 5 plans: —
-- Trend: —
+- Last 5 plans: 01-01, 01-02, 01-03
+- Trend: Stable
 
 *Updated after each plan completion*
-| Phase 01-scaffold P03 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -67,5 +66,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 01-scaffold-03-PLAN.md — Phase 1 all plans complete
-Resume file: `.planning/phases/01-scaffold/01-03-SUMMARY.md`
+Stopped at: Phase 1 complete and verified. Ready for Phase 2 + Phase 3 (can run in parallel).
+Resume file: `.planning/phases/01-scaffold/01-VERIFICATION.md`

@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 1 of 7 (Scaffold)
-Plan: 2 of 2 implemented in current phase (verification pending)
-Status: Scaffold code implemented; verification blocked by sandbox DNS/network to npm registry
-Last activity: 2026-02-20 — Executed 01-01 and 01-02 scaffold plans, wrote summary docs, captured install/runtime verification blockers
+Plan: 3 of 3 complete — Phase 1 scaffold fully implemented
+Status: All three scaffold plans executed; Phase 1 complete pending npm install + runtime verification
+Last activity: 2026-02-20 — Executed 01-03 gap-closure plan, softened config validation, deferred Neo4j validation, server now boots with partial env
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 15%
 
 ## Performance Metrics
 
@@ -34,6 +34,7 @@ Progress: [█░░░░░░░░░] 10%
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01-scaffold P03 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -45,6 +46,8 @@ Recent decisions affecting current work:
 - Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
 - Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
 - Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
 
 ### Pending Todos
 
@@ -64,5 +67,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Phase 1 scaffold implementation complete with verification blocked by sandbox network.
-Resume file: `.planning/phases/01-scaffold/01-01-SUMMARY.md`, `.planning/phases/01-scaffold/01-02-SUMMARY.md`
+Stopped at: Completed 01-scaffold-03-PLAN.md — Phase 1 all plans complete
+Resume file: `.planning/phases/01-scaffold/01-03-SUMMARY.md`

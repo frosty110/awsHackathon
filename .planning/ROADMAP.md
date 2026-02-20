@@ -33,11 +33,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. `.env.example` documents every integration key (AWS, Datadog LLMObs, Neo4j, MiniMax)
   5. Server `dev` and `start` scripts include `NODE_OPTIONS='--import dd-trace/initialize.mjs'`
   6. `.gitignore` excludes `.env` and `node_modules` — no secrets in git
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [x] 01-01-PLAN.md — Monorepo init: root package.json with workspaces, client/ Vite+React, server/ Express+TypeScript, shared tsconfig, .gitignore (implemented; dependency verification blocked in sandbox)
 - [x] 01-02-PLAN.md — Config validation: Zod env validation (DD_* LLMObs vars included), /health + /api/health route, server entry point with Neo4j connectivity check (explicit non-prod skip flag), .env.example (implemented; runtime verification blocked in sandbox)
+- [ ] 01-03-PLAN.md — Gap closure: Replace hard-fail .min(1) validators with envDefaults + warnOnBlankConfig pattern; add deferred requireConfigValues before Neo4j verifyConnectivity
 
 ---
 
@@ -156,7 +157,7 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Scaffold | 2/2 | Implemented; verification blocked by sandbox network (`ENOTFOUND registry.npmjs.org`) | 2026-02-20 |
+| 1. Scaffold | 2/3 | Gap closure planned for config validation pattern | 2026-02-20 |
 | 2. Chat UI | 0/3 | Not started | - |
 | 3. Lore Graph Seed | 0/2 | Not started | - |
 | 4. Bedrock Chat Core | 0/3 | Not started | - |

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A playable AI Dungeon Master demo that runs live with visible Datadog LLM observability — the minimum viable path to hackathon prize eligibility.
-**Current focus:** Phase 3 complete — moving to Phase 4 (Bedrock Chat Core)
+**Current focus:** Phase 7 in progress — 07-01 (TTS + /narrate) complete, next: 07-02 (AudioPlayer)
 
 ## Current Position
 
-Phase: 3 of 7 (Lore Graph Seed) — COMPLETE
-Plan: 2/2 complete (03-01 Lore JSON done, 03-02 Seed Script done)
-Status: 03-02 executed — data/seed.ts and npm run seed created; Phase 3 fully complete
-Last activity: 2026-02-20 — Completed 03-02 (Neo4j Seed Script)
+Phase: 7 of 7 (Voice Demo Polish) — IN PROGRESS
+Plan: 1/N complete (07-01 TTS Service + /narrate done)
+Status: 07-01 executed — MiniMax TTS service, /narrate route, pre-gen script for opening.mp3
+Last activity: 2026-02-20 — Completed 07-01 (TTS Service and /narrate route)
 
-Progress: [████▌░░░░░] 43%
+Progress: [███████░░░] 64%
 
 ## Performance Metrics
 
@@ -40,6 +40,7 @@ Progress: [████▌░░░░░] 43%
 | Phase 02-chat-ui P02 | 2 | 2 tasks | 5 files |
 | Phase 03-lore-graph-seed P01 | 2 | 1 task | 1 file |
 | Phase 03-lore-graph-seed P02 | 1 | 2 tasks | 2 files |
+| Phase 07-voice-demo-polish P01 | 5 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,10 @@ Recent decisions affecting current work:
 - [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
 - [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
 - [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
 
 ### Pending Todos
 
@@ -83,5 +88,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 03-02-PLAN.md — data/seed.ts and npm run seed. Phase 3 complete. Ready for Phase 4 (Bedrock Chat Core).
-Resume file: `.planning/phases/03-lore-graph-seed/03-02-SUMMARY.md`
+Stopped at: Completed 07-01-PLAN.md — MiniMax TTS service, /narrate route, pre-gen script for opening.mp3.
+Resume file: `.planning/phases/07-voice-demo-polish/07-01-SUMMARY.md`

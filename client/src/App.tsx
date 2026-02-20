@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSSEChat } from './hooks/useSSEChat';
+import { AudioPlayer } from './components/AudioPlayer';
 import { ChatWindow } from './components/ChatWindow';
 import { MessageInput } from './components/MessageInput';
 import { DiceRoller } from './components/DiceRoller';
@@ -54,12 +55,7 @@ export default function App() {
         <main className="flex-1 flex flex-col overflow-hidden">
           {appState === 'idle' ? (
             <div className="flex-1 flex items-center justify-center">
-              <button
-                onClick={handleStart}
-                className="font-cinzel text-xl text-parchment px-8 py-4 border border-blood bg-blood/20 hover:bg-blood/40 tracking-widest"
-              >
-                Start Adventure
-              </button>
+              <AudioPlayer onAdventureStart={handleStart} />
             </div>
           ) : (
             <>

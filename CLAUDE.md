@@ -81,6 +81,7 @@ This is a hackathon project. Speed is the priority.
 
 ## Project Skill Files
 
-- `skills/claude-hackathon-operator/SKILL.md` for planning and doc alignment work.
-- `skills/codex-hackathon-operator/SKILL.md` for implementation and verification work.
-- `skills/kiro-hackathon-operator/SKILL.md` for delivery checklists and demo readiness work.
+- `skills/datadog-dashboard-operator/SKILL.md` for Datadog dashboards and monitor conventions.
+- `skills/datadog-llmobs-operator/SKILL.md` for Datadog LLM observability setup and validation.
+- `skills/bedrock-runtime-operator/SKILL.md` for Bedrock runtime integration and streaming reliability.
+- `skills/neo4j-rag-operator/SKILL.md` for Neo4j retrieval conventions and graceful degradation.

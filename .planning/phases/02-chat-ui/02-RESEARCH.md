@@ -17,7 +17,7 @@
 
 #### Dice roll experience
 - Roll Dice button sends `"I roll the dice!"` as a regular chat message — no frontend dice generation, no animated d20 reveal
-- The AI generates the d20 result and narrates the outcome (simplifies ROADMAP's "animated d20 reveal" — deliberate decision for simplicity)
+- The AI generates the d20 result and narrates the outcome
 - Brief shake/glow animation on the dice button when clicked — small theatrical moment before message sends
 - Button always visible, but glows/pulses when the DM's last message suggests a roll is needed
 - Dice roll messages styled differently from regular player messages (dice emoji prefix, distinct visual treatment) to stand out as a game action
@@ -55,7 +55,7 @@ This phase builds a complete dark fantasy chat UI in React 19 + TypeScript using
 
 The chat UI is frontend-only in this phase. The `useSSEChat` hook should stub responses (mock messages) so the UI is fully interactive without a backend. Phase 4 will wire it to the real `/chat` endpoint. All state lives in React (`useState`) — no external state management needed at this scale.
 
-The dice mechanic is intentionally simple: the Roll Dice button calls `sendMessage("I roll the dice!")` with a shake/glow animation on the button itself. No random number generation on the frontend. The ROADMAP mentioned "animated d20 reveal" but CONTEXT.md explicitly overrides this — the dice button is a theatrical UI shortcut for a preset message, nothing more.
+The dice mechanic is intentionally simple: the Roll Dice button calls `sendMessage("I roll the dice!")` with a shake/glow animation on the button itself. No random number generation on the frontend. The dice button is a theatrical UI shortcut for a preset message, nothing more.
 
 **Primary recommendation:** Install `tailwindcss` + `@tailwindcss/vite` into the `client/` workspace, configure via CSS-only `@theme` block, load Google Fonts via `@import` at the top of the CSS file, and implement 4 components (`ChatWindow`, `MessageBubble`, `MessageInput`, `DiceRoller`) plus 2 hooks (`useSSEChat`, `useChatScroll`).
 

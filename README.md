@@ -19,13 +19,14 @@ Planning-first repository for the AWS x Anthropic x Datadog GenAI Hackathon proj
 - Neo4j connectivity check runs on boot with explicit non-production skip flag
 - `dd-trace` bootstrap in server scripts via `NODE_OPTIONS='--import dd-trace/initialize.mjs'`
 
-## Agent skill files
+## Tooling skill files
 
-Project-local skill files for multiple coding agents:
+Project-local skill files focused on core hackathon tools:
 
-- `skills/claude-hackathon-operator/SKILL.md`
-- `skills/codex-hackathon-operator/SKILL.md`
-- `skills/kiro-hackathon-operator/SKILL.md`
+- `skills/datadog-dashboard-operator/SKILL.md`
+- `skills/datadog-llmobs-operator/SKILL.md`
+- `skills/bedrock-runtime-operator/SKILL.md`
+- `skills/neo4j-rag-operator/SKILL.md`
 
 ## AI context symlinks
 

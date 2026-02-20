@@ -17,7 +17,7 @@ Requirements for hackathon demo. Each maps to roadmap phases.
 ### Game Mechanics
 
 - [ ] **GAME-01**: User can trigger a d20 dice roll via a "Roll Dice" button
-- [ ] **GAME-02**: Animated dice roll reveal in chat UI with suspense delay
+- [ ] **GAME-02**: "Roll Dice" triggers a distinct dice action message with brief button animation (no frontend d20 reveal)
 - [ ] **GAME-03**: DM narrates combat outcome based on actual roll result (1-5 failure, 16-20 great success)
 
 ### Knowledge Graph (Neo4j)

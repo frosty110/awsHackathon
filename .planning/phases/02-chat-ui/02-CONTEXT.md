@@ -21,7 +21,7 @@ Dark fantasy chat interface with dice roll mechanic. Users can interact with the
 
 ### Dice roll experience
 - Roll Dice button sends `"I roll the dice!"` as a regular chat message — no frontend dice generation, no animated d20 reveal
-- The AI generates the d20 result and narrates the outcome (simplifies ROADMAP's "animated d20 reveal" — deliberate decision for simplicity)
+- The AI generates the d20 result and narrates the outcome
 - Brief shake/glow animation on the dice button when clicked — small theatrical moment before message sends
 - Button always visible, but glows/pulses when the DM's last message suggests a roll is needed
 - Dice roll messages styled differently from regular player messages (dice emoji prefix, distinct visual treatment) to stand out as a game action

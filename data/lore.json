@@ -1,0 +1,217 @@
+{
+  "characters": [
+    {
+      "name": "Gorm",
+      "race": "Dwarf",
+      "role": "Barkeep",
+      "personality": "Gruff, guarded, eventually forthcoming",
+      "motivation": "Wants the Ring of Ashwick recovered. Won't go himself — too old, too many scars.",
+      "background": "Ex-soldier. Lost his left ear to a goblin blade at Coldwall Pass. Returned to Ashwick, opened the Shattered Crown. Carries guilt over the ring.",
+      "speakingStyle": "Short sentences. Does not volunteer. Answers directly. Occasionally bitter. Opens up in bursts when he trusts you.",
+      "description": "Stocky dwarf, braided iron-grey beard, one ear missing. Wipes the same tankard all evening."
+    },
+    {
+      "name": "Goblin Scout",
+      "race": "Goblin",
+      "role": "Raider",
+      "hp": 12,
+      "weapon": "Rusty short sword",
+      "behavior": "Reckless. Bursts through the tavern door snarling. Fights until cornered, then tries to flee.",
+      "description": "Wiry green-skinned creature, patchwork leather armor, wild yellow eyes."
+    },
+    {
+      "name": "Elder Mira",
+      "race": "Human",
+      "role": "Town Elder",
+      "personality": "Weary, pragmatic, distrustful of strangers",
+      "description": "Grey-haired woman with deep-set eyes. Speaks for the townsfolk."
+    },
+    {
+      "name": "Hooded Traveller",
+      "race": "Unknown",
+      "role": "Wanderer",
+      "description": "One of several cloaked figures nursing ales in the common room. Keeps to the shadows."
+    },
+    {
+      "name": "Chieftain Skrix",
+      "race": "Goblin",
+      "role": "Warband Leader",
+      "description": "Commands the goblin warband from the northern caves. Cunning. Took the ring on a midnight raid."
+    }
+  ],
+  "locations": [
+    {
+      "name": "The Shattered Crown Tavern",
+      "type": "Tavern",
+      "atmosphere": "Half-empty common room. Stone hearth with a fire barely holding back the chill. Hooded travellers nursing ales.",
+      "description": "A weathered tavern at the crossroads of Ashwick. The sign above the door shows a cracked crown."
+    },
+    {
+      "name": "Ashwick",
+      "type": "Town",
+      "description": "A small frontier town. Crops are thin, strangers feel watched, and fires go out without reason since the ring was stolen."
+    },
+    {
+      "name": "Northern Caves",
+      "type": "Dungeon",
+      "description": "A network of shallow caves a half-day's ride north of Ashwick. The goblin warband has nested here."
+    },
+    {
+      "name": "Coldwall Pass",
+      "type": "Battlefield",
+      "description": "A mountain pass where Ashwick's militia held the line against a goblin horde fifteen years ago. Many did not return."
+    },
+    {
+      "name": "The Barrow Road",
+      "type": "Road",
+      "description": "The old trade road running north from Ashwick toward the caves. Overgrown and avoided since the goblins moved in."
+    }
+  ],
+  "items": [
+    {
+      "name": "Ring of Ashwick",
+      "type": "Artifact",
+      "material": "Iron and ash-wood",
+      "lore": "Founding talisman of Ashwick. Said to ward the town from ill fortune. Its absence is felt as a creeping wrongness. Stolen three nights ago.",
+      "location": "Northern Caves (stolen)",
+      "status": "Stolen"
+    },
+    {
+      "name": "Gorm's Tankard",
+      "type": "Common item",
+      "description": "A dented pewter tankard Gorm polishes endlessly. Rumor says it was his from his soldiering days."
+    },
+    {
+      "name": "Iron Lantern",
+      "type": "Adventuring gear",
+      "description": "A battered iron lantern hanging by the tavern door. Gorm lends it to anyone brave enough to take the Barrow Road."
+    },
+    {
+      "name": "Short Sword",
+      "type": "Weapon",
+      "damage": "1d6",
+      "description": "A plain but serviceable blade. The kind Ashwick's militia carried at Coldwall Pass."
+    }
+  ],
+  "quests": [
+    {
+      "name": "Retrieve the Ring of Ashwick",
+      "type": "Main quest",
+      "description": "The Ring of Ashwick has been stolen by goblins. Recover it from the northern caves and return it to Ashwick.",
+      "status": "Available",
+      "difficulty": "Moderate"
+    },
+    {
+      "name": "Survive the Goblin Ambush",
+      "type": "Combat encounter",
+      "description": "A goblin scout bursts through the tavern door. Defeat it before it reports your presence to the warband.",
+      "trigger": "Turn 3 of demo"
+    }
+  ],
+  "factions": [
+    {
+      "name": "Ashwick Townsfolk",
+      "type": "Civilian",
+      "description": "The people of Ashwick. Frightened, suspicious of outsiders, desperate for someone to retrieve the ring."
+    },
+    {
+      "name": "Goblin Warband",
+      "type": "Hostile",
+      "description": "A raiding party of goblins nesting in the northern caves. Led by Chieftain Skrix. Stole the Ring of Ashwick."
+    },
+    {
+      "name": "Coldwall Veterans",
+      "type": "Military (disbanded)",
+      "description": "Survivors of the Battle of Coldwall Pass. Gorm is among the last. They do not speak of what happened."
+    },
+    {
+      "name": "Northern Wanderers",
+      "type": "Neutral",
+      "description": "Hooded travellers passing through Ashwick. They keep to themselves and pay in foreign coin."
+    },
+    {
+      "name": "Founders of Ashwick",
+      "type": "Historical",
+      "description": "The dwarven smith-priests who founded Ashwick and forged the Ring. Long gone, but their legacy protects the town — or did."
+    }
+  ],
+  "relationships": [
+    {
+      "from": "Gorm",
+      "fromLabel": "Character",
+      "to": "The Shattered Crown Tavern",
+      "toLabel": "Location",
+      "type": "WORKS_AT"
+    },
+    {
+      "from": "Gorm",
+      "fromLabel": "Character",
+      "to": "Retrieve the Ring of Ashwick",
+      "toLabel": "Quest",
+      "type": "SEEKS"
+    },
+    {
+      "from": "Goblin Scout",
+      "fromLabel": "Character",
+      "to": "Northern Caves",
+      "toLabel": "Location",
+      "type": "LOCATED_IN"
+    },
+    {
+      "from": "Goblin Scout",
+      "fromLabel": "Character",
+      "to": "Goblin Warband",
+      "toLabel": "Faction",
+      "type": "MEMBER_OF"
+    },
+    {
+      "from": "Goblin Scout",
+      "fromLabel": "Character",
+      "to": "Survive the Goblin Ambush",
+      "toLabel": "Quest",
+      "type": "APPEARS_IN"
+    },
+    {
+      "from": "Survive the Goblin Ambush",
+      "fromLabel": "Quest",
+      "to": "Retrieve the Ring of Ashwick",
+      "toLabel": "Quest",
+      "type": "ADVANCES"
+    },
+    {
+      "from": "Ring of Ashwick",
+      "fromLabel": "Item",
+      "to": "Goblin Warband",
+      "toLabel": "Faction",
+      "type": "STOLEN_BY"
+    },
+    {
+      "from": "Ring of Ashwick",
+      "fromLabel": "Item",
+      "to": "Ashwick",
+      "toLabel": "Location",
+      "type": "BELONGS_TO"
+    },
+    {
+      "from": "Retrieve the Ring of Ashwick",
+      "fromLabel": "Quest",
+      "to": "Ring of Ashwick",
+      "toLabel": "Item",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "Retrieve the Ring of Ashwick",
+      "fromLabel": "Quest",
+      "to": "Northern Caves",
+      "toLabel": "Location",
+      "type": "TAKES_PLACE_AT"
+    },
+    {
+      "from": "The Shattered Crown Tavern",
+      "fromLabel": "Location",
+      "to": "Ashwick",
+      "toLabel": "Location",
+      "type": "LOCATED_IN"
+    }
+  ]
+}

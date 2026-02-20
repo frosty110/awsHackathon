@@ -1,19 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 01-scaffold
 source: 01-01-SUMMARY.md, 01-02-SUMMARY.md, 01-03-SUMMARY.md
 started: 2026-02-20T12:00:00Z
-updated: 2026-02-20T22:28:00Z
+updated: 2026-02-20T22:30:00Z
 ---
 
 ## Current Test
-<!-- OVERWRITE each test - shows where we are -->
 
-number: 6
-name: .env.example documents all keys
-expected: |
-  `.env.example` exists at the project root and lists keys for AWS (region, access key, secret key), Datadog LLMObs (DD_LLMOBS_ENABLED, DD_LLMOBS_ML_APP, DD_API_KEY, DD_LLMOBS_AGENTLESS_ENABLED, DD_SITE), Neo4j (URI, user, password), and MiniMax (API key, group ID).
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -39,22 +34,22 @@ result: pass
 
 ### 6. .env.example documents all keys
 expected: `.env.example` exists at the project root and lists keys for AWS (region, access key, secret key), Datadog LLMObs (DD_LLMOBS_ENABLED, DD_LLMOBS_ML_APP, DD_API_KEY, DD_LLMOBS_AGENTLESS_ENABLED, DD_SITE), Neo4j (URI, user, password), and MiniMax (API key, group ID).
-result: [pending]
+result: pass
 
 ### 7. dd-trace in server scripts
 expected: `server/package.json` scripts for `dev` and `start` include `NODE_OPTIONS='--import dd-trace/initialize.mjs'` so dd-trace bootstraps before app code.
-result: [pending]
+result: pass
 
 ### 8. .gitignore covers secrets and build artifacts
 expected: Root `.gitignore` includes entries for `.env`, `.env.local`, `node_modules/`, and `dist/` — no secrets or deps committed.
-result: [pending]
+result: pass
 
 ## Summary
 
 total: 8
-passed: 5
+passed: 8
 issues: 0
-pending: 3
+pending: 0
 skipped: 0
 
 ## Gaps

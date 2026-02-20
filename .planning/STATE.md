@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A playable AI Dungeon Master demo that runs live with visible Datadog LLM observability — the minimum viable path to hackathon prize eligibility.
-**Current focus:** Phase 7 in progress — 07-01 (TTS + /narrate) complete, next: 07-02 (AudioPlayer)
+**Current focus:** Phase 7 in progress — 07-02 (AudioPlayer) complete, next: 07-03
 
 ## Current Position
 
 Phase: 7 of 7 (Voice Demo Polish) — IN PROGRESS
-Plan: 1/N complete (07-01 TTS Service + /narrate done)
-Status: 07-01 executed — MiniMax TTS service, /narrate route, pre-gen script for opening.mp3
-Last activity: 2026-02-20 — Completed 07-01 (TTS Service and /narrate route)
+Plan: 2/3 complete (07-01 TTS + /narrate, 07-02 AudioPlayer component)
+Status: 07-02 executed — AudioPlayer component, App.tsx wired with TTS fetch and graceful degradation
+Last activity: 2026-02-20 — Completed 07-02 (AudioPlayer component and App.tsx wiring)
 
 Progress: [███████░░░] 64%
 
@@ -41,6 +41,7 @@ Progress: [███████░░░] 64%
 | Phase 03-lore-graph-seed P01 | 2 | 1 task | 1 file |
 | Phase 03-lore-graph-seed P02 | 1 | 2 tasks | 2 files |
 | Phase 07-voice-demo-polish P01 | 5 | 3 tasks | 5 files |
+| Phase 07-voice-demo-polish P02 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Recent decisions affecting current work:
 - [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
 - [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
 - [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
 
 ### Pending Todos
 
@@ -88,5 +92,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 07-01-PLAN.md — MiniMax TTS service, /narrate route, pre-gen script for opening.mp3.
-Resume file: `.planning/phases/07-voice-demo-polish/07-01-SUMMARY.md`
+Stopped at: Completed 07-02-PLAN.md — AudioPlayer component and App.tsx wiring.
+Resume file: `.planning/phases/07-voice-demo-polish/07-02-SUMMARY.md`

@@ -7,6 +7,16 @@ Compatibility links:
 - `AGENTS.md` (OpenAI Codex and Kiro)
 - `agent.md` (local alias requested by team)
 
+## Operating Mode
+
+This is a hackathon project. Speed is the priority.
+
+- Execute plans without flagging hypothetical concerns. If something breaks, fix it then.
+- Don't preemptively optimize, add defensive code for unlikely scenarios, or suggest production-grade improvements.
+- Don't review or critique plans unless asked. Just build.
+- Skip verification steps that aren't in the plan (e.g., don't test `npm run build` if the plan only asks for `npm run dev`).
+- Cosmetic warnings (dd-trace noise, deprecation notices) are not problems. Ignore them.
+
 ## Project Snapshot
 
 - Name: AI Dungeon Master
@@ -68,3 +78,9 @@ Compatibility links:
 - `.planning/ROADMAP.md`
 - `.planning/STATE.md`
 - `.planning/research/ARCHITECTURE.md`
+
+## Project Skill Files
+
+- `skills/claude-hackathon-operator/SKILL.md` for planning and doc alignment work.
+- `skills/codex-hackathon-operator/SKILL.md` for implementation and verification work.
+- `skills/kiro-hackathon-operator/SKILL.md` for delivery checklists and demo readiness work.

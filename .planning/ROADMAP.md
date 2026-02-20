@@ -28,15 +28,16 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Requirements**: None directly — enables all downstream phases
 **Success Criteria** (what must be TRUE):
   1. `npm run dev` starts both the Express server and Vite dev server from the monorepo root
-  2. `/health` endpoint returns 200 with a JSON status payload
+  2. `/health` endpoint returns 200 with a JSON status payload (and `/api/health` matches for proxy usage)
   3. All required environment variables are validated at startup with clear error messages for missing values
-  4. `.env.example` documents every required key (AWS, Datadog, Neo4j, MiniMax)
-  5. `.gitignore` excludes `.env` and `node_modules` — no secrets in git
+  4. `.env.example` documents every integration key (AWS, Datadog LLMObs, Neo4j, MiniMax)
+  5. Server `dev` and `start` scripts include `NODE_OPTIONS='--import dd-trace/initialize.mjs'`
+  6. `.gitignore` excludes `.env` and `node_modules` — no secrets in git
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Monorepo init: root package.json with workspaces, client/ Vite+React, server/ Express+TypeScript, shared tsconfig, .gitignore
-- [ ] 01-02-PLAN.md — Config validation: Zod env validation, /health route, server entry point with Neo4j connectivity check, .env.example
+- [x] 01-01-PLAN.md — Monorepo init: root package.json with workspaces, client/ Vite+React, server/ Express+TypeScript, shared tsconfig, .gitignore (implemented; dependency verification blocked in sandbox)
+- [x] 01-02-PLAN.md — Config validation: Zod env validation (DD_* LLMObs vars included), /health + /api/health route, server entry point with Neo4j connectivity check (explicit non-prod skip flag), .env.example (implemented; runtime verification blocked in sandbox)
 
 ---
 
@@ -155,7 +156,7 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Scaffold | 0/2 | Planning complete | - |
+| 1. Scaffold | 2/2 | Implemented; verification blocked by sandbox network (`ENOTFOUND registry.npmjs.org`) | 2026-02-20 |
 | 2. Chat UI | 0/3 | Not started | - |
 | 3. Lore Graph Seed | 0/2 | Not started | - |
 | 4. Bedrock Chat Core | 0/3 | Not started | - |

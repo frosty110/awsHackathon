@@ -6,13 +6,13 @@
 
 ## Summary
 
-Phase 1 establishes a two-package npm workspaces monorepo: `client/` (Vite + React + TypeScript) and `server/` (Express 5 + TypeScript). The root `package.json` coordinates both via `concurrently`, so a single `npm run dev` starts both dev servers. The server validates all required environment variables at startup using Zod, exports a typed `config` object, and exposes a `/health` route.
+Phase 1 establishes a two-package npm workspaces monorepo: `client/` (Vite + React + TypeScript) and `server/` (Express 5 + TypeScript). The root `package.json` coordinates both via `concurrently`, so a single `npm run dev` starts both dev servers. The server uses a central env defaults mapper with Zod parsing, exports a typed `config` object, logs startup warnings for blank integration keys, and exposes health routes at `/health` and `/api/health`.
 
 The stack is standard and well-understood. npm workspaces handle package hoisting and cross-workspace references. `tsx watch` replaces the old `ts-node + nodemon` combo for Express — it handles ES modules cleanly and restarts on file change with no config overhead. Vite proxies `/api` requests to the Express server during development, eliminating CORS friction.
 
-The critical decision already locked is `@aws-sdk/client-bedrock-runtime` (not `@anthropic-ai/bedrock-sdk`). This means the server-side `config.ts` must validate `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` (or allow credential chain fallback). The Zod schema must also cover `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, `DATADOG_API_KEY`, and `MINIMAX_API_KEY` / `MINIMAX_GROUP_ID`.
+The critical decision already locked is `@aws-sdk/client-bedrock-runtime` (not `@anthropic-ai/bedrock-sdk`). This means the server-side `config.ts` must include AWS, Neo4j, Datadog, and MiniMax keys in a central defaults mapper, then enforce non-blank requirements at service usage points (not as global startup blockers).
 
-**Primary recommendation:** Use npm workspaces + concurrently + tsx watch + Zod v4 for env validation. Do not reach for Turborepo or pnpm — the project is two packages, npm workspaces is sufficient.
+**Primary recommendation:** Use npm workspaces + concurrently + tsx watch + Zod v4 with a central defaults mapper and usage-time config checks. Do not reach for Turborepo or pnpm — the project is two packages, npm workspaces is sufficient.
 
 ---
 
@@ -30,6 +30,7 @@ The critical decision already locked is `@aws-sdk/client-bedrock-runtime` (not `
 | `dotenv` | 17.x | Load .env into process.env | Standard; v16+ supports multiline values and expand syntax |
 | `neo4j-driver` | 6.x | Neo4j connection + verifyConnectivity | Official driver; verifyConnectivity() used for boot health check |
 | `@aws-sdk/client-bedrock-runtime` | 3.x | AWS Bedrock inference (LOCKED DECISION) | Only SDK dd-trace auto-instruments; required for Datadog observability |
+| `dd-trace` | 5.86.x | Datadog tracing + LLM Observability auto-instrumentation | Must be loaded via `NODE_OPTIONS="--import dd-trace/initialize.mjs"` before app imports |
 
 ### Supporting (Dev Dependencies)
 | Library | Version | Purpose | When to Use |
@@ -55,6 +56,7 @@ npm install -D concurrently typescript
 **Installation (server):**
 ```bash
 npm install express zod dotenv neo4j-driver @aws-sdk/client-bedrock-runtime
+npm install dd-trace
 npm install -D tsx @types/node @types/express typescript
 ```
 
@@ -73,7 +75,7 @@ awsHackathon/
 ├── package.json              # root: workspaces, "dev" script using concurrently
 ├── tsconfig.base.json        # shared compiler options (strict, target ES2023)
 ├── .env                      # secrets — gitignored
-├── .env.example              # documents all required keys
+├── .env.example              # documents all integration keys
 ├── .gitignore
 ├── client/
 │   ├── package.json          # name: "client", extends root tsconfig
@@ -83,69 +85,102 @@ awsHackathon/
 │       ├── main.tsx
 │       └── App.tsx
 └── server/
-    ├── package.json          # name: "server", "dev": "tsx watch src/index.ts"
+    ├── package.json          # name: "server", dev/start scripts include NODE_OPTIONS dd-trace bootstrap
     ├── tsconfig.json         # extends ../tsconfig.base.json, module: NodeNext
     └── src/
-        ├── index.ts          # entry: load dotenv, validate config, start server
+        ├── index.ts          # entry: load dotenv, parse config defaults, start server
         ├── app.ts            # Express app factory (separates app from server)
         ├── routes/
-        │   └── health.ts     # GET /health
+        │   └── health.ts     # GET /health and /api/health
         └── services/
             └── config.ts     # Zod schema, parse process.env, export typed config
 ```
 
-### Pattern 1: Fail-Fast Env Validation on Import
-**What:** Import `config.ts` as the first thing in `index.ts`. Zod parses `process.env` and either throws a descriptive error (listing all missing vars) or returns a typed object. The process never reaches server startup with invalid config.
-**When to use:** Every Express server that has required env vars.
+### Pattern 1: Central Env Defaults Mapper + Usage-Time Requirements
+**What:** `config.ts` defines one `envDefaults` object and parses `{ ...envDefaults, ...process.env }` with Zod. Missing integration values become blank strings and trigger startup warnings, while hard errors are enforced only when the integration is actually used.
+**When to use:** Hackathon scaffolds where the app should boot before every external dependency is configured.
 **Example:**
 ```typescript
 // server/src/services/config.ts
 // Source: verified against zod.dev/api and Zod v4 release notes
 import { z } from "zod";
 
+const envDefaults = {
+  NODE_ENV: "development",
+  PORT: "3001",
+  AWS_REGION: "",
+  AWS_ACCESS_KEY_ID: "",
+  AWS_SECRET_ACCESS_KEY: "",
+  BEDROCK_MODEL_ID: "",
+  NEO4J_URI: "",
+  NEO4J_USERNAME: "",
+  NEO4J_PASSWORD: "",
+  DD_API_KEY: "",
+  DD_SITE: "datadoghq.com",
+  DD_LLMOBS_ENABLED: "1",
+  DD_LLMOBS_ML_APP: "",
+  DD_LLMOBS_AGENTLESS_ENABLED: "1",
+  DD_TRACE_AWS_SDK_BEDROCKRUNTIME_ENABLED: "true",
+  MINIMAX_API_KEY: "",
+  MINIMAX_GROUP_ID: "",
+  SKIP_NEO4J_CONNECTIVITY_CHECK: "0",
+} as const;
+
 const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  PORT: z.coerce.number().default(3001),
-
-  // AWS (locked: must use @aws-sdk/client-bedrock-runtime)
-  AWS_REGION: z.string().min(1),
-  // AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY may be omitted if using
-  // instance role / credential chain — validate presence loosely or skip
-  // to allow IAM role-based auth in production
-
-  // Neo4j
-  NEO4J_URI: z.string().url(),
-  NEO4J_USERNAME: z.string().min(1),
-  NEO4J_PASSWORD: z.string().min(1),
-
-  // Datadog
-  DATADOG_API_KEY: z.string().min(1),
-
-  // MiniMax (TTS — scoped to opening monologue only)
-  MINIMAX_API_KEY: z.string().min(1),
-  MINIMAX_GROUP_ID: z.string().min(1),
+  NODE_ENV: z.enum(["development", "production", "test"]),
+  PORT: z.coerce.number(),
+  AWS_REGION: z.string(),
+  AWS_ACCESS_KEY_ID: z.string(),
+  AWS_SECRET_ACCESS_KEY: z.string(),
+  BEDROCK_MODEL_ID: z.string(),
+  NEO4J_URI: z.string(),
+  NEO4J_USERNAME: z.string(),
+  NEO4J_PASSWORD: z.string(),
+  DD_API_KEY: z.string(),
+  DD_SITE: z.string(),
+  DD_LLMOBS_ENABLED: z.enum(["0", "1"]),
+  DD_LLMOBS_ML_APP: z.string(),
+  DD_LLMOBS_AGENTLESS_ENABLED: z.enum(["0", "1"]),
+  DD_TRACE_AWS_SDK_BEDROCKRUNTIME_ENABLED: z.enum(["true", "false"]),
+  MINIMAX_API_KEY: z.string(),
+  MINIMAX_GROUP_ID: z.string(),
+  SKIP_NEO4J_CONNECTIVITY_CHECK: z.enum(["0", "1"]),
 });
 
-const result = envSchema.safeParse(process.env);
+const result = envSchema.safeParse({ ...envDefaults, ...process.env });
 
 if (!result.success) {
-  console.error("Environment validation failed:");
+  console.error("Environment schema validation failed:");
   console.error(result.error.format());
   process.exit(1);
 }
 
 export const config = result.data;
 export type Config = typeof config;
+
+export function warnOnBlankConfig(keys: Array<keyof Config>, context: string): void {
+  const missing = keys.filter((key) => config[key] === "");
+  if (missing.length > 0) {
+    console.warn(`[config] ${context} missing: ${missing.join(", ")}`);
+  }
+}
+
+export function requireConfigValues(keys: Array<keyof Config>, context: string): void {
+  const missing = keys.filter((key) => config[key] === "");
+  if (missing.length > 0) {
+    throw new Error(`[config] ${context} requires: ${missing.join(", ")}`);
+  }
+}
 ```
 
 ### Pattern 2: Server Entry Point (index.ts)
-**What:** Entry loads dotenv first, then imports config (which triggers validation), then starts the HTTP server. Express app is defined in `app.ts` to keep entry thin.
+**What:** Entry loads dotenv first, then imports config helpers, logs startup warnings for optional integrations, and starts the HTTP server. Express app is defined in `app.ts` to keep entry thin.
 **Example:**
 ```typescript
 // server/src/index.ts
 // Source: pattern from reactsquad.io Express 5 guide (verified 2025)
 import "dotenv/config"; // must be first — populates process.env before config import
-import { config } from "./services/config.js"; // .js extension required with NodeNext module
+import { config, requireConfigValues, warnOnBlankConfig } from "./services/config.js";
 import neo4j from "neo4j-driver";
 import { createApp } from "./app.js";
 import { createServer } from "http";
@@ -157,13 +192,38 @@ async function main() {
     neo4j.auth.basic(config.NEO4J_USERNAME, config.NEO4J_PASSWORD)
   );
 
+  const allowNeo4jSkip =
+    config.SKIP_NEO4J_CONNECTIVITY_CHECK === "1" && config.NODE_ENV !== "production";
+
+  warnOnBlankConfig(
+    [
+      "AWS_REGION",
+      "BEDROCK_MODEL_ID",
+      "DD_API_KEY",
+      "DD_LLMOBS_ML_APP",
+      "MINIMAX_API_KEY",
+      "MINIMAX_GROUP_ID",
+    ],
+    "Startup"
+  );
+
   try {
+    if (!allowNeo4jSkip) {
+      requireConfigValues(
+        ["NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD"],
+        "Neo4j connectivity check"
+      );
+    }
     await driver.verifyConnectivity();
     console.log("Neo4j connection established");
   } catch (err) {
-    console.error("Neo4j connection failed:", err);
-    await driver.close();
-    process.exit(1);
+    if (allowNeo4jSkip) {
+      console.warn("Neo4j connectivity check skipped in non-production:", err);
+    } else {
+      console.error("Neo4j connection failed:", err);
+      await driver.close();
+      process.exit(1);
+    }
   }
 
   const app = createApp({ driver });
@@ -223,7 +283,7 @@ export default defineConfig({
 ```
 
 ### Pattern 5: Health Endpoint
-**What:** Simple GET /health returns 200 JSON. Used as liveness probe and to verify the server started correctly.
+**What:** Simple GET `/health` and `/api/health` return 200 JSON. Used as liveness probe and to verify the server started correctly from server and proxy paths.
 **Example:**
 ```typescript
 // server/src/routes/health.ts
@@ -231,7 +291,7 @@ import { Router } from "express";
 
 const router = Router();
 
-router.get("/health", (_req, res) => {
+router.get(["/health", "/api/health"], (_req, res) => {
   res.status(200).json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -243,7 +303,7 @@ export default router;
 ```
 
 ### Anti-Patterns to Avoid
-- **Reading `process.env` in service files directly:** Always import from `config.ts` so you get TypeScript types and the guarantee that validation already ran.
+- **Reading `process.env` in service files directly:** Always import from `config.ts` so you get typed access, centralized defaults, and shared usage-time guards.
 - **Putting `dotenv.config()` anywhere other than the entry point:** If config.ts or another module calls dotenv.config(), order-of-import bugs cause intermittent failures. Load dotenv in index.ts before anything else.
 - **Forgetting `.js` extensions in imports:** With `"module": "NodeNext"` in tsconfig, TypeScript requires explicit `.js` extensions even when importing `.ts` files. This trips up nearly every engineer on first setup.
 - **Checking both `client/` and `server/` into root node_modules conflicts:** npm workspaces hoists shared deps; don't install the same package at both workspace and root level with different versions.
@@ -255,7 +315,7 @@ export default router;
 
 | Problem | Don't Build | Use Instead | Why |
 |---------|-------------|-------------|-----|
-| Env validation with error messages | Custom if-else checks on process.env | `zod` with `safeParse` | Missing vars produce structured errors listing every violation at once; hand-rolled checks exit on first failure, require individual null checks, and lose TypeScript inference |
+| Config defaults + usage-time checks | Custom if-else checks on process.env | `envDefaults` + `zod.safeParse({ ...envDefaults, ...process.env })` + `requireConfigValues()` | Centralized defaults reduce boot friction; usage-time guards fail with explicit errors when a dependency is actually invoked |
 | Running two dev servers simultaneously | Shell `&` operator or Makefile | `concurrently` | Shell `&` has no process group management — Ctrl+C may orphan the server process; concurrently handles signals cleanly and labels output |
 | TypeScript watching/execution in server | `tsc --watch` + `node dist/` | `tsx watch` | tsc compile loop has 1-2s delay; tsx uses esbuild for near-instant restarts |
 | Connectivity health check | Ping or raw TCP test | `driver.verifyConnectivity()` | Official Neo4j method validates auth, protocol compatibility, and connection pool |
@@ -274,10 +334,10 @@ export default router;
 **Warning signs:** Works in ts-node (which is lenient) but fails with `tsx` or compiled output.
 
 ### Pitfall 2: dotenv Load Order
-**What goes wrong:** `config.ts` runs its Zod parse before `dotenv` has populated `process.env`, causing all env vars to fail validation even when `.env` exists.
+**What goes wrong:** `config.ts` parses before `dotenv` has populated `process.env`, so startup appears healthy but still uses default blank values and warning logs.
 **Why it happens:** ES module static imports are hoisted; if config.ts imports before `dotenv/config` is executed, `process.env` is empty.
 **How to avoid:** In `index.ts`, use `import "dotenv/config"` as the very first line before all other imports. Do NOT put `dotenv.config()` inside config.ts.
-**Warning signs:** All env vars fail on startup locally but you can see the vars are defined in `.env`.
+**Warning signs:** Startup logs unexpectedly report missing integration values even though `.env` contains them.
 
 ### Pitfall 3: Neo4j verifyConnectivity Return Value Changed
 **What goes wrong:** Code that tries to use the return value of `verifyConnectivity()` (e.g., to log server info) gets `undefined` or a type error.
@@ -286,10 +346,10 @@ export default router;
 **Warning signs:** TypeScript error on the return value type, or runtime `Cannot read property of undefined`.
 
 ### Pitfall 4: AWS Credential Chain in Local Dev
-**What goes wrong:** Zod validates `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` as required strings, causing startup failure when developers use AWS SSO or instance roles.
+**What goes wrong:** Startup appears fine, but the first Bedrock usage fails because required runtime values (usually `AWS_REGION` and `BEDROCK_MODEL_ID`) were left blank.
 **Why it happens:** The AWS SDK supports multiple credential sources (env vars, `~/.aws/credentials`, instance metadata). Requiring them as env vars blocks non-key-based auth flows.
-**How to avoid:** Mark AWS key env vars as optional in the Zod schema (`z.string().optional()`), or validate only `AWS_REGION` as required. The SDK credential chain handles the rest.
-**Warning signs:** Server fails to start on a machine using AWS SSO even though `aws sts get-caller-identity` succeeds.
+**How to avoid:** Keep `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` blank-default compatible for SSO/role use, and call `requireConfigValues(["AWS_REGION", "BEDROCK_MODEL_ID"], "Bedrock request")` in the Bedrock service.
+**Warning signs:** Bedrock route throws config errors on first call while local boot and health checks work.
 
 ### Pitfall 5: Zod v4 Breaking Changes
 **What goes wrong:** Code copied from blog posts or AI tools uses Zod v3 syntax that is invalid in v4 (e.g., `z.string().email()` still works but `z.string({ message: "..." })` → `z.string({ error: "..." })`).
@@ -300,7 +360,7 @@ export default router;
 ### Pitfall 6: MINIMAX_GROUP_ID Location Unknown
 **What goes wrong:** The MiniMax API requires a `GROUP_ID` parameter that is account-specific and not documented in the standard API key flow.
 **Why it happens:** MiniMax uses a two-token auth system (API key + group ID). The group ID is found in the MiniMax platform dashboard, not auto-generated with an API key.
-**How to avoid:** Treat `MINIMAX_GROUP_ID` as a required env var in the schema. Document in `.env.example` that it must be fetched from the MiniMax dashboard. Flag as a pre-hackathon blocker.
+**How to avoid:** Keep `MINIMAX_GROUP_ID` blank by default for scaffold boot, then enforce `requireConfigValues(["MINIMAX_API_KEY", "MINIMAX_GROUP_ID"], "MiniMax TTS request")` inside the TTS service.
 **Warning signs:** TTS requests return 401 or 403 even with a valid API key.
 
 ---
@@ -363,14 +423,15 @@ Verified patterns from official sources:
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "NODE_OPTIONS='--import dd-trace/initialize.mjs' tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "NODE_OPTIONS='--import dd-trace/initialize.mjs' node dist/index.js"
   },
   "dependencies": {
     "express": "^5.0.0",
     "zod": "^4.0.0",
     "dotenv": "^17.0.0",
+    "dd-trace": "^5.86.0",
     "neo4j-driver": "^6.0.0",
     "@aws-sdk/client-bedrock-runtime": "^3.0.0"
   },
@@ -406,26 +467,33 @@ try {
 
 ### .env.example
 ```bash
-# AWS (required — use @aws-sdk/client-bedrock-runtime ONLY, not @anthropic-ai/bedrock-sdk)
+# AWS Bedrock (leave blank until Phase 4 usage)
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=           # optional if using instance role / AWS SSO
 AWS_SECRET_ACCESS_KEY=       # optional if using instance role / AWS SSO
+BEDROCK_MODEL_ID=            # e.g. anthropic.claude-3-5-sonnet-20241022-v2:0
 
-# Neo4j
+# Neo4j (used at boot unless SKIP_NEO4J_CONNECTIVITY_CHECK=1 in non-production)
 NEO4J_URI=neo4j+s://your-instance.databases.neo4j.io
 NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=
 
-# Datadog
-DATADOG_API_KEY=
+# Datadog LLM Observability (leave blank until Phase 6 usage)
+DD_API_KEY=
+DD_SITE=datadoghq.com
+DD_LLMOBS_ENABLED=1
+DD_LLMOBS_ML_APP=ai-dm
+DD_LLMOBS_AGENTLESS_ENABLED=1
+DD_TRACE_AWS_SDK_BEDROCKRUNTIME_ENABLED=true
 
-# MiniMax TTS (opening monologue only — requires Group ID from MiniMax dashboard)
+# MiniMax TTS (opening monologue only; leave blank until Phase 7 usage)
 MINIMAX_API_KEY=
 MINIMAX_GROUP_ID=
 
 # Server
 PORT=3001
 NODE_ENV=development
+SKIP_NEO4J_CONNECTIVITY_CHECK=0
 ```
 
 ### .gitignore additions
@@ -444,7 +512,7 @@ dist/
 |--------------|------------------|--------------|--------|
 | `ts-node + nodemon` | `tsx watch` | 2023-2024 | tsx handles ESM natively, no extra config |
 | `ts-node` alone | `tsx` | 2023 | tsx is 5-10x faster startup |
-| Manual env checks (`if (!process.env.X)`) | `zod.safeParse(process.env)` | ~2022, matured | Typed config object, all errors at once, IDE autocomplete |
+| Manual env checks (`if (!process.env.X)`) | `envDefaults` + `zod.safeParse({ ...envDefaults, ...process.env })` + usage-time `requireConfigValues()` | ~2022, matured | Typed config object, predictable boot defaults, explicit runtime failure at integration boundary |
 | CRA (Create React App) | `create-vite` react-ts template | 2022-2023 | CRA is officially deprecated; Vite is the standard |
 | `yarn workspaces` | npm workspaces (npm 7+) | 2021 | npm now has built-in workspace support |
 | Zod v3 | Zod v4 | 2025 | Published on same `zod` package; 14x faster; `z.string({ error: ... })` replaces `message` |

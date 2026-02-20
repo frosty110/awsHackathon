@@ -104,11 +104,11 @@ Plans:
   1. Mentioning "tavern" in a player message causes the Shattered Crown Tavern's lore to appear in the system prompt before the Bedrock call
   2. Gorm (the barkeep NPC) speaks with the personality and motivation defined in the graph node, not generic barkeep dialogue
   3. The RAG lookup does not noticeably add latency — entities are extracted via keyword matching, not a second LLM call
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: RAG service — `server/src/services/rag.ts` with keyword entity extraction against a pre-seeded entity list; Cypher retrieval of matching nodes; lore context assembled as a string block
-- [ ] 05-02: Prompt injection + NPC personality — inject lore context into system prompt before each Bedrock call; NPC node attributes (personality, motivation) included verbatim; verify demo Turn 1 and Turn 2 prompt content
+- [ ] 05-01-PLAN.md — RAG service: `server/src/services/rag.ts` with alias-based keyword entity extraction, Neo4j Cypher retrieval via `driver.executeQuery()`, lore context assembly with narrative attribute filtering; `initRag(driver)` startup wiring in `index.ts`
+- [ ] 05-02-PLAN.md — Prompt injection: modify `bedrock.ts` to accept loreContext as second SystemContentBlock; wire `buildLoreContext()` call into `chat.ts` route before each Bedrock call
 
 ---
 

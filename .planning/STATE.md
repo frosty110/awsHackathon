@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A playable AI Dungeon Master demo that runs live with visible Datadog LLM observability — the minimum viable path to hackathon prize eligibility.
-**Current focus:** Phase 3 in progress — 03-01 (Lore Data) complete, 03-02 (Seed Script) next
+**Current focus:** Phase 3 complete — moving to Phase 4 (Bedrock Chat Core)
 
 ## Current Position
 
-Phase: 3 of 7 (Lore Graph Seed) — IN PROGRESS
-Plan: 1/2 complete (03-01 done, 03-02 pending)
-Status: 03-01 executed — data/lore.json created with 21 nodes and 11 relationships
-Last activity: 2026-02-20 — Completed 03-01 (Lore JSON data file)
+Phase: 3 of 7 (Lore Graph Seed) — COMPLETE
+Plan: 2/2 complete (03-01 Lore JSON done, 03-02 Seed Script done)
+Status: 03-02 executed — data/seed.ts and npm run seed created; Phase 3 fully complete
+Last activity: 2026-02-20 — Completed 03-02 (Neo4j Seed Script)
 
-Progress: [████░░░░░░] 36%
+Progress: [████▌░░░░░] 43%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: ~3 min
 - Total execution time: ~0.2 hours
 
@@ -29,16 +29,17 @@ Progress: [████░░░░░░] 36%
 |-------|-------|-------|----------|
 | 01-scaffold | 3 | ~10 min | ~3 min |
 | 02-chat-ui | 2 (of 2) | ~4 min | ~2 min |
-| 03-lore-graph-seed | 1 (of 2) | ~2 min | ~2 min |
+| 03-lore-graph-seed | 2 (of 2) | ~3 min | ~1.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01, 01-02, 01-03, 02-01, 02-02, 03-01
+- Last 5 plans: 01-03, 02-01, 02-02, 03-01, 03-02
 - Trend: Stable
 
 *Updated after each plan completion*
 | Phase 02-chat-ui P01 | 2 | 2 tasks | 6 files |
 | Phase 02-chat-ui P02 | 2 | 2 tasks | 5 files |
 | Phase 03-lore-graph-seed P01 | 2 | 1 task | 1 file |
+| Phase 03-lore-graph-seed P02 | 1 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,8 @@ Recent decisions affecting current work:
 - [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
 - [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
 - [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
 
 ### Pending Todos
 
@@ -80,5 +83,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 03-01-PLAN.md — data/lore.json with 21 nodes and 11 relationships. Ready for 03-02 (Seed Script).
-Resume file: `.planning/phases/03-lore-graph-seed/03-01-SUMMARY.md`
+Stopped at: Completed 03-02-PLAN.md — data/seed.ts and npm run seed. Phase 3 complete. Ready for Phase 4 (Bedrock Chat Core).
+Resume file: `.planning/phases/03-lore-graph-seed/03-02-SUMMARY.md`

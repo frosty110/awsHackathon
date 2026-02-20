@@ -52,12 +52,11 @@ Plans:
   3. A loading indicator ("The Dungeon Master is thinking...") appears while a response is pending
   4. The chat window auto-scrolls to the latest message on each new message
   5. A "Roll Dice" button triggers an animated d20 reveal with a suspense delay before showing the result
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: Dark fantasy theme — Tailwind v4 config with parchment/blood red palette, Cinzel/IM Fell English via Google Fonts, global CSS variables
-- [ ] 02-02: Chat components — `ChatWindow.tsx`, `MessageBubble.tsx` (DM vs player styles), `MessageInput.tsx`, auto-scroll hook
-- [ ] 02-03: Dice mechanic — `DiceRoller.tsx` with animated d20 reveal, `useSSEChat.ts` hook stub (handles send + loading state against real or mock backend)
+- [ ] 02-01-PLAN.md — Tailwind v4 setup + dark fantasy theme tokens, chat types (Message/AppState), useSSEChat mock hook, useChatScroll auto-scroll hook
+- [ ] 02-02-PLAN.md — ChatWindow, MessageBubble, MessageInput, DiceRoller components; App.tsx with idle/adventure state, header, reset, full wiring
 
 ---
 
@@ -151,14 +150,14 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously if needed (lore seeding does not block UI work).
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Scaffold | 2/3 | Gap closure planned for config validation pattern | 2026-02-20 |
-| 2. Chat UI | 0/3 | Not started | - |
+| 2. Chat UI | 0/2 | Planned | - |
 | 3. Lore Graph Seed | 0/2 | Not started | - |
 | 4. Bedrock Chat Core | 0/3 | Not started | - |
 | 5. RAG Pipeline | 0/2 | Not started | - |

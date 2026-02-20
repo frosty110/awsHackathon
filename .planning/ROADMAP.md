@@ -120,12 +120,11 @@ Plans:
   2. Three named custom spans are visible in the trace waterfall: `neo4j.lore_query`, `minimax.tts`, `bedrock.dm_response`
   3. A Datadog dashboard is live and shows token usage timeseries, request latency, and trace waterfall for the past 15 minutes
   4. The dashboard is defined and managed programmatically via the Datadog API (not hand-configured in the UI)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: dd-trace bootstrap — `NODE_OPTIONS='--import dd-trace/initialize.mjs'` in server start script; all five required env vars validated (`DD_LLMOBS_ENABLED`, `DD_LLMOBS_ML_APP`, `DD_API_KEY`, `DD_LLMOBS_AGENTLESS_ENABLED`, `DD_SITE`); smoke-test with one real request to confirm LLM span appears in Datadog
-- [ ] 06-02: Named custom spans — `tracer.startSpan('neo4j.lore_query')`, `tracer.startSpan('minimax.tts')`, `tracer.startSpan('bedrock.dm_response')` wrapping the relevant service calls with try/finally finish
-- [ ] 06-03: Programmatic dashboard — Datadog API script (`scripts/create-dashboard.ts`) creates token usage timeseries, latency graph, and trace waterfall widget; run against real trace data before demo
+- [ ] 06-01-PLAN.md — Bootstrap verification + named LLMObs spans: confirm dd-trace NODE_OPTIONS and env vars; add DD_APP_KEY to .env.example; wrap bedrock.ts, neo4j.ts, tts.ts with tracer.llmobs.trace() (NOT startSpan) using correct span kinds (llm for bedrock, tool for neo4j/tts)
+- [ ] 06-02-PLAN.md — Programmatic dashboard: install @datadog/datadog-api-client; scripts/create-dashboard.ts creates dashboard with token usage timeseries, latency p95, and live trace stream widgets; template variables for env/service
 
 ---
 
@@ -160,5 +159,5 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 3. Lore Graph Seed | 0/2 | Not started | - |
 | 4. Bedrock Chat Core | 0/2 | Not started | - |
 | 5. RAG Pipeline | 0/2 | Not started | - |
-| 6. Datadog Observability | 0/3 | Not started | - |
+| 6. Datadog Observability | 0/2 | Not started | - |
 | 7. Voice + Demo Polish | 0/3 | Not started | - |

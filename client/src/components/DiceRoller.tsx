@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 
 interface DiceRollerProps {
-  onRoll: () => void;
+  onRoll: (value: number) => void;
   disabled: boolean;
-  needsRoll: boolean;
 }
 
-export function DiceRoller({ onRoll, disabled, needsRoll }: DiceRollerProps) {
+export function DiceRoller({ onRoll, disabled }: DiceRollerProps) {
   const [shaking, setShaking] = useState(false);
   const shakeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -24,14 +23,14 @@ export function DiceRoller({ onRoll, disabled, needsRoll }: DiceRollerProps) {
 
     setShaking(true);
 
+    const result = Math.floor(Math.random() * 20) + 1;
+
     shakeTimeout.current = setTimeout(() => {
       shakeTimeout.current = null;
       setShaking(false);
-      onRoll();
+      onRoll(result);
     }, 400);
   }
-
-  const isPulsing = needsRoll && !disabled;
 
   return (
     <div className="px-4 pb-3">
@@ -42,7 +41,6 @@ export function DiceRoller({ onRoll, disabled, needsRoll }: DiceRollerProps) {
           'w-full py-2 font-cinzel text-sm text-parchment border border-blood bg-blood/30 hover:bg-blood/50 rounded',
           'disabled:opacity-40 disabled:cursor-not-allowed',
           shaking ? 'animate-dice-shake' : '',
-          isPulsing ? 'animate-pulse-glow' : '',
         ]
           .filter(Boolean)
           .join(' ')}

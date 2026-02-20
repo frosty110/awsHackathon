@@ -25,6 +25,7 @@
   /* Animations */
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
   --animate-dice-shake: dice-shake 0.4s ease-in-out;
+  --animate-dice-reveal: dice-reveal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 
   @keyframes pulse-glow {
     0%, 100% { box-shadow: 0 0 8px oklch(0.5 0.18 30 / 0.5); }
@@ -37,6 +38,11 @@
     40%      { transform: translate3d(5px, 0, 0) rotate(3deg); }
     60%      { transform: translate3d(-4px, 0, 0) rotate(-2deg); }
     80%      { transform: translate3d(4px, 0, 0) rotate(1deg); }
+  }
+
+  @keyframes dice-reveal {
+    0%   { opacity: 0; transform: scale(0.3) translateY(20px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
   }
 }
 

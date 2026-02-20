@@ -9,10 +9,6 @@ export default function App() {
   const [appState, setAppState] = useState<AppState>('idle');
   const { messages, isLoading, sendMessage, reset } = useSSEChat();
 
-  // Derive needsRoll: true when the last DM message suggests a roll
-  const lastDM = [...messages].reverse().find(m => m.role === 'dm')?.content ?? '';
-  const needsRoll = /roll|dice|check|save|attack/i.test(lastDM);
-
   function handleStart() {
     setAppState('adventure');
   }
@@ -22,8 +18,8 @@ export default function App() {
     setAppState('idle');
   }
 
-  function handleRollDice() {
-    sendMessage('🎲 I roll the dice!');
+  function handleRollDice(value: number) {
+    sendMessage(`🎲 ${value}`);
   }
 
   return (
@@ -73,7 +69,6 @@ export default function App() {
                 <DiceRoller
                   onRoll={handleRollDice}
                   disabled={isLoading}
-                  needsRoll={needsRoll}
                 />
               </div>
             </>

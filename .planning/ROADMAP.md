@@ -87,12 +87,11 @@ Plans:
   2. The DM responds in character using a D&D system prompt with full conversation history included
   3. When a dice roll is triggered, the result number is included in the next LLM prompt and the DM narrates it explicitly (e.g., "your roll of 17 strikes true")
   4. The DM narrates combat outcomes distinctly based on roll bracket (1-5 failure, 6-15 partial, 16-20 great success)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: Bedrock service — `server/src/services/bedrock.ts` using `@aws-sdk/client-bedrock-runtime` `BedrockRuntimeClient` + `ConverseStreamCommand`; model ID verified with test invocation
-- [ ] 04-02: Chat route + SSE — `server/src/routes/chat.ts` accepts `{ message, history, diceResult? }`, pipes stream chunks as SSE with `X-Accel-Buffering: no`; D&D system prompt with dice result injection
-- [ ] 04-03: Frontend SSE wiring — connect `useSSEChat.ts` to live `/chat` endpoint; verify streaming renders in `ChatWindow`; wire dice roll value into next message payload
+- [ ] 04-01-PLAN.md — Bedrock service + conversation store + chat route: BedrockRuntimeClient singleton with ConverseStreamCommand, in-memory conversation Map, POST /chat SSE endpoint with D&D system prompt and dice injection
+- [ ] 04-02-PLAN.md — Frontend SSE wiring + dice result: replace useSSEChat stub with real fetch+ReadableStream SSE, wire DiceRoller to generate d20 number, human-verify end-to-end streaming
 
 ---
 
@@ -159,7 +158,7 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 1. Scaffold | 3/3 | ✓ Complete | 2026-02-20 |
 | 2. Chat UI | 2/2 | ✓ Complete | 2026-02-20 |
 | 3. Lore Graph Seed | 0/2 | Not started | - |
-| 4. Bedrock Chat Core | 0/3 | Not started | - |
+| 4. Bedrock Chat Core | 0/2 | Not started | - |
 | 5. RAG Pipeline | 0/2 | Not started | - |
 | 6. Datadog Observability | 0/3 | Not started | - |
 | 7. Voice + Demo Polish | 0/3 | Not started | - |

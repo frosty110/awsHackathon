@@ -1,0 +1,52 @@
+/* 1. Google Fonts MUST come before @import "tailwindcss" per CSS spec */
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&display=swap");
+
+/* 2. Tailwind v4 base — no postcss.config.js or tailwind.config.js needed */
+@import "tailwindcss";
+
+/* 3. Dark fantasy design tokens — all utility classes generated from these */
+@theme {
+  /* Brand colors */
+  --color-parchment: #e0d0b0;
+  --color-blood: #8b1a1a;
+  --color-blood-light: #c0392b;
+
+  /* Bubble backgrounds — semi-transparent so background bleeds through */
+  --color-dm-bubble: oklch(0.15 0.02 260 / 0.88);
+  --color-player-bubble: oklch(0.20 0.06 28 / 0.88);
+
+  /* Page surface overlay (sides of centered container) */
+  --color-surface: oklch(0.08 0.01 260 / 0.95);
+
+  /* Typography */
+  --font-cinzel: "Cinzel", serif;
+  --font-fell: "IM Fell English", serif;
+
+  /* Animations */
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-dice-shake: dice-shake 0.4s ease-in-out;
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 8px oklch(0.5 0.18 30 / 0.5); }
+    50% { box-shadow: 0 0 22px oklch(0.5 0.18 30 / 0.95), 0 0 44px oklch(0.5 0.18 30 / 0.35); }
+  }
+
+  @keyframes dice-shake {
+    0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+    20%      { transform: translate3d(-5px, 0, 0) rotate(-3deg); }
+    40%      { transform: translate3d(5px, 0, 0) rotate(3deg); }
+    60%      { transform: translate3d(-4px, 0, 0) rotate(-2deg); }
+    80%      { transform: translate3d(4px, 0, 0) rotate(1deg); }
+  }
+}
+
+/* 4. Full-screen dark background — fallback gradient ensures UI works without tavern-bg.jpg */
+/* TODO: Add royalty-free dark tavern/forest image from Unsplash to client/public/tavern-bg.jpg */
+body {
+  background-color: oklch(0.07 0.01 260);
+  background-image: url('/tavern-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  min-height: 100vh;
+}

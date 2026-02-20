@@ -138,12 +138,12 @@ Plans:
   1. Clicking "Start Adventure" plays an AI-narrated DM opening monologue and displays the first DM message in the chat
   2. The audio plays in the browser without user interaction errors (Web Audio API autoplay policy handled)
   3. The scripted 3-turn demo (tavern arrival → quest acceptance → goblin combat with dice roll) completes without errors or off-script DM responses
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 07-01: MiniMax TTS service — `server/src/services/tts.ts` using raw `fetch` to MiniMax T2A v2; hex-decode `Buffer.from(hex, 'hex')`; `POST /narrate` route returns audio buffer; standalone test script validates response shape before integration
-- [ ] 07-02: AudioPlayer + Start Adventure — `client/src/components/AudioPlayer.tsx`; "Start Adventure" button calls `/narrate` then plays audio; loading state ("The Dungeon Master is speaking...") during generation
-- [ ] 07-03: Demo scenario rehearsal — 3 pre-written player inputs locked in; system prompt tuned for lore consistency; Datadog dashboard pre-populated with real traces; two-screen setup confirmed (app + dashboard)
+- [ ] 07-01-PLAN.md — MiniMax TTS service: `server/src/services/tts.ts` (T2A v2 fetch + hex decode), `server/src/routes/narrate.ts` (POST /narrate returns audio/mpeg), mounted in `app.ts`
+- [ ] 07-02-PLAN.md — AudioPlayer + Start Adventure: `client/src/components/AudioPlayer.tsx` (fetch /narrate, blob playback, loading state, graceful degradation); App.tsx wiring
+- [ ] 07-03-PLAN.md — Demo system prompt + rehearsal: `server/src/services/system-prompt.ts` (DM persona, constraints, dice brackets, buildSystemPrompt for lore injection); human verification of demo script alignment
 
 ---
 

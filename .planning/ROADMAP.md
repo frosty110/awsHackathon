@@ -70,11 +70,11 @@ Plans:
   3. A test Cypher query for "tavern" returns the Shattered Crown Tavern node with location attributes
   4. A test Cypher query for "Gorm" returns the barkeep NPC with personality and motivation attributes
   5. A test Cypher query for "goblin" returns the combat encounter node with relationship to the quest
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: Lore schema + JSON — `data/lore.json` with ~20 nodes (Character, Location, Item, Quest, Faction labels); 3-scene coverage (tavern, barkeep, goblin encounter)
-- [ ] 03-02: Seed script + verification — `data/seed.ts` with `MERGE` for idempotency; `driver.executeQuery()` pattern; verify Cypher queries for all three demo turns
+- [ ] 03-01-PLAN.md — Lore data: `data/lore.json` with 21 nodes (5 Character, 5 Location, 4 Item, 2 Quest, 5 Faction) and 11 relationships covering all 3 demo turns
+- [ ] 03-02-PLAN.md — Seed script: `data/seed.ts` with uniqueness constraints, UNWIND+MERGE node seeding, MERGE relationships, driver.close() cleanup; `npm run seed` in root package.json
 
 ---
 

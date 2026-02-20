@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A playable AI Dungeon Master demo that runs live with visible Datadog LLM observability — the minimum viable path to hackathon prize eligibility.
-**Current focus:** Phase 2 (Chat UI) — Plan 01 complete, Plan 02 next
+**Current focus:** Phase 2 complete — ready for Phase 3 (Lore Graph Seed) and Phase 4 (Bedrock Chat Core)
 
 ## Current Position
 

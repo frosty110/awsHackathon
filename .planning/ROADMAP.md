@@ -51,7 +51,7 @@ Plans:
   2. DM messages and player messages are visually distinct chat bubbles
   3. A loading indicator ("The Dungeon Master is thinking...") appears while a response is pending
   4. The chat window auto-scrolls to the latest message on each new message
-  5. A "Roll Dice" button triggers an animated d20 reveal with a suspense delay before showing the result
+  5. A "Roll Dice" button triggers a distinct dice action message with brief shake animation (no frontend d20 reveal)
 **Plans**: 2 plans
 
 Plans:
@@ -157,7 +157,7 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Scaffold | 3/3 | ✓ Complete | 2026-02-20 |
-| 2. Chat UI | 0/2 | Planned | - |
+| 2. Chat UI | 2/2 | ✓ Complete | 2026-02-20 |
 | 3. Lore Graph Seed | 0/2 | Not started | - |
 | 4. Bedrock Chat Core | 0/3 | Not started | - |
 | 5. RAG Pipeline | 0/2 | Not started | - |

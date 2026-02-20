@@ -32,11 +32,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. All required environment variables are validated at startup with clear error messages for missing values
   4. `.env.example` documents every required key (AWS, Datadog, Neo4j, MiniMax)
   5. `.gitignore` excludes `.env` and `node_modules` — no secrets in git
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: Monorepo init — root `package.json` with workspaces, `client/` Vite+React, `server/` Express+TypeScript, shared `tsconfig`
-- [ ] 01-02: Config validation — `server/src/services/config.ts` reads and validates all env vars at startup; `/health` route; `neo4j driver.verifyConnectivity()` called on boot
+- [ ] 01-01-PLAN.md — Monorepo init: root package.json with workspaces, client/ Vite+React, server/ Express+TypeScript, shared tsconfig, .gitignore
+- [ ] 01-02-PLAN.md — Config validation: Zod env validation, /health route, server entry point with Neo4j connectivity check, .env.example
 
 ---
 
@@ -155,7 +155,7 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Scaffold | 0/2 | Not started | - |
+| 1. Scaffold | 0/2 | Planning complete | - |
 | 2. Chat UI | 0/3 | Not started | - |
 | 3. Lore Graph Seed | 0/2 | Not started | - |
 | 4. Bedrock Chat Core | 0/3 | Not started | - |

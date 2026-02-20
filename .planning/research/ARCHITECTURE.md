@@ -15,8 +15,8 @@
 │                          CLIENT LAYER                                │
 │  ┌─────────────────────────────────────────────────────────────┐    │
 │  │  React Chat UI                                               │    │
-│  │  - Message input + conversation history                      │    │
-│  │  - EventSource (SSE) for streaming DM responses              │    │
+│  │  - Message input + rendered conversation                     │    │
+│  │  - fetch POST + ReadableStream SSE parser                    │    │
 │  │  - <audio> element for MiniMax TTS playback                  │    │
 │  └──────────────────────────┬──────────────────────────────────┘    │
 └─────────────────────────────┼───────────────────────────────────────┘
@@ -53,7 +53,7 @@
 │                                                                      │
 │  ┌──────────────────────────────────────────────────────────────┐   │
 │  │   Datadog dd-trace (wraps all above automatically)             │   │
-│  │   DD_LLMOBS_ENABLED=1  DD_TRACE_AWS_SDK_BEDROCKRUNTIME=true   │   │
+│  │   DD_LLMOBS_ENABLED=1  DD_TRACE_AWS_SDK_BEDROCKRUNTIME_ENABLED=true │
 │  └──────────────────────────────────────────────────────────────┘   │
 └───────────────────────┬───────────────────────────┬─────────────────┘
                         │                           │
@@ -74,12 +74,13 @@
 
 | Component | Responsibility | Communicates With |
 |-----------|----------------|-------------------|
-| React Chat UI | Render conversation, send user messages, consume SSE stream, play TTS audio | Express server (HTTP + SSE) |
-| Express `/chat` | Accept message, run RAG pipeline, stream Bedrock response as SSE | RAG Pipeline Service, Bedrock Service |
+| React Chat UI | Render conversation, send `{ conversationId?, message }`, consume SSE stream, play TTS audio | Express server (HTTP + SSE) |
+| Express `/chat` | Accept message, load+persist conversation state, run RAG pipeline, stream Bedrock response as SSE | Conversation Store, RAG Pipeline Service, Bedrock Service |
 | Express `/narrate` | Accept text, call MiniMax TTS, return audio buffer | TTS Service |
+| Conversation Store | Source of truth for conversation state keyed by `conversationId` (in-memory for demo, Redis later) | Express `/chat` |
 | RAG Pipeline Service | Extract entities from user message, query Neo4j, assemble injected prompt | Neo4j, Bedrock Service |
 | Bedrock Service | Call `BedrockRuntimeClient.ConverseStream`, pipe chunks to response | AWS Bedrock (Claude) |
-| TTS Service | POST to MiniMax T2A v2 API, decode hex PCM buffer, return to caller | MiniMax REST API |
+| TTS Service | POST to MiniMax T2A v2 API, decode hex PCM, wrap as WAV buffer, return to caller | MiniMax REST API |
 | Neo4j | Store D&D lore as a labeled property graph (Characters, Locations, Items, Events, Factions) | RAG Pipeline Service |
 | Datadog dd-trace | Auto-instrument Bedrock calls as LLM spans; manual `tool` spans for Neo4j queries | Datadog Agent → Datadog cloud |
 
@@ -96,22 +97,23 @@ project/
 │   │   │   ├── MessageInput.tsx   # User input form
 │   │   │   └── AudioPlayer.tsx    # TTS playback
 │   │   ├── hooks/
-│   │   │   └── useSSEChat.ts      # EventSource management + state
+│   │   │   └── useSSEChat.ts      # fetch + ReadableStream SSE parser + state
 │   │   ├── api.ts                 # fetch wrappers for /chat and /narrate
 │   │   └── App.tsx
 │   └── package.json
 │
 ├── server/                        # Node.js + Express backend
 │   ├── src/
-│   │   ├── index.ts               # Express app init + dd-trace bootstrap (MUST be first import)
+│   │   ├── index.ts               # Express app init (dd-trace initialized via NODE_OPTIONS)
 │   │   ├── routes/
 │   │   │   ├── chat.ts            # POST /chat → SSE stream
-│   │   │   └── narrate.ts         # POST /narrate → audio buffer
+│   │   │   └── narrate.ts         # POST /narrate → audio/wav buffer
 │   │   ├── services/
+│   │   │   ├── conversationStore.ts # In-memory conversation state (demo)
 │   │   │   ├── rag.ts             # Entity extraction + Neo4j query + prompt assembly
 │   │   │   ├── bedrock.ts         # BedrockRuntimeClient wrapper + stream handler
 │   │   │   ├── neo4j.ts           # Driver singleton + typed query helpers
-│   │   │   └── tts.ts             # MiniMax T2A REST call + hex decode
+│   │   │   └── tts.ts             # MiniMax T2A REST call + PCM-to-WAV conversion
 │   │   └── config.ts              # Env var validation (fail fast on missing keys)
 │   └── package.json
 │
@@ -124,10 +126,11 @@ project/
 
 ### Structure Rationale
 
-- **`index.ts` imports dd-trace first:** Datadog requires `dd-trace` to be required/imported before any other module for auto-instrumentation to patch dependencies correctly. This is non-negotiable.
+- **`dd-trace` initializes before app code:** Prefer `NODE_OPTIONS="--import dd-trace/initialize.mjs"` so auto-instrumentation always patches dependencies before they load.
 - **`services/` flat structure:** For a 6-hour hackathon, avoid deep nesting. Each service = one file, one responsibility.
+- **`conversationStore.ts` as source of truth:** Keep history server-side. Client only sends `conversationId` + latest message.
 - **`data/seed.ts` separate from server:** Seed runs once at setup, not in request path. Keep it isolated.
-- **`client/hooks/useSSEChat.ts`:** Centralizes SSE lifecycle management (open, message, error, close) so the component stays presentational.
+- **`client/hooks/useSSEChat.ts`:** Centralizes stream lifecycle and robust SSE chunk parsing so UI components stay presentational.
 
 ---
 
@@ -135,11 +138,11 @@ project/
 
 ### Pattern 1: SSE Streaming for Chat Responses
 
-**What:** Express sets response headers to `text/event-stream` and pipes Bedrock's `ConverseStream` delta chunks directly to the HTTP response as SSE events. React uses `EventSource` or a manual `fetch` + `ReadableStream` to consume chunks and append to UI state.
+**What:** Express sets response headers to `text/event-stream` and pipes Bedrock's `ConverseStream` delta chunks directly to the HTTP response as SSE events. React uses `fetch` + `ReadableStream` to consume chunks and append to UI state.
 
 **When to use:** Any time the LLM response should appear progressively in the UI. Critical for D&D narration to feel alive rather than waiting 5-10 seconds for a full response.
 
-**Trade-offs:** SSE is one-directional (server → client) which is all we need here. Simpler than WebSocket for this use case. Browser auto-reconnects on drop. Does not support request headers natively on `EventSource`, so use `fetch` + `ReadableStream` if auth headers are needed.
+**Trade-offs:** SSE is one-directional (server → client) which is all we need here. Simpler than WebSocket for this use case. `EventSource` is not used because chat requires a POST body (`conversationId` + `message`). For this demo there is no auth, so the transport stays minimal.
 
 **Example:**
 ```typescript
@@ -177,33 +180,89 @@ export async function streamBedrockResponse(
 
 ```typescript
 // client/hooks/useSSEChat.ts
-async function sendMessage(userMessage: string) {
+async function sendMessage(conversationId: string | null, userMessage: string) {
   const response = await fetch('/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: userMessage }),
+    body: JSON.stringify({ conversationId, message: userMessage }),
   });
 
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
+  let pending = '';
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    const lines = decoder.decode(value).split('\n');
-    for (const line of lines) {
-      if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-        const { text } = JSON.parse(line.slice(6));
+
+    pending += decoder.decode(value, { stream: true });
+    const events = pending.split('\n\n');
+    pending = events.pop() ?? '';
+
+    for (const event of events) {
+      if (!event.startsWith('data:')) continue;
+      const payload = event.slice(5).trim();
+      if (payload === '[DONE]') continue;
+      if (payload.startsWith('{')) {
+        const { text, conversationId: returnedId } = JSON.parse(payload);
+        if (returnedId) setConversationId(returnedId);
         setCurrentResponse(prev => prev + text);
       }
     }
   }
+
+  // Flush any trailing bytes that did not end with a full delimiter.
+  pending += decoder.decode();
 }
 ```
 
 ---
 
-### Pattern 2: Graph RAG — Entity-Anchored Cypher Retrieval
+### Pattern 2: Server-Owned Conversation State + Token Budget
+
+**What:** `/chat` accepts `{ conversationId?, message }`. The server creates a conversation when `conversationId` is missing, stores all turns, and is the only source of truth for history. Before each Bedrock call, the server applies a token budget policy (system prompt + RAG context + most recent turns that fit the budget).
+
+**When to use:** Every chat turn. This is the default for the project.
+
+**Trade-offs:** Prevents client tampering with history and keeps prompt assembly centralized. In-memory storage is enough for demo scale; move to Redis for multi-instance deployment.
+
+**Example:**
+```typescript
+// server/services/conversationStore.ts
+type ChatMessage = { role: 'user' | 'assistant'; content: string };
+const conversations = new Map<string, ChatMessage[]>();
+
+export function getOrCreateConversation(conversationId?: string) {
+  const id = conversationId ?? crypto.randomUUID();
+  if (!conversations.has(id)) conversations.set(id, []);
+  return { id, history: conversations.get(id)! };
+}
+
+export function buildModelMessages(history: ChatMessage[]) {
+  // Demo token policy: keep last 12 turns; replace with true token counting if needed.
+  return history.slice(-12);
+}
+```
+
+```typescript
+// server/routes/chat.ts
+router.post('/chat', async (req, res) => {
+  const { conversationId, message } = req.body;
+  const { id, history } = getOrCreateConversation(conversationId);
+  history.push({ role: 'user', content: message });
+
+  // Send ID once so client can continue same server-owned conversation.
+  res.write(`data: ${JSON.stringify({ conversationId: id, text: '' })}\n\n`);
+
+  const modelMessages = buildModelMessages(history);
+  const assistantText = await streamBedrockResponse(modelMessages, res);
+  history.push({ role: 'assistant', content: assistantText });
+});
+```
+
+---
+
+### Pattern 3: Graph RAG — Entity-Anchored Cypher Retrieval
 
 **What:** On each user message, extract named entities (character names, location names, item names) using simple string matching against a known entity list (for hackathon speed) or a lightweight NER pass. Use those entities as Cypher query parameters to retrieve related nodes up to 2 hops. Inject the returned subgraph text into the system prompt before calling Bedrock.
 
@@ -242,7 +301,7 @@ export async function buildLoreContext(userMessage: string): Promise<string> {
 
 ---
 
-### Pattern 3: Datadog LLM Observability with Manual Neo4j Spans
+### Pattern 4: Datadog LLM Observability with Manual Neo4j Spans
 
 **What:** Import `dd-trace` as the very first line in `index.ts` with `DD_LLMOBS_ENABLED=1` and `DD_TRACE_AWS_SDK_BEDROCKRUNTIME_ENABLED=true`. This auto-instruments every `BedrockRuntimeClient` call as an LLM span (captures model ID, token counts, latency). Neo4j queries are not auto-instrumented, so wrap them in manual `tool` spans.
 
@@ -283,9 +342,9 @@ export async function queryLore(entities: string[]): Promise<Record[]> {
 
 ---
 
-### Pattern 4: MiniMax TTS for Opening Monologue Only
+### Pattern 5: MiniMax TTS for Opening Monologue Only
 
-**What:** On session start (or on demand), POST the opening monologue text to MiniMax's T2A v2 endpoint. Response contains hex-encoded PCM audio. Decode to a `Buffer`, encode as base64, return to client, play via `<audio>` element.
+**What:** On session start (or on demand), POST the opening monologue text to MiniMax's T2A v2 endpoint. Response contains hex-encoded PCM audio. Decode the PCM bytes, wrap them in a WAV container, return `audio/wav` to the client, and play via `<audio>`.
 
 **When to use:** Opening monologue only. Do NOT run TTS on every DM response — MiniMax latency (1-3s for short clips) would break the conversational feel.
 
@@ -294,7 +353,7 @@ export async function queryLore(entities: string[]): Promise<Record[]> {
 **Example:**
 ```typescript
 // server/services/tts.ts
-export async function generateSpeech(text: string): Promise<Buffer> {
+export async function generateSpeechWav(text: string): Promise<Buffer> {
   const response = await fetch(
     `https://api.minimaxi.chat/v1/t2a_v2?GroupId=${process.env.MINIMAX_GROUP_ID}`,
     {
@@ -317,7 +376,8 @@ export async function generateSpeech(text: string): Promise<Buffer> {
   );
 
   const data = await response.json();
-  return Buffer.from(data.data.audio, 'hex'); // inline hex-encoded PCM
+  const pcm = Buffer.from(data.data.audio, 'hex'); // inline hex-encoded PCM
+  return pcmToWav(pcm, { sampleRateHz: 32000, channels: 1, bitDepth: 16 });
 }
 ```
 
@@ -325,8 +385,8 @@ export async function generateSpeech(text: string): Promise<Buffer> {
 // server/routes/narrate.ts
 router.post('/narrate', async (req, res) => {
   const { text } = req.body;
-  const audioBuffer = await generateSpeech(text);
-  res.setHeader('Content-Type', 'audio/mpeg');
+  const audioBuffer = await generateSpeechWav(text);
+  res.setHeader('Content-Type', 'audio/wav');
   res.send(audioBuffer);
 });
 ```
@@ -353,10 +413,15 @@ new Audio(url).play();
 User types message
     │
     ▼
-React: POST /chat { message, history }
+React: POST /chat { conversationId?, message }
     │
     ▼
 Express /chat handler
+    │
+    ├─► Conversation Store
+    │       │
+    │       ├─► create conversationId if missing
+    │       └─► append latest user message
     │
     ├─► RAG Pipeline Service
     │       │
@@ -366,19 +431,20 @@ Express /chat handler
     │               │
     │               └─► lore context string
     │
-    ├─► Prompt assembly
+    ├─► Prompt assembly (token-budgeted)
     │       system: DM_SYSTEM_PROMPT + lore context
-    │       messages: full conversation history + user message
+    │       messages: server-side conversation window
     │
     └─► Bedrock Service: ConverseStreamCommand  ← Datadog LLM span (auto)
             │
+            ├─► SSE metadata event with conversationId
             └─► SSE stream of delta chunks
                     │
                     ▼
               React: append chunks to UI message bubble
                     │
                     ▼
-              [DONE] sentinel → mark message complete
+              [DONE] sentinel → persist assistant message + mark turn complete
 ```
 
 ### Opening Monologue Flow (session start, once)
@@ -399,7 +465,7 @@ MiniMax T2A v2 API (POST, ~1-3s wait)
 hex-encoded PCM audio → Buffer.from(hex, 'hex')
     │
     ▼
-Express: send audio/mpeg buffer
+Express: wrap PCM in WAV container, send `audio/wav`
     │
     ▼
 React: Blob URL → new Audio(url).play()
@@ -439,7 +505,7 @@ This order respects hard dependencies between components:
 
 6. **MiniMax TTS** — Add the `/narrate` route and React audio playback. Keep this isolated and late — it's a demo flourish, not core functionality. Test independently with a hardcoded monologue string.
 
-7. **Polish + demo prep** — System prompt tuning, conversation history handling, UI cleanup, test the two-screen demo (app + Datadog dashboard).
+7. **Polish + demo prep** — System prompt tuning, token-budget tuning, UI cleanup, test the two-screen demo (app + Datadog dashboard).
 
 ---
 
@@ -485,6 +551,29 @@ This order respects hard dependencies between components:
 
 ---
 
+## Reliability and Failure Handling
+
+Define explicit failure behavior so the demo does not stall on dependency issues:
+
+- **Bedrock timeout + cancellation:** Use `AbortController` per request (for example 30s hard timeout). On timeout, emit SSE error event and end stream cleanly.
+- **RAG graceful degradation:** If Neo4j query fails or times out, continue with base system prompt and user message only. Do not fail the whole chat turn.
+- **MiniMax timeout policy:** Timeout `/narrate` calls (for example 10s). If TTS fails, return JSON error and let UI continue without audio.
+- **SSE error contract:** Emit `data: {"error":"...","conversationId":"..."}` before `[DONE]` when recoverable; client renders a retry affordance.
+- **Idempotency:** Persist assistant output only once per turn after stream completion to avoid duplicate messages on retries.
+
+---
+
+## Demo Security Posture (No Auth)
+
+No authentication is required for this hackathon demo. Treat this as an explicit non-production decision.
+
+- **CORS:** Allow only the demo frontend origin(s), not `*`.
+- **Request limits:** Apply JSON body size limits (for example `1mb`) and basic per-IP rate limiting on `/chat` and `/narrate`.
+- **Secrets:** Keep API keys server-side only; never expose `MINIMAX_API_KEY`, `DD_API_KEY`, or AWS credentials to client code.
+- **Prompt hardening:** Keep system prompt guardrails and sanitize any user-provided text that may be reflected in logs/UI.
+
+---
+
 ## Integration Points
 
 ### External Services
@@ -493,19 +582,19 @@ This order respects hard dependencies between components:
 |---------|---------------------|-----------|-------|
 | AWS Bedrock (Claude) | `@aws-sdk/client-bedrock-runtime` `ConverseStreamCommand` | AWS credentials via env or IAM role | Use `anthropic.claude-3-5-sonnet-20241022-v2:0` or specify model ARN. Region must match where Bedrock Claude is enabled. Confidence: HIGH |
 | Neo4j | `neo4j-driver` singleton — `driver.executeQuery()` with parameterized Cypher | `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` | AuraDB free tier or local Docker `neo4j:5`. Single Driver instance for the process lifetime. Confidence: HIGH |
-| MiniMax TTS | REST `POST /v1/t2a_v2?GroupId=<id>` with Bearer token | `MINIMAX_API_KEY`, `MINIMAX_GROUP_ID` | GroupId is required (found in MiniMax console). Response is inline hex-encoded PCM, not a URL. Confidence: MEDIUM |
+| MiniMax TTS | REST `POST /v1/t2a_v2?GroupId=<id>` with Bearer token | `MINIMAX_API_KEY`, `MINIMAX_GROUP_ID` | GroupId is required (found in MiniMax console). Response is inline hex-encoded PCM; server wraps it as WAV before returning to client. Confidence: MEDIUM |
 | Datadog Agent | dd-trace auto-instruments via `NODE_OPTIONS` env var | `DD_API_KEY`, `DD_LLMOBS_ML_APP` | Requires local Datadog Agent running (or use agentless mode with `DD_LLMOBS_AGENTLESS_ENABLED=true`). Confidence: HIGH |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| React UI ↔ Express `/chat` | HTTP POST (message + history) → SSE stream (text chunks) | Use `fetch` + `ReadableStream` on client (not `EventSource`) to allow POST body with auth headers |
+| React UI ↔ Express `/chat` | HTTP POST (`conversationId?` + `message`) → SSE stream (text chunks) | Use `fetch` + `ReadableStream` (not `EventSource`) because request body is required |
 | Express `/chat` ↔ RAG Service | In-process function call | No HTTP; same Node.js process |
-| Express `/narrate` ↔ TTS Service | In-process function call | Returns a `Buffer` |
+| Express `/narrate` ↔ TTS Service | In-process function call | Returns a WAV `Buffer` |
 | RAG Service ↔ Neo4j | `neo4j-driver` query over Bolt protocol | Single shared Driver instance; sessions created per request and closed immediately |
 | Bedrock Service ↔ AWS | AWS SDK ConverseStream over HTTPS | SDK handles connection pooling; no manual session management needed |
-| Server ↔ Datadog Agent | dd-trace SDK → UDP to local Agent (default port 8126) | Agent forwards to Datadog cloud. In agentless mode, SDK posts directly. |
+| Server ↔ Datadog Agent | dd-trace SDK → local Agent over HTTP (default port 8126/TCP) | Agent forwards to Datadog cloud. In agentless mode, SDK posts directly. |
 
 ---
 

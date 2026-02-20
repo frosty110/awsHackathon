@@ -6,6 +6,7 @@ const envDefaults: Record<string, string> = {
   AWS_REGION: "",
   AWS_ACCESS_KEY_ID: "",
   AWS_SECRET_ACCESS_KEY: "",
+  AWS_SESSION_TOKEN: "",
   NEO4J_URI: "",
   NEO4J_USERNAME: "",
   NEO4J_PASSWORD: "",
@@ -27,6 +28,7 @@ const envSchema = z.object({
   AWS_REGION: z.string(),
   AWS_ACCESS_KEY_ID: z.string(),
   AWS_SECRET_ACCESS_KEY: z.string(),
+  AWS_SESSION_TOKEN: z.string(),
 
   NEO4J_URI: z.string(),
   NEO4J_USERNAME: z.string(),

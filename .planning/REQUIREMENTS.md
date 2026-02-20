@@ -88,34 +88,34 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CHAT-01 | — | Pending |
-| CHAT-02 | — | Pending |
-| CHAT-03 | — | Pending |
-| CHAT-04 | — | Pending |
-| GAME-01 | — | Pending |
-| GAME-02 | — | Pending |
-| GAME-03 | — | Pending |
-| NEO4J-01 | — | Pending |
-| NEO4J-02 | — | Pending |
-| NEO4J-03 | — | Pending |
-| NEO4J-04 | — | Pending |
-| DD-01 | — | Pending |
-| DD-02 | — | Pending |
-| DD-03 | — | Pending |
-| DD-04 | — | Pending |
-| VOICE-01 | — | Pending |
-| VOICE-02 | — | Pending |
-| UI-01 | — | Pending |
-| UI-02 | — | Pending |
-| UI-03 | — | Pending |
-| UI-04 | — | Pending |
-| DEMO-01 | — | Pending |
+| CHAT-01 | Phase 4 | Pending |
+| CHAT-02 | Phase 4 | Pending |
+| CHAT-03 | Phase 4 | Pending |
+| CHAT-04 | Phase 4 | Pending |
+| GAME-01 | Phase 2 | Pending |
+| GAME-02 | Phase 2 | Pending |
+| GAME-03 | Phase 4 | Pending |
+| NEO4J-01 | Phase 3 | Pending |
+| NEO4J-02 | Phase 5 | Pending |
+| NEO4J-03 | Phase 5 | Pending |
+| NEO4J-04 | Phase 5 | Pending |
+| DD-01 | Phase 6 | Pending |
+| DD-02 | Phase 6 | Pending |
+| DD-03 | Phase 6 | Pending |
+| DD-04 | Phase 6 | Pending |
+| VOICE-01 | Phase 7 | Pending |
+| VOICE-02 | Phase 7 | Pending |
+| UI-01 | Phase 2 | Pending |
+| UI-02 | Phase 2 | Pending |
+| UI-03 | Phase 2 | Pending |
+| UI-04 | Phase 2 | Pending |
+| DEMO-01 | Phase 7 | Pending |
 
 **Coverage:**
 - v1 requirements: 22 total
-- Mapped to phases: 0
-- Unmapped: 22 ⚠️
+- Mapped to phases: 22
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-20 after initial definition*
+*Last updated: 2026-02-20 after roadmap creation*

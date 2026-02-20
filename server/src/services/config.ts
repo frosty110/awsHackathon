@@ -6,7 +6,6 @@ const envDefaults: Record<string, string> = {
   AWS_REGION: "",
   AWS_ACCESS_KEY_ID: "",
   AWS_SECRET_ACCESS_KEY: "",
-  BEDROCK_MODEL_ID: "",
   NEO4J_URI: "",
   NEO4J_USERNAME: "",
   NEO4J_PASSWORD: "",
@@ -28,7 +27,6 @@ const envSchema = z.object({
   AWS_REGION: z.string(),
   AWS_ACCESS_KEY_ID: z.string(),
   AWS_SECRET_ACCESS_KEY: z.string(),
-  BEDROCK_MODEL_ID: z.string(),
 
   NEO4J_URI: z.string(),
   NEO4J_USERNAME: z.string(),
@@ -57,6 +55,8 @@ if (!result.success) {
 
 export const config = result.data;
 export type Config = typeof config;
+
+export const BEDROCK_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0";
 
 export function warnOnBlankConfig(keys: Array<keyof Config>, context: string): void {
   const blank = keys.filter((k) => config[k] === "" || config[k] === undefined);

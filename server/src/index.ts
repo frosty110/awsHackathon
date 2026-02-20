@@ -1,4 +1,5 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+dotenv.config({ path: "../.env" });
 
 import { createServer } from "node:http";
 import neo4j from "neo4j-driver";
@@ -8,7 +9,7 @@ import { config, warnOnBlankConfig, requireConfigValues } from "./services/confi
 
 async function main(): Promise<void> {
   warnOnBlankConfig(
-    ["AWS_REGION", "BEDROCK_MODEL_ID"],
+    ["AWS_REGION"],
     "AWS Bedrock (needed in Phase 4)"
   );
   warnOnBlankConfig(

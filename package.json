@@ -7,7 +7,8 @@
   ],
   "scripts": {
     "dev": "concurrently --names CLIENT,SERVER --prefix-colors cyan,yellow \"npm run dev -w client\" \"npm run dev -w server\"",
-    "build": "npm run build -w client && npm run build -w server"
+    "build": "npm run build -w client && npm run build -w server",
+    "seed": "npx tsx data/seed.ts"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

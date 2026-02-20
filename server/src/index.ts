@@ -4,24 +4,45 @@ import { createServer } from "node:http";
 import neo4j from "neo4j-driver";
 
 import { createApp } from "./app.js";
-import { config } from "./services/config.js";
+import { config, warnOnBlankConfig, requireConfigValues } from "./services/config.js";
 
 async function main(): Promise<void> {
-  const driver = neo4j.driver(
-    config.NEO4J_URI,
-    neo4j.auth.basic(config.NEO4J_USERNAME, config.NEO4J_PASSWORD)
+  warnOnBlankConfig(
+    ["AWS_REGION", "BEDROCK_MODEL_ID"],
+    "AWS Bedrock (needed in Phase 4)"
+  );
+  warnOnBlankConfig(
+    ["DD_API_KEY", "DD_LLMOBS_ML_APP"],
+    "Datadog LLM Observability (needed in Phase 6)"
+  );
+  warnOnBlankConfig(
+    ["MINIMAX_API_KEY", "MINIMAX_GROUP_ID"],
+    "MiniMax TTS (needed in Phase 7)"
   );
 
   const allowNeo4jSkip =
     config.SKIP_NEO4J_CONNECTIVITY_CHECK === "1" && config.NODE_ENV !== "production";
 
-  try {
-    await driver.verifyConnectivity();
-    console.log("Neo4j connectivity verified");
-  } catch (error) {
-    if (allowNeo4jSkip) {
-      console.warn("Neo4j connectivity check skipped in non-production:", error);
-    } else {
+  let driver: neo4j.Driver | null = null;
+
+  if (allowNeo4jSkip) {
+    warnOnBlankConfig(
+      ["NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD"],
+      "Neo4j (skipping connectivity check)"
+    );
+  } else {
+    requireConfigValues(
+      ["NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD"],
+      "Neo4j connectivity check"
+    );
+    driver = neo4j.driver(
+      config.NEO4J_URI,
+      neo4j.auth.basic(config.NEO4J_USERNAME, config.NEO4J_PASSWORD)
+    );
+    try {
+      await driver.verifyConnectivity();
+      console.log("Neo4j connectivity verified");
+    } catch (error) {
       console.error("Neo4j connectivity check failed:", error);
       await driver.close();
       process.exit(1);

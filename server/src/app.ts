@@ -4,7 +4,7 @@ import type { Driver } from "neo4j-driver";
 import healthRouter from "./routes/health.js";
 
 interface AppDeps {
-  driver: Driver;
+  driver: Driver | null;
 }
 
 export function createApp(_deps: AppDeps): Express {

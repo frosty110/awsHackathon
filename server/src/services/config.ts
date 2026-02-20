@@ -1,37 +1,53 @@
 import { z } from "zod";
 
+const envDefaults: Record<string, string> = {
+  NODE_ENV: "development",
+  PORT: "3001",
+  AWS_REGION: "",
+  AWS_ACCESS_KEY_ID: "",
+  AWS_SECRET_ACCESS_KEY: "",
+  BEDROCK_MODEL_ID: "",
+  NEO4J_URI: "",
+  NEO4J_USERNAME: "",
+  NEO4J_PASSWORD: "",
+  DD_API_KEY: "",
+  DD_SITE: "datadoghq.com",
+  DD_LLMOBS_ENABLED: "1",
+  DD_LLMOBS_ML_APP: "",
+  DD_LLMOBS_AGENTLESS_ENABLED: "1",
+  DD_TRACE_AWS_SDK_BEDROCKRUNTIME_ENABLED: "true",
+  MINIMAX_API_KEY: "",
+  MINIMAX_GROUP_ID: "",
+  SKIP_NEO4J_CONNECTIVITY_CHECK: "0",
+};
+
 const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  PORT: z.coerce.number().default(3001),
+  NODE_ENV: z.enum(["development", "production", "test"]),
+  PORT: z.coerce.number(),
 
-  AWS_REGION: z.string().min(1),
-  AWS_ACCESS_KEY_ID: z.string().optional(),
-  AWS_SECRET_ACCESS_KEY: z.string().optional(),
-  BEDROCK_MODEL_ID: z.string().min(1),
+  AWS_REGION: z.string(),
+  AWS_ACCESS_KEY_ID: z.string(),
+  AWS_SECRET_ACCESS_KEY: z.string(),
+  BEDROCK_MODEL_ID: z.string(),
 
-  NEO4J_URI: z
-    .string()
-    .regex(
-      /^(neo4j|neo4j\+s|bolt|bolt\+s):\/\//,
-      "NEO4J_URI must start with neo4j://, neo4j+s://, bolt://, or bolt+s://"
-    ),
-  NEO4J_USERNAME: z.string().min(1),
-  NEO4J_PASSWORD: z.string().min(1),
+  NEO4J_URI: z.string(),
+  NEO4J_USERNAME: z.string(),
+  NEO4J_PASSWORD: z.string(),
 
-  DD_API_KEY: z.string().min(1),
-  DD_SITE: z.string().min(1).default("datadoghq.com"),
-  DD_LLMOBS_ENABLED: z.enum(["0", "1"]).default("1"),
-  DD_LLMOBS_ML_APP: z.string().min(1),
-  DD_LLMOBS_AGENTLESS_ENABLED: z.enum(["0", "1"]).default("1"),
-  DD_TRACE_AWS_SDK_BEDROCKRUNTIME_ENABLED: z.enum(["true", "false"]).default("true"),
+  DD_API_KEY: z.string(),
+  DD_SITE: z.string(),
+  DD_LLMOBS_ENABLED: z.enum(["0", "1"]),
+  DD_LLMOBS_ML_APP: z.string(),
+  DD_LLMOBS_AGENTLESS_ENABLED: z.enum(["0", "1"]),
+  DD_TRACE_AWS_SDK_BEDROCKRUNTIME_ENABLED: z.enum(["true", "false"]),
 
-  MINIMAX_API_KEY: z.string().min(1),
-  MINIMAX_GROUP_ID: z.string().min(1),
+  MINIMAX_API_KEY: z.string(),
+  MINIMAX_GROUP_ID: z.string(),
 
-  SKIP_NEO4J_CONNECTIVITY_CHECK: z.enum(["0", "1"]).default("0")
+  SKIP_NEO4J_CONNECTIVITY_CHECK: z.enum(["0", "1"]),
 });
 
-const result = envSchema.safeParse(process.env);
+const result = envSchema.safeParse({ ...envDefaults, ...process.env });
 
 if (!result.success) {
   console.error("Environment validation failed:");
@@ -41,3 +57,19 @@ if (!result.success) {
 
 export const config = result.data;
 export type Config = typeof config;
+
+export function warnOnBlankConfig(keys: Array<keyof Config>, context: string): void {
+  const blank = keys.filter((k) => config[k] === "" || config[k] === undefined);
+  if (blank.length > 0) {
+    console.warn(
+      `[config] ${context}: missing values for ${blank.join(", ")} — features using these keys will fail at runtime`
+    );
+  }
+}
+
+export function requireConfigValues(keys: Array<keyof Config>, context: string): void {
+  const blank = keys.filter((k) => config[k] === "" || config[k] === undefined);
+  if (blank.length > 0) {
+    throw new Error(`[config] ${context}: required values missing for ${blank.join(", ")}`);
+  }
+}

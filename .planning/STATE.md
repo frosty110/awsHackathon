@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 
 ## Current Position
 
-Phase: 2 of 7 (Chat UI) — IN PROGRESS
-Plan: 1/2 complete (02-01 done, 02-02 next)
-Status: 02-01 executed — Tailwind v4 theme + chat types + hook stubs complete
-Last activity: 2026-02-20 — Completed 02-01 (Tailwind foundation and hooks)
+Phase: 2 of 7 (Chat UI) — COMPLETE
+Plan: 2/2 complete (02-01 and 02-02 done)
+Status: 02-02 executed — All four UI components + App.tsx wiring complete
+Last activity: 2026-02-20 — Completed 02-02 (Chat UI components and App.tsx)
 
-Progress: [███░░░░░░░] 21%
+Progress: [████░░░░░░] 29%
 
 ## Performance Metrics
 
@@ -28,14 +28,15 @@ Progress: [███░░░░░░░] 21%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-scaffold | 3 | ~10 min | ~3 min |
-| 02-chat-ui | 1 (of 2) | ~2 min | ~2 min |
+| 02-chat-ui | 2 (of 2) | ~4 min | ~2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01, 01-02, 01-03, 02-01
+- Last 5 plans: 01-01, 01-02, 01-03, 02-01, 02-02
 - Trend: Stable
 
 *Updated after each plan completion*
 | Phase 02-chat-ui P01 | 2 | 2 tasks | 6 files |
+| Phase 02-chat-ui P02 | 2 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -53,6 +54,9 @@ Recent decisions affecting current work:
 - [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
 - [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
 - [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
 
 ### Pending Todos
 
@@ -71,5 +75,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 02-01-PLAN.md — Tailwind v4 foundation and hooks. Ready for 02-02 (Chat UI components).
-Resume file: `.planning/phases/02-chat-ui/02-01-SUMMARY.md`
+Stopped at: Completed 02-02-PLAN.md — All four UI components + App.tsx wiring. Phase 2 complete. Ready for Phase 3 (Lore Seed) or Phase 4 (Bedrock Streaming).
+Resume file: `.planning/phases/02-chat-ui/02-02-SUMMARY.md`

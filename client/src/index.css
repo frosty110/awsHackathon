@@ -11,6 +11,11 @@
   --color-blood: #8b1a1a;
   --color-blood-light: #c0392b;
 
+  /* Style-guide additions */
+  --color-dm-gold: #F0C060;
+  --color-dm-message: #E8D9B5;
+  --color-player-message: #D4B896;
+
   /* Bubble backgrounds — semi-transparent so background bleeds through */
   --color-dm-bubble: oklch(0.15 0.02 260 / 0.88);
   --color-player-bubble: oklch(0.20 0.06 28 / 0.88);

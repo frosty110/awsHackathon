@@ -7,7 +7,7 @@ import type { AppState } from './types/chat';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('idle');
-  const { messages, isLoading, sendMessage, reset } = useSSEChat();
+  const { messages, isLoading, sendMessage, startAdventure, reset } = useSSEChat();
 
   // Derive needsRoll: true when the last DM message suggests a roll
   const lastDM = [...messages].reverse().find(m => m.role === 'dm')?.content ?? '';
@@ -15,6 +15,7 @@ export default function App() {
 
   function handleStart() {
     setAppState('adventure');
+    void startAdventure();
   }
 
   function handleReset() {
@@ -36,7 +37,13 @@ export default function App() {
 
         {/* Header */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-blood/30">
-          <span className="font-cinzel text-2xl text-parchment tracking-widest">
+          <span
+            className="font-cinzel font-bold text-2xl tracking-widest"
+            style={{
+              color: 'var(--color-dm-gold)',
+              textShadow: '0 0 12px oklch(0.75 0.15 55 / 0.6)',
+            }}
+          >
             AI Dungeon Master
           </span>
           <div className="flex items-center gap-4">

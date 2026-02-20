@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Scaffold** - Monorepo structure, environment validation, and dev tooling for both client and server
 - [ ] **Phase 2: Chat UI** - Dark fantasy chat interface with dice roll mechanic (Blaise's pre-hackathon frontend build)
-- [ ] **Phase 3: Lore Graph Seed** - Neo4j AuraDB seeded with the 3-scene demo lore
+- [x] **Phase 3: Lore Graph Seed** - Neo4j AuraDB seeded with the 3-scene demo lore
 - [ ] **Phase 4: Bedrock Chat Core** - Claude via Bedrock with SSE streaming and full conversation history
 - [ ] **Phase 5: RAG Pipeline** - Entity extraction, Neo4j lore injection, and NPC personality from graph attributes
 - [ ] **Phase 6: Datadog Observability** - Full LLM tracing, named pipeline spans, and live dashboard
@@ -156,7 +156,7 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 |-------|----------------|--------|-----------|
 | 1. Scaffold | 3/3 | ✓ Complete | 2026-02-20 |
 | 2. Chat UI | 2/2 | ✓ Complete | 2026-02-20 |
-| 3. Lore Graph Seed | 0/2 | Not started | - |
+| 3. Lore Graph Seed | 2/2 | ✓ Complete | 2026-02-20 |
 | 4. Bedrock Chat Core | 0/2 | Not started | - |
 | 5. RAG Pipeline | 0/2 | Not started | - |
 | 6. Datadog Observability | 0/2 | Not started | - |

@@ -18,7 +18,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   if (role === 'dm') {
     return (
       <div className="flex justify-start mb-3">
-        <div className="max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble text-parchment font-fell italic leading-relaxed">
+        <div className="max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble font-fell italic leading-[1.75] text-[color:var(--color-dm-message)] text-base">
           {content}
         </div>
       </div>
@@ -61,7 +61,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   // role === 'player'
   return (
     <div className="flex justify-end mb-3">
-      <div className="max-w-[75%] px-4 py-3 rounded-lg bg-player-bubble text-parchment font-sans text-sm">
+      <div className="max-w-[75%] px-4 py-3 rounded-lg bg-player-bubble font-cinzel font-semibold text-[0.9rem] text-[color:var(--color-player-message)] opacity-90">
         {content}
       </div>
     </div>

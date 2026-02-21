@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** All core phases complete (1-8). Phase 10 Plan 01 (S3 Audio Cache) complete. Quick tasks and mood-aware background music system in progress (uncommitted changes).
+**Current focus:** Phase 9 (Scale & Auth) in progress — Plan 01 (Redis foundation, Bedrock queue) complete. Plans 02 and 03 remain.
 
 ## Current Position
 
-Phase: Phase 10 (S3 Audio Cache) — Plan 01 complete.
-Plan: 22/22 core plans executed across phases 1-8. 4 quick tasks shipped. Phase 10 Plan 01 complete.
-Status: Two-tier TTS cache (L1 in-memory + L2 S3) deployed. Core gameplay loop fully functional — single-player and multiplayer modes, RAG, Datadog observability, multi-voice TTS, character creation with class/pronouns/gender.
-Last activity: 2026-02-21 — Phase 10 Plan 01 complete (S3 audio cache). Mood-aware background music still in progress (12 files modified, uncommitted).
+Phase: Phase 09 (Scale & Auth) — Plan 01 complete, Plans 02-03 pending.
+Plan: 22/22 core plans executed across phases 1-8. 4 quick tasks shipped. Phase 10 Plan 01 complete. Phase 09 Plan 01 complete.
+Status: Redis singleton + Bedrock concurrency queue infrastructure deployed. Server boots with Redis or degrades gracefully without it. Socket.IO Redis adapter wired. Plans 02-03 will add Redis conversation store, auth middleware, and rate limiting.
+Last activity: 2026-02-21 — Phase 09 Plan 01 complete (Redis foundation, Bedrock queue, config additions).
 
 Progress: [█████████░] 93%
 
@@ -54,6 +54,7 @@ Progress: [█████████░] 93%
 | Phase 08-multiplayer P04 | 2 | 2 tasks | 4 files |
 | Phase 08-multiplayer P03 | 3 | 2 tasks | 6 files |
 | Phase 08-multiplayer P05 | 8 | 2 tasks | 2 files |
+| Phase 09-scale-and-auth P01 | 3 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -116,11 +117,14 @@ Recent decisions affecting current work:
 - [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
 - [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
 - [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
 
 ### Roadmap Evolution
 
 - Phase 8 added: Multiplayer Mode — multiple users play D&D together in real-time
 - Phase 10 added: S3 Audio Cache Infrastructure — Install @aws-sdk/client-s3, config, audioCache.ts service with S3 get/put/key-generation and Datadog tracing
+- Phase 11 added: Investigate system architecture to determine improvements for a more ideal state for future iterations
 
 ### Pending Todos
 
@@ -155,5 +159,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 10-01-PLAN.md (S3 audio cache infrastructure)
-Resume context: Phase 10 Plan 01 complete. Mood-aware background music still in progress (12 files modified, uncommitted) — spans client services, hooks, and server routes. Background music crossfades per scene mood, TTS ducks music volume, RAG wired into multiplayer turns.
+Stopped at: Completed 09-01-PLAN.md (Redis foundation, Bedrock queue, config additions)
+Resume context: Phase 09 Plan 01 complete. Redis singleton, Bedrock concurrency queue (p-queue), and Socket.IO Redis adapter established. Phase 09 Plans 02 and 03 ready to execute — Plan 02 migrates conversationStore to Redis; Plan 03 adds JWT auth and rate limiting middleware.

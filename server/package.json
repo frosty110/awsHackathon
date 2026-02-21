@@ -7,6 +7,9 @@
     "dev": "NODE_OPTIONS='--import dd-trace/initialize.mjs' tsx watch --env-file=../.env src/index.ts",
     "build": "tsc",
     "start": "NODE_OPTIONS='--import dd-trace/initialize.mjs' node --env-file=../.env dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "test:bedrock": "tsx --env-file=../.env src/scripts/test-bedrock.ts"
   },
   "dependencies": {
@@ -39,7 +42,9 @@
     "@types/express": "latest",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "latest",
+    "@vitest/coverage-v8": "^2.0.0",
     "tsx": "latest",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
   }
 }

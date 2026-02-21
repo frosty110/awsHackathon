@@ -2,7 +2,7 @@
 
 ## Overview
 
-Build a live, demo-ready AI Dungeon Master for the AWS x Anthropic x Datadog GenAI Hackathon. The roadmap front-loads pre-hackathon work Blaise can complete now (scaffold, UI, lore data) so the team's 6-hour build window focuses exclusively on integrating the backend services. Phases follow hard dependencies: scaffold before UI, lore data before RAG, Bedrock before streaming, observability before demo polish.
+Build a production-quality AI Dungeon Master for small gaming communities (~1000 concurrent users). The roadmap progresses from core infrastructure through gameplay features to scale and reliability. Phases follow hard dependencies: scaffold before UI, lore data before RAG, Bedrock before streaming, observability before production deployment.
 
 ## Phases
 
@@ -18,8 +18,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 4: Bedrock Chat Core** - Claude via Bedrock with SSE streaming and full conversation history
 - [ ] **Phase 5: RAG Pipeline** - Entity extraction, Neo4j lore injection, and NPC personality from graph attributes
 - [ ] **Phase 6: Datadog Observability** - Full LLM tracing, named pipeline spans, and live dashboard
-- [ ] **Phase 7: Voice + Demo Polish** - MiniMax TTS opening monologue and rehearsed 3-turn scenario
+- [ ] **Phase 7: Voice + Demo Polish** - MiniMax TTS opening monologue and adventure scenario validation
 - [ ] **Phase 8: Multiplayer Mode** - Multiple users play D&D together in real-time
+- [ ] **Phase 9: Scale & Auth** - Redis session store, user authentication, per-user rate limiting, deployment
 
 ## Phase Details
 
@@ -130,13 +131,13 @@ Plans:
 ---
 
 ### Phase 7: Voice + Demo Polish
-**Goal**: The demo runs flawlessly for three turns with a voiced opening monologue and zero improvisation risk
+**Goal**: The game runs reliably with a voiced opening monologue and a solid default adventure experience
 **Depends on**: Phases 4, 5, 6
 **Requirements**: VOICE-01, VOICE-02, DEMO-01
 **Success Criteria** (what must be TRUE):
   1. Clicking "Start Adventure" plays an AI-narrated DM opening monologue and displays the first DM message in the chat
   2. The audio plays in the browser without user interaction errors (Web Audio API autoplay policy handled)
-  3. The scripted 3-turn demo (tavern arrival → quest acceptance → goblin combat with dice roll) completes without errors or off-script DM responses
+  3. The default adventure scenario (tavern arrival → quest acceptance → goblin combat with dice roll) works reliably with open-ended continuation
 **Plans**: 3 plans
 
 Plans:
@@ -146,21 +147,62 @@ Plans:
 
 ### Phase 8: Multiplayer Mode — multiple users play D&D together in real-time
 
-**Goal:** [To be planned]
+**Goal:** 2-4 players can join a shared room via code, submit actions in batched 60-second rounds, and receive a unified DM narrative streamed to all players simultaneously, with a private player chat channel invisible to the DM
 **Depends on:** Phase 7
+**Requirements:** EXT-03
+**Success Criteria** (what must be TRUE):
+  1. Players can create or join a multiplayer room via a 6-character room code
+  2. Lobby shows all joined players with names, character classes, and ready status
+  3. Game starts when 2+ players are all ready; DM delivers an opening monologue
+  4. 60-second turn timer runs per round; auto-fills missing actions on expiry
+  5. DM weaves all player actions into one narrative, streaming to all players simultaneously
+  6. Private player-to-player chat with emoji reactions is invisible to the DM AI
+  7. Player status bar shows names, class-colored indicators, connection status, and submission status
+  8. Single-player mode works exactly as before with no regressions
+**Plans:** 5 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Server Socket.IO foundation: install deps, typed events, Socket.IO init, room store, Vite WS proxy
+- [ ] 08-02-PLAN.md — Client multiplayer foundation: socket.io-client, socket singleton, types, ModeSelect screen, MultiplayerLobby
+- [ ] 08-03-PLAN.md — Server socket handlers: room create/join/ready/disconnect, turn timer + DM trigger, player chat relay, multiplayer system prompt
+- [ ] 08-04-PLAN.md — Client game UI: useMultiplayerRoom hook, MultiplayerGame component, PlayerStatusBar, PlayerChat panel
+- [ ] 08-05-PLAN.md — Integration wiring: Socket.IO init in server startup, App.tsx mode routing, end-to-end human verification
+
+---
+
+### Phase 9: Scale & Auth — Redis session store, user auth, per-user rate limiting, production deployment
+
+**Goal:** The game handles ~1000 concurrent users with persistent sessions, authentication, and production-grade reliability
+**Depends on:** Phase 7
+**Requirements:** SCALE-01, SCALE-02, SCALE-03, SCALE-04, SCALE-05
+**Success Criteria** (what must be TRUE):
+  1. Conversation state stored in Redis (not in-memory) — survives server restarts and supports multi-instance deployment
+  2. Users can authenticate and their sessions persist across visits
+  3. Per-user rate limiting prevents abuse on `/chat` and `/narrate`
+  4. Bedrock request queuing handles backpressure under 1000 concurrent users
+  5. Application deployed with health checks, auto-scaling, and Datadog monitoring
 **Plans:** 0 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 8 to break down)
+- [ ] TBD (run /gsd:plan-phase 9 to break down)
+
+### Phase 10: S3 Audio Cache Infrastructure
+
+**Goal:** [To be planned]
+**Depends on:** Phase 9
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 10 to break down)
 
 ---
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
-Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously if needed (lore seeding does not block UI work).
+Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously if needed (lore seeding does not block UI work). Phase 9 (Scale & Auth) can begin after Phase 7 in parallel with Phase 8.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -171,4 +213,5 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 5. RAG Pipeline | 0/2 | Not started | - |
 | 6. Datadog Observability | 0/2 | Not started | - |
 | 7. Voice + Demo Polish | 0/3 | Not started | - |
-| 8. Multiplayer Mode | 0/0 | Not started | - |
+| 8. Multiplayer Mode | 0/5 | Not started | - |
+| 9. Scale & Auth | 0/0 | Not started | - |

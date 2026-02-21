@@ -58,6 +58,7 @@ Progress: [██████████] 97%
 | Phase 09 P02 | 3 | 2 tasks | 5 files |
 | Phase 09-scale-and-auth P03 | 3 | 2 tasks | 5 files |
 | Phase 11 P04 | 1 | 1 tasks | 2 files |
+| Phase 11 P03 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -132,6 +133,8 @@ Recent decisions affecting current work:
 - [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
 - [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
 - [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
 
 ### Roadmap Evolution
 
@@ -172,5 +175,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 11-04-PLAN.md (music service extraction)
-Resume context: Phase 11 Plan 04 complete. Extracted music generation state machine from routes/music.ts into services/musicService.ts. Route reduced from 293 to 45 lines. getMusicForMood() public API with typed MusicResult union. All HTTP behavior preserved. Phase 11 Plan 05 is next.
+Stopped at: Completed 11-03-PLAN.md (store interfaces, class implementations, usageTracker rolling eviction)
+Resume context: Phase 11 Plan 03 complete. IConversationStore and IRoomStore interfaces with InMemoryConversationStore/InMemoryRoomStore class implementations. All existing free function exports preserved via .bind() delegation. usageTracker has 24h/10k rolling eviction. TypeScript compiles cleanly. Phase 11 Plan 04 is next.

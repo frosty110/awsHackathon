@@ -133,9 +133,10 @@ Recent decisions affecting current work:
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Optimize MiniMax TTS: emotion tags, turbo model, mood-based prosody, streaming audio, multi-character voices | 2026-02-21 | 1244c86 | [1-optimize-minimax-tts-emotion-tags-turbo-](./quick/1-optimize-minimax-tts-emotion-tags-turbo-/) |
+| 2 | Style multiplayer chat bubbles with class-colored borders/backgrounds and inline action messages | 2026-02-21 | 71b869e | [2-style-multiplayer-chat-boxes-with-speake](./quick/2-style-multiplayer-chat-boxes-with-speake/) |
 
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Checkpoint 08-05 Task 3 (human-verify) — App.tsx mode routing complete (e3abbe3), awaiting two-tab end-to-end multiplayer verification
-Resume file: `.planning/phases/08-multiplayer-mode-multiple-users-play-d-d-together-in-real-time/08-05-SUMMARY.md`
+Stopped at: Completed quick-2 (style multiplayer chat boxes)
+Resume file: `.planning/quick/2-style-multiplayer-chat-boxes-with-speake/2-SUMMARY.md`

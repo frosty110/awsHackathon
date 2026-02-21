@@ -22,6 +22,10 @@ const envDefaults: Record<string, string> = {
   MINIMAX_MUSIC_API_KEY: "",
   SKIP_NEO4J_CONNECTIVITY_CHECK: "0",
   S3_AUDIO_CACHE_BUCKET: "",
+  S3_MEDIA_CACHE_BUCKET: "",
+  REDIS_URL: "",
+  JWT_SECRET: "",
+  SESSION_SECRET: "",
 };
 
 const envSchema = z.object({
@@ -52,6 +56,11 @@ const envSchema = z.object({
   SKIP_NEO4J_CONNECTIVITY_CHECK: z.enum(["0", "1"]),
 
   S3_AUDIO_CACHE_BUCKET: z.string(),
+  S3_MEDIA_CACHE_BUCKET: z.string(),
+
+  REDIS_URL: z.string(),
+  JWT_SECRET: z.string(),
+  SESSION_SECRET: z.string(),
 });
 
 const result = envSchema.safeParse({ ...envDefaults, ...process.env });

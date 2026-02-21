@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A playable AI Dungeon Master demo that runs live with visible Datadog LLM observability — the minimum viable path to hackathon prize eligibility.
-**Current focus:** Phase 6 plan 01 complete — LLMObs spans wired; Phase 7 in progress — 07-02 (AudioPlayer) complete, next: 07-03
+**Current focus:** Phase 6 complete — LLMObs spans wired (06-01) and dashboard script created (06-02); Phase 7 in progress — 07-02 (AudioPlayer) complete, next: 07-03
 
 ## Current Position
 
@@ -43,6 +43,7 @@ Progress: [███████░░░] 64%
 | Phase 07-voice-demo-polish P01 | 5 | 3 tasks | 5 files |
 | Phase 07-voice-demo-polish P02 | 5 | 2 tasks | 2 files |
 | Phase 06-datadog-observability P01 | 3 | 2 tasks | 5 files |
+| Phase 06-datadog-observability P02 | 4 | 1 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,7 @@ Recent decisions affecting current work:
 - [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
 - [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
 - [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
 
 ### Pending Todos
 
@@ -96,5 +98,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 06-01-PLAN.md — LLMObs spans wired into bedrock.ts, neo4j.ts, tts.ts.
-Resume file: `.planning/phases/06-datadog-observability/06-01-SUMMARY.md`
+Stopped at: Completed 06-02-PLAN.md — Datadog dashboard creation script (scripts/create-dashboard.ts, @datadog/datadog-api-client).
+Resume file: `.planning/phases/06-datadog-observability/06-02-SUMMARY.md`

@@ -4,9 +4,11 @@ import {
   getOrCreate,
   appendMessage,
   getWindowedHistory,
+  getCharacterClass,
 } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage } from "../services/usageTracker.js";
+import { stripTTSTags } from "../services/tts.js";
 
 const router = Router();
 
@@ -15,9 +17,11 @@ router.post("/api/chat", async (req, res) => {
     conversationId?: string;
     message?: unknown;
     isSystemTrigger?: boolean;
+    characterClass?: string;
   };
   const message = typeof body.message === "string" ? body.message : "";
   const isSystemTrigger = Boolean(body.isSystemTrigger);
+  const characterClass = typeof body.characterClass === "string" ? body.characterClass.trim() : undefined;
   const requestId = buildRequestId(req.get("x-request-id"));
   res.setHeader("x-request-id", requestId);
   logEvent("info", "chat.request_received", {
@@ -38,7 +42,7 @@ router.post("/api/chat", async (req, res) => {
     return;
   }
 
-  const conversation = getOrCreate(body.conversationId);
+  const conversation = getOrCreate(body.conversationId, characterClass);
 
   // System triggers (opening monologue) are sent to Bedrock but not stored
   // in history as player messages — keeps conversation context clean
@@ -67,9 +71,10 @@ router.post("/api/chat", async (req, res) => {
   let outputTokens = 0;
 
   try {
+    const resolvedClass = characterClass || getCharacterClass(conversation.id);
     const result = await streamBedrockResponse(bedrockMessages, (chunk) => {
       res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
-    });
+    }, { characterClass: resolvedClass });
     fullText = result.text;
     inputTokens = result.inputTokens;
     outputTokens = result.outputTokens;
@@ -96,8 +101,10 @@ router.post("/api/chat", async (req, res) => {
     );
   }
 
-  // Record usage and emit cost event before [DONE]
+  // Emit tagged text for client TTS consumption, then usage, before [DONE]
   if (!streamErrored && fullText) {
+    res.write(`data: ${JSON.stringify({ ttsText: fullText })}\n\n`);
+
     const costUsd = recordBedrockUsage(conversation.id, "chat", inputTokens, outputTokens);
     res.write(`data: ${JSON.stringify({
       usage: { inputTokens, outputTokens, costUsd, model: "bedrock-haiku", feature: "chat" },
@@ -107,9 +114,9 @@ router.post("/api/chat", async (req, res) => {
   res.write("data: [DONE]\n\n");
   res.end();
 
-  // Persist assistant response after stream completes
+  // Persist assistant response after stream completes (stripped of TTS tags)
   if (fullText) {
-    appendMessage(conversation.id, { role: "assistant", content: fullText });
+    appendMessage(conversation.id, { role: "assistant", content: stripTTSTags(fullText) });
     logEvent("info", "chat.stream_completed", {
       requestId,
       route: "/api/chat",

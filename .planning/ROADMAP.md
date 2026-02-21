@@ -20,7 +20,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Datadog Observability** - Full LLM tracing, named pipeline spans, and live dashboard
 - [x] **Phase 7: Voice + Demo Polish** - MiniMax TTS opening monologue and adventure scenario validation
 - [x] **Phase 8: Multiplayer Mode** - Multiple users play D&D together in real-time
-- [ ] **Phase 9: Scale & Auth** — Redis session store, user authentication, per-user rate limiting, deployment
+- [ ] **Phase 9: Scale & Auth** — Redis session store, user authentication, per-user rate limiting
+- [ ] **Phase 10: S3 Audio Cache Infrastructure**
+- [ ] **Phase 11: System Architecture Review**
 
 ## Phase Details
 
@@ -170,7 +172,7 @@ Plans:
 
 ---
 
-### Phase 9: Scale & Auth — Redis session store, user auth, per-user rate limiting, production deployment
+### Phase 9: Scale & Auth — Redis session store, user auth, per-user rate limiting
 
 **Goal:** The game handles ~1000 concurrent users with persistent sessions, authentication, and production-grade reliability
 **Depends on:** Phase 7
@@ -180,7 +182,9 @@ Plans:
   2. Users can authenticate and their sessions persist across visits
   3. Per-user rate limiting prevents abuse on `/chat` and `/narrate`
   4. Bedrock request queuing handles backpressure under 1000 concurrent users
-  5. Application deployed with health checks, auto-scaling, and Datadog monitoring
+
+Note: Deployment infrastructure (auto-scaling, ECS/EKS config) is deferred to a future phase.
+
 **Plans:** 3 plans
 
 Plans:
@@ -197,14 +201,18 @@ Plans:
 Plans:
 - [x] 10-01-PLAN.md — Install @aws-sdk/client-s3, create audioCache.ts with S3 get/put/buildCacheKey + Datadog tracing, wire into tts.ts as L2 cache behind existing in-memory L1
 
-### Phase 11: Investigate our system architecture to determine architecture improvements to get us to a more ideal/perfect state for future iterations for this product.
+### Phase 11: Architecture Audit and Improvements
 
-**Goal:** [To be planned]
+**Goal:** Harden the codebase for production readiness and future iteration by adding security middleware, rate limiting, Bedrock concurrency control, store interfaces for Redis readiness, service extraction for architectural consistency, and test scaffolding
 **Depends on:** Phase 10
-**Plans:** 0 plans
+**Plans:** 5 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 11 to break down)
+- [ ] 11-01-PLAN.md — Security middleware (helmet + CORS) and per-route rate limiting on /api/chat, /api/narrate, /api/music
+- [ ] 11-02-PLAN.md — Bedrock concurrency cap via p-queue and promptBuilder.ts extraction from bedrock.ts
+- [ ] 11-03-PLAN.md — IConversationStore and IRoomStore interfaces for Redis readiness, usageTracker rolling eviction
+- [ ] 11-04-PLAN.md — Extract musicService.ts from routes/music.ts for architectural consistency
+- [ ] 11-05-PLAN.md — Vitest scaffolding and unit tests for promptBuilder, conversationStore, usageTracker
 
 ---
 

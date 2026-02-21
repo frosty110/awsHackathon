@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSSEChat } from './hooks/useSSEChat';
-import { AudioPlayer } from './components/AudioPlayer';
+import { AudioPlayer, type NarrateResult } from './components/AudioPlayer';
 import { ChatWindow } from './components/ChatWindow';
 import { MessageInput } from './components/MessageInput';
 import { DiceRoller } from './components/DiceRoller';
@@ -10,9 +10,9 @@ export default function App() {
   const [appState, setAppState] = useState<AppState>('idle');
   const { messages, isLoading, sendMessage, startAdventure, reset } = useSSEChat();
 
-  function handleStart() {
+  function handleStart(narration?: NarrateResult) {
     setAppState('adventure');
-    void startAdventure();
+    void startAdventure(narration);
   }
 
   function handleReset() {

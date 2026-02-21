@@ -1,7 +1,12 @@
 import { useState, useRef } from 'react';
 
+export interface NarrateResult {
+  text: string;
+  conversationId: string;
+}
+
 interface AudioPlayerProps {
-  onAdventureStart: () => void;
+  onAdventureStart: (narration?: NarrateResult) => void;
 }
 
 export function AudioPlayer({ onAdventureStart }: AudioPlayerProps) {
@@ -14,22 +19,34 @@ export function AudioPlayer({ onAdventureStart }: AudioPlayerProps) {
     setStatus('loading');
 
     try {
-      const response = await fetch('/api/narrate', { method: 'POST' });
+      const response = await fetch('/api/narrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
 
       if (!response.ok) {
         throw new Error(`[AudioPlayer] narrate returned ${response.status}`);
       }
 
-      const arrayBuffer = await response.arrayBuffer();
-      const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+      const data = await response.json() as {
+        audio: string;
+        text: string;
+        conversationId: string;
+      };
+
+      // Decode base64 audio
+      const binaryStr = atob(data.audio);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'audio/mpeg' });
       const objectUrl = URL.createObjectURL(blob);
       const audio = new Audio(objectUrl);
 
       audioRef.current = audio;
       setStatus('playing');
 
-      // Call onAdventureStart IMMEDIATELY — chat UI shows concurrently with audio
-      onAdventureStart();
+      // Pass Bedrock-generated text + conversationId to chat
+      onAdventureStart({ text: data.text, conversationId: data.conversationId });
 
       audio.play().catch((err) => {
         console.error('[AudioPlayer] play() failed:', err);
@@ -42,7 +59,7 @@ export function AudioPlayer({ onAdventureStart }: AudioPlayerProps) {
     } catch (error) {
       console.error('[AudioPlayer] narrate fetch failed:', error);
       setStatus('idle');
-      // Graceful degradation: start adventure even when TTS fails
+      // Graceful degradation: start adventure without narration
       onAdventureStart();
     }
   }

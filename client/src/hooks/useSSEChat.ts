@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Message } from '../types/chat';
+import type { NarrateResult } from '../components/AudioPlayer';
 
 export function useSSEChat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -7,8 +8,7 @@ export function useSSEChat() {
   const conversationId = useRef<string | null>(null);
 
   // Internal: fetch /api/chat and stream DM response into a new message bubble.
-  // Pass message=null to trigger the opening monologue without a visible player message.
-  const fetchDMResponse = useCallback(async (message: string, isSystemTrigger = false) => {
+  const fetchDMResponse = useCallback(async (message: string) => {
     setIsLoading(true);
     const dmId = crypto.randomUUID();
 
@@ -25,7 +25,6 @@ export function useSSEChat() {
         body: JSON.stringify({
           conversationId: conversationId.current,
           message,
-          isSystemTrigger,
         }),
       });
 
@@ -88,11 +87,22 @@ export function useSSEChat() {
     }
   }, []);
 
-  // Called when "Start Adventure" is clicked — gets opening monologue with no player message shown
-  const startAdventure = useCallback(async () => {
+  // Called when "Start Adventure" is clicked.
+  // If narration is provided (from /api/narrate Bedrock call), use it directly.
+  // Otherwise fall back to a separate /api/chat call.
+  const startAdventure = useCallback(async (narration?: NarrateResult) => {
+    if (narration) {
+      conversationId.current = narration.conversationId;
+      setMessages([{
+        id: crypto.randomUUID(),
+        role: 'dm',
+        content: narration.text,
+      }]);
+      return;
+    }
+    // Fallback: generate opening via chat endpoint
     await fetchDMResponse(
-      'Begin the adventure. The player has just pushed open the door of the Shattered Crown Tavern. Set the opening scene — describe the tavern atmosphere, mention Gorm behind the bar, and hint that something feels wrong in this town. End with "What do you do?"',
-      true
+      'Begin the adventure. The player has just pushed open the door of the Shattered Crown Tavern. Set the opening scene — describe the tavern atmosphere, mention Gorm behind the bar, and hint that something feels wrong in this town. End with "What do you do?"'
     );
   }, [fetchDMResponse]);
 

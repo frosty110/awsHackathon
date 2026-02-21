@@ -1,13 +1,16 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { generateTTS } from "../server/src/services/tts.js";
-import { OPENING_MONOLOGUE } from "../server/src/routes/narrate.js";
+
+// Fallback static text for offline pre-generation (runtime uses Bedrock-generated text)
+const STATIC_OPENING =
+  "Welcome, brave soul. The night is dark, the road is long, and the Shattered Crown tavern stands before you — the last warm light before the wilderness swallows everything. Step inside. Your adventure begins now.";
 
 (async () => {
   console.log("[generate-opening-audio] Generating opening monologue TTS...");
 
   const { audioBuffer, audioFormat, durationMs } =
-    await generateTTS(OPENING_MONOLOGUE);
+    await generateTTS(STATIC_OPENING);
 
   const outputPath = resolve(
     new URL(".", import.meta.url).pathname,

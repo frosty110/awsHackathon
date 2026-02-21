@@ -188,12 +188,12 @@ Plans:
 
 ### Phase 10: S3 Audio Cache Infrastructure
 
-**Goal:** [To be planned]
+**Goal:** Durable S3-backed TTS audio cache that persists across server restarts and supports cross-instance sharing, replacing the ephemeral in-memory-only cache
 **Depends on:** Phase 9
-**Plans:** 0 plans
+**Plans:** 1 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 10 to break down)
+- [ ] 10-01-PLAN.md — Install @aws-sdk/client-s3, create audioCache.ts with S3 get/put/buildCacheKey + Datadog tracing, wire into tts.ts as L2 cache behind existing in-memory L1
 
 ---
 
@@ -215,3 +215,4 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 7. Voice + Demo Polish | 0/3 | Not started | - |
 | 8. Multiplayer Mode | 0/5 | Not started | - |
 | 9. Scale & Auth | 0/0 | Not started | - |
+| 10. S3 Audio Cache | 0/1 | Not started | - |

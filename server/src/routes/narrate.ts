@@ -4,6 +4,7 @@ import { streamBedrockResponse } from "../services/bedrock.js";
 import type { ChatMessage } from "../services/bedrock.js";
 import { getOrCreate, appendMessage } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
+import { recordBedrockUsage, recordTtsUsage } from "../services/usageTracker.js";
 
 const OPENING_PROMPT =
   "Begin the adventure. The player has just pushed open the door of the Shattered Crown Tavern. Set the opening scene — describe the tavern atmosphere, mention Gorm behind the bar, and hint that something feels wrong in this town. End with \"What do you do?\"";
@@ -14,6 +15,7 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
   const requestId = buildRequestId(req.get("x-request-id"));
   res.setHeader("x-request-id", requestId);
   const textInput = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+  const bodyConversationId = typeof req.body?.conversationId === "string" ? req.body.conversationId : null;
   const hasText = textInput.length > 0;
   logEvent("info", "narrate.request_received", {
     requestId,
@@ -26,6 +28,7 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
   if (hasText) {
     try {
       const { audioBuffer } = await generateTTS(textInput);
+      recordTtsUsage(bodyConversationId, textInput.length);
       res.setHeader("Content-Type", "audio/mpeg");
       res.setHeader("Content-Length", audioBuffer.length);
       res.send(audioBuffer);
@@ -55,9 +58,12 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
   // No text — generate opening monologue from Bedrock, TTS it, return JSON
   const messages: ChatMessage[] = [{ role: "user", content: OPENING_PROMPT }];
   let text = "";
+  let bedrockCostUsd = 0;
 
   try {
-    text = await streamBedrockResponse(messages, () => {});
+    const result = await streamBedrockResponse(messages, () => {});
+    text = result.text;
+    bedrockCostUsd = recordBedrockUsage(null, "narrate-opening", result.inputTokens, result.outputTokens);
   } catch (err) {
     logEvent(
       "error",
@@ -80,11 +86,13 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
 
   try {
     const { audioBuffer } = await generateTTS(text);
+    const ttsCostUsd = recordTtsUsage(conversation.id, text.length);
 
     res.json({
       audio: audioBuffer.toString("base64"),
       text,
       conversationId: conversation.id,
+      usage: { bedrockCostUsd, ttsCostUsd, totalCostUsd: bedrockCostUsd + ttsCostUsd },
     });
     logEvent("info", "narrate.opening_completed", {
       requestId,
@@ -112,6 +120,7 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
       conversationId: conversation.id,
       ttsError: "Opening narration audio generation failed",
       requestId,
+      usage: { bedrockCostUsd, ttsCostUsd: 0, totalCostUsd: bedrockCostUsd },
     });
   }
 });

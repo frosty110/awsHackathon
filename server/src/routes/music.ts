@@ -2,6 +2,7 @@ import tracer from "dd-trace";
 import { Router } from "express";
 import { config } from "../services/config.js";
 import { logEvent } from "../services/logger.js";
+import { recordMusicUsage } from "../services/usageTracker.js";
 
 const router = Router();
 
@@ -93,6 +94,7 @@ function startGeneration() {
         generationCompletedAt = Date.now();
         generationDurationMs = generationCompletedAt - overallStart;
         audioSizeBytes = cachedAudio.length;
+        recordMusicUsage();
 
         tracer.llmobs.annotate(span, {
           inputData: JSON.stringify({ prompt, model: "music-2.5" }),

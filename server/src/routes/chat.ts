@@ -6,6 +6,7 @@ import {
   getWindowedHistory,
 } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
+import { recordBedrockUsage } from "../services/usageTracker.js";
 
 const router = Router();
 
@@ -62,11 +63,16 @@ router.post("/api/chat", async (req, res) => {
 
   let fullText = "";
   let streamErrored = false;
+  let inputTokens = 0;
+  let outputTokens = 0;
 
   try {
-    fullText = await streamBedrockResponse(bedrockMessages, (chunk) => {
+    const result = await streamBedrockResponse(bedrockMessages, (chunk) => {
       res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
     });
+    fullText = result.text;
+    inputTokens = result.inputTokens;
+    outputTokens = result.outputTokens;
   } catch (err) {
     streamErrored = true;
     logEvent(
@@ -88,6 +94,14 @@ router.post("/api/chat", async (req, res) => {
         requestId,
       })}\n\n`
     );
+  }
+
+  // Record usage and emit cost event before [DONE]
+  if (!streamErrored && fullText) {
+    const costUsd = recordBedrockUsage(conversation.id, "chat", inputTokens, outputTokens);
+    res.write(`data: ${JSON.stringify({
+      usage: { inputTokens, outputTokens, costUsd, model: "bedrock-haiku", feature: "chat" },
+    })}\n\n`);
   }
 
   res.write("data: [DONE]\n\n");

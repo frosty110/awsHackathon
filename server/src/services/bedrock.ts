@@ -88,6 +88,12 @@ export type ChatMessage = {
   content: string;
 };
 
+export type BedrockResult = {
+  text: string;
+  inputTokens: number;
+  outputTokens: number;
+};
+
 /**
  * Stream a Bedrock response, calling onChunk for each text delta.
  * Wrapped in a tracer.llmobs.trace() span so it appears in Datadog LLM Observability.
@@ -96,7 +102,7 @@ export type ChatMessage = {
 export async function streamBedrockResponse(
   messages: ChatMessage[],
   onChunk: (text: string) => void
-): Promise<string> {
+): Promise<BedrockResult> {
   return tracer.llmobs.trace(
     {
       kind: "llm",
@@ -145,6 +151,10 @@ export async function streamBedrockResponse(
           }
         }
 
+        const costUsd =
+          inputTokens * (0.25 / 1_000_000) +
+          outputTokens * (1.25 / 1_000_000);
+
         // Annotate BEFORE callback returns — span finishes on return
         tracer.llmobs.annotate(span, {
           inputData: messages.map((m) => ({ role: m.role, content: String(m.content) })),
@@ -153,10 +163,11 @@ export async function streamBedrockResponse(
             inputTokens,
             outputTokens,
             totalTokens: inputTokens + outputTokens,
+            costUsd,
           },
         });
 
-        return fullText;
+        return { text: fullText, inputTokens, outputTokens };
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
           throw new Error(

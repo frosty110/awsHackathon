@@ -4,6 +4,8 @@ import {
   CHARACTER_CLASSES,
   getClassColor,
   getClassIcon,
+  randomDisplayName,
+  randomCharacterClass,
   type CharacterClassId,
   type RoomState,
   type MultiplayerPlayer,
@@ -18,8 +20,8 @@ interface MultiplayerLobbyProps {
 
 export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps) {
   const [step, setStep] = useState<LobbyStep>('choose');
-  const [displayName, setDisplayName] = useState('');
-  const [characterClass, setCharacterClass] = useState<CharacterClassId | null>(null);
+  const [displayName, setDisplayName] = useState(randomDisplayName);
+  const [characterClass, setCharacterClass] = useState<CharacterClassId | null>(randomCharacterClass);
   const [joinCode, setJoinCode] = useState('');
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,14 +29,15 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
 
   // Register Socket.IO event listeners — cleaned up on unmount
   useEffect(() => {
-    function onRoomCreated(state: RoomState) {
-      setRoomState(state);
+    function onRoomCreated(_payload: { code: string }) {
+      // Server sends { code } only — full RoomState arrives via room:state immediately after.
+      // Don't set roomState here to avoid an intermediate render with missing `players`.
       setError(null);
-      setStep('lobby');
     }
 
     function onRoomState(state: RoomState) {
       setRoomState(state);
+      setStep('lobby');
     }
 
     function onPlayerJoined(player: MultiplayerPlayer) {

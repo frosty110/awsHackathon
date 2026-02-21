@@ -2,10 +2,28 @@ import { createHash } from "node:crypto";
 import tracer from "dd-trace";
 import { config } from "./config.js";
 import { logEvent } from "./logger.js";
+import { buildCacheKey as buildS3Key, getAudio, putAudio } from "./audioCache.js";
 
 export type TTSModel = "speech-2.8-hd" | "speech-2.8-turbo";
 
 export type SceneMood = "combat" | "tavern" | "mystery" | "dramatic" | "danger";
+
+export type SceneId =
+  | "tavern_idle" | "tavern_tense" | "goblin_ambush" | "combat_melee"
+  | "cave_entrance" | "cave_interior" | "npc_dialogue" | "forest_path"
+  | "town_street" | "campfire" | "treasure_found" | "magic_spell"
+  | "fireball" | "stealth" | "trap_danger" | "locked_door"
+  | "rain_storm" | "victory" | "defeat" | "potion_drink"
+  | "bridge_crossing" | "throne_room" | "moonrise" | "merchant" | "dice_roll";
+
+const VALID_SCENES: SceneId[] = [
+  "tavern_idle", "tavern_tense", "goblin_ambush", "combat_melee",
+  "cave_entrance", "cave_interior", "npc_dialogue", "forest_path",
+  "town_street", "campfire", "treasure_found", "magic_spell",
+  "fireball", "stealth", "trap_danger", "locked_door",
+  "rain_storm", "victory", "defeat", "potion_drink",
+  "bridge_crossing", "throne_room", "moonrise", "merchant", "dice_roll",
+];
 
 export type CharacterVoice = "narrator" | "barkeep" | "goblin";
 
@@ -24,8 +42,8 @@ export interface TTSResult {
 
 const VOICE_MAP: Record<CharacterVoice, string> = {
   narrator: "English_CaptivatingStoryteller",
-  barkeep: "English_ManWithDeepVoice",        // deep, gruff male
-  goblin: "English_Comedian",                 // energetic, quirky
+  barkeep: "English_Debator",                 // Gorm: tough, middle-aged, assertive ex-soldier
+  goblin: "English_Comedian",                 // chaotic, quirky goblin energy
 };
 
 const MOOD_PROSODY: Record<SceneMood, { speed: number; pitch: number }> = {
@@ -81,6 +99,14 @@ export function extractMood(text: string): [SceneMood | null, string] {
   return valid.includes(mood) ? [mood, text.slice(match[0].length)] : [null, text];
 }
 
+/** Extract and strip {{scene:TAG}} from text. Returns [scene, cleanText]. */
+export function extractScene(text: string): [SceneId | null, string] {
+  const match = text.match(/\{\{scene:(\w+)\}\}\s*/);
+  if (!match) return [null, text];
+  const scene = match[1] as SceneId;
+  return VALID_SCENES.includes(scene) ? [scene, text.replace(match[0], "")] : [null, text];
+}
+
 /** Split text into segments by {{voice:ID}}...{{/voice}} tags.
  *  Returns array of { voice: CharacterVoice, text: string } segments. */
 export function splitVoiceSegments(text: string): Array<{ voice: CharacterVoice; text: string }> {
@@ -111,10 +137,11 @@ export function splitVoiceSegments(text: string): Array<{ voice: CharacterVoice;
   return segments.length > 0 ? segments : [{ voice: "narrator", text }];
 }
 
-/** Strip emotion tags, mood tags, and voice tags for UI display. */
+/** Strip emotion tags, mood tags, scene tags, and voice tags for UI display. */
 export function stripTTSTags(text: string): string {
   return text
     .replace(/^\{\{mood:\w+\}\}\s*/, "")
+    .replace(/\{\{scene:\w+\}\}\s*/g, "")
     .replace(/\{\{voice:\w+\}\}/g, "")
     .replace(/\{\{\/voice\}\}/g, "")
     .replace(/\[(excited|whisper|angry|fearful|sad|shouting)\]\s*/g, "")
@@ -129,12 +156,16 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
   // ── Cache lookup ──────────────────────────────────────────────────────
   const preHashKey = buildTTSCacheKey(text, voice, options.mood, model);
   const cacheKey = hashKey(preHashKey);
-  const cached = ttsCache.get(cacheKey);
+  const s3Key = buildS3Key(text, voice, options.mood, model);
 
-  if (cached && Date.now() - cached.createdAt < TTS_CACHE_TTL_MS) {
+  // L1: in-memory Map (zero latency for recently generated audio)
+  const l1Cached = ttsCache.get(cacheKey);
+  if (l1Cached && Date.now() - l1Cached.createdAt < TTS_CACHE_TTL_MS) {
     ttsCacheHits++;
     logEvent("info", "tts.cache_hit", {
       cacheKey,
+      s3Key,
+      source: "memory",
       preHashKey: preHashKey.slice(0, 120),
       textLength: text.length,
       voice,
@@ -144,12 +175,43 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
       cacheMisses: ttsCacheMisses,
       cacheSize: ttsCache.size,
     });
-    return cached.result;
+    return l1Cached.result;
+  }
+
+  // L2: S3 (durable, cross-instance cache)
+  let s3Buffer: Buffer | null = null;
+  try {
+    s3Buffer = await getAudio(s3Key);
+  } catch (err) {
+    // S3 unavailable — degrade gracefully, treat as miss
+    logEvent("warn", "tts.s3_cache_get_failed", { s3Key, error: String(err) });
+  }
+
+  if (s3Buffer) {
+    ttsCacheHits++;
+    const s3Result: TTSResult = { audioBuffer: s3Buffer, audioFormat: "mp3", durationMs: 0 };
+    // Promote to L1 for zero-latency access on subsequent requests in this session
+    ttsCache.set(cacheKey, { result: s3Result, createdAt: Date.now() });
+    logEvent("info", "tts.cache_hit", {
+      cacheKey,
+      s3Key,
+      source: "s3",
+      preHashKey: preHashKey.slice(0, 120),
+      textLength: text.length,
+      voice,
+      mood: options.mood ?? "none",
+      model,
+      cacheHits: ttsCacheHits,
+      cacheMisses: ttsCacheMisses,
+      cacheSize: ttsCache.size,
+    });
+    return s3Result;
   }
 
   ttsCacheMisses++;
   logEvent("info", "tts.cache_miss", {
     cacheKey,
+    s3Key,
     preHashKey: preHashKey.slice(0, 120),
     textLength: text.length,
     voice,
@@ -158,7 +220,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
     cacheHits: ttsCacheHits,
     cacheMisses: ttsCacheMisses,
     cacheSize: ttsCache.size,
-    reason: cached ? "expired" : "not_found",
+    reason: l1Cached ? "expired" : "not_found",
   });
 
   // ── API call (cache miss) ─────────────────────────────────────────────
@@ -231,6 +293,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
       });
 
       // ── Store in cache ──────────────────────────────────────────────────
+      // L1: store in memory
       evictStaleTTSEntries();
       if (ttsCache.size >= TTS_CACHE_MAX_SIZE) {
         // Evict oldest entry
@@ -238,6 +301,15 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
         if (oldestKey) ttsCache.delete(oldestKey);
       }
       ttsCache.set(cacheKey, { result, createdAt: Date.now() });
+
+      // L2: store in S3 (fire-and-forget, non-blocking — does NOT add latency to TTS response)
+      putAudio(s3Key, result.audioBuffer, {
+        voice: VOICE_MAP[voice],
+        mood: options.mood ?? "none",
+        model,
+      }).catch((err) =>
+        logEvent("warn", "tts.s3_cache_put_failed", { s3Key, error: String(err) })
+      );
 
       logEvent("info", "tts.api_call_completed", {
         cacheKey,

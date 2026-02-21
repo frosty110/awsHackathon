@@ -5,22 +5,39 @@ import {
   appendMessage,
   getWindowedHistory,
 } from "../services/conversationStore.js";
+import { buildRequestId, logEvent } from "../services/logger.js";
 
 const router = Router();
 
 router.post("/api/chat", async (req, res) => {
-  const { conversationId, message, isSystemTrigger } = req.body as {
+  const body = req.body as {
     conversationId?: string;
-    message: string;
+    message?: unknown;
     isSystemTrigger?: boolean;
   };
+  const message = typeof body.message === "string" ? body.message : "";
+  const isSystemTrigger = Boolean(body.isSystemTrigger);
+  const requestId = buildRequestId(req.get("x-request-id"));
+  res.setHeader("x-request-id", requestId);
+  logEvent("info", "chat.request_received", {
+    requestId,
+    route: "/api/chat",
+    conversationId: body.conversationId ?? null,
+    isSystemTrigger,
+    messageLength: message.length,
+  });
 
-  if (!message?.trim()) {
-    res.status(400).json({ error: "message is required" });
+  if (!message.trim()) {
+    logEvent("warn", "chat.validation_failed", {
+      requestId,
+      route: "/api/chat",
+      reason: "message_missing",
+    });
+    res.status(400).json({ error: "message is required", requestId });
     return;
   }
 
-  const conversation = getOrCreate(conversationId);
+  const conversation = getOrCreate(body.conversationId);
 
   // System triggers (opening monologue) are sent to Bedrock but not stored
   // in history as player messages — keeps conversation context clean
@@ -44,13 +61,33 @@ router.post("/api/chat", async (req, res) => {
     : history;
 
   let fullText = "";
+  let streamErrored = false;
 
   try {
     fullText = await streamBedrockResponse(bedrockMessages, (chunk) => {
       res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
     });
   } catch (err) {
-    res.write(`data: ${JSON.stringify({ error: "Bedrock stream failed" })}\n\n`);
+    streamErrored = true;
+    logEvent(
+      "error",
+      "chat.bedrock_stream_failed",
+      {
+        requestId,
+        route: "/api/chat",
+        conversationId: conversation.id,
+        messageLength: message.length,
+        isSystemTrigger: Boolean(isSystemTrigger),
+        failureType: "recoverable_stream_error",
+      },
+      err
+    );
+    res.write(
+      `data: ${JSON.stringify({
+        error: "Bedrock stream failed",
+        requestId,
+      })}\n\n`
+    );
   }
 
   res.write("data: [DONE]\n\n");
@@ -59,6 +96,21 @@ router.post("/api/chat", async (req, res) => {
   // Persist assistant response after stream completes
   if (fullText) {
     appendMessage(conversation.id, { role: "assistant", content: fullText });
+    logEvent("info", "chat.stream_completed", {
+      requestId,
+      route: "/api/chat",
+      conversationId: conversation.id,
+      responseLength: fullText.length,
+    });
+    return;
+  }
+
+  if (!streamErrored) {
+    logEvent("warn", "chat.empty_assistant_response", {
+      requestId,
+      route: "/api/chat",
+      conversationId: conversation.id,
+    });
   }
 });
 

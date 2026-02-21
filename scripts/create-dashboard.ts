@@ -17,8 +17,8 @@ async function main(): Promise<void> {
     title: '[Hackathon] AI Dungeon Master - LLM Observability',
     layoutType: 'ordered',
     templateVariables: [
-      { name: 'env', defaults: ['development'] },
-      { name: 'service', defaults: ['server'] },
+      { name: 'env', defaults: ['hackathon'] },
+      { name: 'service', defaults: ['ai-dungeon-master'] },
     ],
     widgets: [
       // Widget 1: Bedrock Token Usage (timeseries, bars)

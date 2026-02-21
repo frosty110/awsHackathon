@@ -4,8 +4,8 @@
 
 See: .planning/PROJECT.md (updated 2026-02-20)
 
-**Core value:** A playable AI Dungeon Master demo that runs live with visible Datadog LLM observability — the minimum viable path to hackathon prize eligibility.
-**Current focus:** Phase 4 plan 01 complete (retroactive SUMMARY); Phase 7 in progress — 07-02 (AudioPlayer) complete, next: 07-03
+**Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
+**Current focus:** Phase 4 plan 02 Tasks 1+2 complete — awaiting human-verify checkpoint (Task 3) for end-to-end streaming chat
 
 ## Current Position
 
@@ -45,6 +45,7 @@ Progress: [███████░░░] 64%
 | Phase 07-voice-demo-polish P02 | 5 | 2 tasks | 2 files |
 | Phase 06-datadog-observability P01 | 3 | 2 tasks | 5 files |
 | Phase 06-datadog-observability P02 | 4 | 1 tasks | 4 files |
+| Phase 04 P02 | 5 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -86,10 +87,12 @@ Recent decisions affecting current work:
 - [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
 - [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
 - [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
 
 ### Roadmap Evolution
 
 - Phase 8 added: Multiplayer Mode — multiple users play D&D together in real-time
+- Phase 10 added: S3 Audio Cache Infrastructure — Install @aws-sdk/client-s3, config, audioCache.ts service with S3 get/put/key-generation and Datadog tracing
 
 ### Pending Todos
 
@@ -113,6 +116,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-21
-Stopped at: Completed 04-01-PLAN.md (retroactive) — Bedrock chat pipeline, conversation store, POST /api/chat SSE route.
-Resume file: `.planning/phases/04-bedrock-chat-core/04-01-SUMMARY.md`
+Last session: 2026-02-20
+Stopped at: Checkpoint 04-02 Task 3 — human-verify end-to-end streaming chat with dice rolls (Tasks 1+2 committed: 88159a1, e871ba0)
+Resume file: `.planning/phases/04-bedrock-chat-core/04-02-SUMMARY.md`

@@ -3,11 +3,14 @@
 
 const DEFAULT_VOLUME = 0.12;
 const POLL_INTERVAL_MS = 4000;
+const RETRY_INTERVAL_MS = 10000;
+const MAX_RETRIES = 5;
 
 let audio: HTMLAudioElement | null = null;
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
 let currentVolume = DEFAULT_VOLUME;
 let paused = false;
+let retryCount = 0;
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -41,7 +44,13 @@ async function tryPlay() {
     }
 
     if (!res.ok) {
-      console.warn('[music] server error:', res.status);
+      retryCount++;
+      if (retryCount <= MAX_RETRIES) {
+        console.warn(`[music] server error: ${res.status}, retry ${retryCount}/${MAX_RETRIES} in ${RETRY_INTERVAL_MS / 1000}s`);
+        pollTimer = setTimeout(tryPlay, RETRY_INTERVAL_MS);
+      } else {
+        console.warn('[music] server error:', res.status, '— max retries reached');
+      }
       return;
     }
 

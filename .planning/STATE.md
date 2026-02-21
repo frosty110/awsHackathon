@@ -5,35 +5,38 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 8 multiplayer mode — 08-05 Tasks 1+2 complete (App.tsx mode routing wired), awaiting human-verify checkpoint
+**Current focus:** All core phases complete (1-8). Phase 10 Plan 01 (S3 Audio Cache) complete. Quick tasks and mood-aware background music system in progress (uncommitted changes).
 
 ## Current Position
 
-Phase: 8 of 8 (Multiplayer Mode) — IN PROGRESS
-Plan: 5/5 executing (08-01 Socket.IO infra, 08-02 client socket + lobby UI, 08-03 server turn orchestration, 08-04 game UI, 08-05 wiring + mode routing)
-Status: 08-05 Tasks 1+2 complete — Socket.IO wiring confirmed, App.tsx routes modeSelect->single-player/multiplayer; CHECKPOINT reached (Task 3: human-verify)
-Last activity: 2026-02-21 — Completed quick task 4: Add gender selection to character creation and display in chat/player UI
+Phase: Phase 10 (S3 Audio Cache) — Plan 01 complete.
+Plan: 22/22 core plans executed across phases 1-8. 4 quick tasks shipped. Phase 10 Plan 01 complete.
+Status: Two-tier TTS cache (L1 in-memory + L2 S3) deployed. Core gameplay loop fully functional — single-player and multiplayer modes, RAG, Datadog observability, multi-voice TTS, character creation with class/pronouns/gender.
+Last activity: 2026-02-21 — Phase 10 Plan 01 complete (S3 audio cache). Mood-aware background music still in progress (12 files modified, uncommitted).
 
-Progress: [████████░░] 70%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: ~3 min
-- Total execution time: ~0.2 hours
+- Total plans completed: 22 (across 8 phases) + 4 quick tasks
+- Average duration: ~3 min per plan
+- Total execution time: ~1.1 hours
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01-scaffold | 3 | ~10 min | ~3 min |
-| 02-chat-ui | 2 (of 2) | ~4 min | ~2 min |
-| 03-lore-graph-seed | 2 (of 2) | ~3 min | ~1.5 min |
+| Phase | Plans | Status |
+|-------|-------|--------|
+| 01-scaffold | 3/3 | ✅ Complete |
+| 02-chat-ui | 2/2 | ✅ Complete |
+| 03-lore-graph-seed | 2/2 | ✅ Complete |
+| 04-bedrock-chat-core | 2/2 | ✅ Complete |
+| 05-rag-pipeline | 2/2 | ✅ Complete |
+| 06-datadog-observability | 2/2 | ✅ Complete |
+| 07-voice-demo-polish | 3/3 | ✅ Complete |
+| 08-multiplayer-mode | 5/5 | ✅ Complete |
 
-**Recent Trend:**
-- Last 5 plans: 01-03, 02-01, 02-02, 03-01, 03-02
-- Trend: Stable
+**Quick Tasks:** 4/4 complete (TTS optimization, chat styling, pronouns, gender)
 
 *Updated after each plan completion*
 | Phase 04-bedrock-chat-core P01 | 3 | 2 tasks | 4 files |
@@ -108,6 +111,11 @@ Recent decisions affecting current work:
 - [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
 - [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
 - [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
 
 ### Roadmap Evolution
 
@@ -137,8 +145,15 @@ Recent decisions affecting current work:
 | 3 | Add pronoun picker to character creation with DM system prompt injection | 2026-02-21 | 5638a89 | [3-add-pronoun-picker-to-character-creation](./quick/3-add-pronoun-picker-to-character-creation/) |
 | 4 | Add gender selection (Male/Female/Non-binary) to character creation with end-to-end threading | 2026-02-21 | fa2b01d | [4-add-gender-selection-to-character-creati](./quick/4-add-gender-selection-to-character-creati/) |
 
+## In-Progress Work (Uncommitted)
+
+Mood-aware background music system spanning 12 files (+411/-153 lines):
+- **Client**: `backgroundMusic.ts` rewritten (mood-aware crossfade, TTS ducking), `audioController.ts` (duck/restore integration), `useSSEChat.ts` (mood from SSE stream), `useMultiplayerRoom.ts` (mood from socket events), `App.tsx` (tavern mood on start)
+- **Server**: `music.ts` (per-mood generation/caching), `tts.ts` (barkeep voice change), `turnHandlers.ts` (RAG + mood extraction for multiplayer), `types.ts` (mood in dm:stream-end event)
+- **UI**: `ClassSelect.tsx` and `ModeSelect.tsx` font size increases
+
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed quick-04 (add gender selection to character creation)
-Resume file: `.planning/quick/4-add-gender-selection-to-character-creati/4-SUMMARY.md`
+Stopped at: Completed 10-01-PLAN.md (S3 audio cache infrastructure)
+Resume context: Phase 10 Plan 01 complete. Mood-aware background music still in progress (12 files modified, uncommitted) — spans client services, hooks, and server routes. Background music crossfades per scene mood, TTS ducks music volume, RAG wired into multiplayer turns.

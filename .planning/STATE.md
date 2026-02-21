@@ -60,6 +60,7 @@ Progress: [██████████] 97%
 | Phase 11 P01 | 2 | 2 tasks | 5 files |
 | Phase 11 P04 | 1 | 1 tasks | 2 files |
 | Phase 11 P03 | 3 | 2 tasks | 3 files |
+| Phase 11 P02 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,8 @@ Recent decisions affecting current work:
 - [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
 - [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
 - [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
 
 ### Roadmap Evolution
 
@@ -179,5 +182,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 11-01-PLAN.md (helmet, CORS, musicLimiter)
-Resume context: Phase 11 Plan 01 complete. Helmet + CORS middleware wired as first middleware in app.ts. musicLimiter added on /api/music and /music. Socket.IO CORS updated to use shared ALLOWED_ORIGINS. Plans 02, 05 remain in Phase 11.
+Stopped at: Completed 11-02-PLAN.md (promptBuilder extraction + p-queue verification)
+Resume context: Phase 11 Plan 02 complete. DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt extracted to promptBuilder.ts; bedrock.ts is now pure AWS transport with re-exports for backward compatibility. p-queue concurrency cap of 20 via bedrockQueue.ts (established in Phase 09). Plans 03, 04, 05 remain in Phase 11.

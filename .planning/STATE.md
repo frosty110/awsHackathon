@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 Phase: 8 of 8 (Multiplayer Mode) — IN PROGRESS
 Plan: 5/5 executing (08-01 Socket.IO infra, 08-02 client socket + lobby UI, 08-03 server turn orchestration, 08-04 game UI, 08-05 wiring + mode routing)
 Status: 08-05 Tasks 1+2 complete — Socket.IO wiring confirmed, App.tsx routes modeSelect->single-player/multiplayer; CHECKPOINT reached (Task 3: human-verify)
-Last activity: 2026-02-21 — Completed quick task 3: Add pronoun picker to character creation with DM system prompt injection
+Last activity: 2026-02-21 — Completed quick task 4: Add gender selection to character creation and display in chat/player UI
 
 Progress: [████████░░] 70%
 

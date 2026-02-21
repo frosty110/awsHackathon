@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 8 multiplayer mode — 08-01 complete (Socket.IO infra + room store), starting 08-02 room event handlers
+**Current focus:** Phase 8 multiplayer mode — 08-02 complete (client socket singleton, types, ModeSelect, MultiplayerLobby)
 
 ## Current Position
 
 Phase: 8 of 8 (Multiplayer Mode) — IN PROGRESS
-Plan: 1/5 complete (08-01 Socket.IO infra + room store)
-Status: 08-01 executed — Socket.IO init, typed events, room store CRUD, Vite WS proxy
-Last activity: 2026-02-21 — Completed 08-01: Socket.IO infrastructure, typed events, room store
+Plan: 2/5 complete (08-01 Socket.IO infra + room store, 08-02 client socket + lobby UI)
+Status: 08-02 executed — socket.ts singleton, multiplayer.ts types, ModeSelect, MultiplayerLobby with full socket event wiring
+Last activity: 2026-02-21 — Completed 08-02: client socket singleton, 6-class type system, ModeSelect, MultiplayerLobby
 
 Progress: [████████░░] 70%
 
@@ -127,5 +127,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 08-01 — Socket.IO infra + room store (commits c52f1e2, 2c0006c)
-Resume file: `.planning/phases/08-multiplayer-mode-multiple-users-play-d-d-together-in-real-time/08-01-SUMMARY.md`
+Stopped at: Completed 08-02 — client socket singleton, types, ModeSelect, MultiplayerLobby (commits 84c496a, 241de83)
+Resume file: `.planning/phases/08-multiplayer-mode-multiple-users-play-d-d-together-in-real-time/08-02-SUMMARY.md`

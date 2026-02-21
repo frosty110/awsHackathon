@@ -10,6 +10,7 @@ import neo4j from "neo4j-driver";
 
 import { createApp } from "./app.js";
 import { config, warnOnBlankConfig } from "./services/config.js";
+import { connectRedis } from "./services/redis.js";
 import { initSocketIO } from "./sockets/index.js";
 import { initRag } from "./services/rag.js";
 
@@ -26,6 +27,17 @@ async function main(): Promise<void> {
     ["MINIMAX_API_KEY", "MINIMAX_GROUP_ID"],
     "MiniMax TTS (needed in Phase 7)"
   );
+  warnOnBlankConfig(
+    ["REDIS_URL"],
+    "Redis (needed for Phase 9 persistence)"
+  );
+  warnOnBlankConfig(
+    ["JWT_SECRET"],
+    "JWT Auth (needed for Phase 9 authentication)"
+  );
+
+  // Connect Redis before any routes or sockets that depend on it
+  await connectRedis();
 
   const allowNeo4jSkip =
     config.SKIP_NEO4J_CONNECTIVITY_CHECK === "1" && config.NODE_ENV !== "production";
@@ -66,7 +78,7 @@ async function main(): Promise<void> {
   const server = createServer(app);
 
   // Attach Socket.IO to the http.Server (must be done before server.listen)
-  initSocketIO(server);
+  await initSocketIO(server);
 
   server.listen(config.PORT, () => {
     console.log(`Server listening on http://localhost:${config.PORT}`);

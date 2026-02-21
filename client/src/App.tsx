@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useSSEChat } from './hooks/useSSEChat';
 import { startBackgroundMusic } from './services/backgroundMusic';
 import { AudioControls } from './components/AudioControls';
@@ -6,26 +6,73 @@ import { AudioPlayer, type NarrateResult } from './components/AudioPlayer';
 import { ChatWindow } from './components/ChatWindow';
 import { MessageInput } from './components/MessageInput';
 import { DiceRoller } from './components/DiceRoller';
+import { ClassSelect, type CharacterClass } from './components/ClassSelect';
+import { ModeSelect } from './components/ModeSelect';
+import { MultiplayerLobby } from './components/MultiplayerLobby';
+import { MultiplayerGame } from './components/MultiplayerGame';
+import { socket } from './services/socket';
+import type { RoomState } from './types/multiplayer';
 import type { AppState } from './types/chat';
 
 export default function App() {
-  const [appState, setAppState] = useState<AppState>('idle');
+  const [appState, setAppState] = useState<AppState>('modeSelect');
+  const [multiplayerRoomCode, setMultiplayerRoomCode] = useState<string | null>(null);
+  const selectedClass = useRef<CharacterClass | null>(null);
   const { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, sessionCost } = useSSEChat();
+
+  // ----- Single-player handlers -----
+
+  function handleSinglePlayer() {
+    setAppState('idle');
+  }
+
+  function handleClassSelected(cls: CharacterClass) {
+    selectedClass.current = cls;
+    setAppState('classSelect');
+  }
 
   function handleStart(narration?: NarrateResult) {
     setAppState('adventure');
-    void startAdventure(narration);
+    void startAdventure(narration, selectedClass.current ?? undefined);
     startBackgroundMusic();
   }
 
   function handleReset() {
     reset();
-    setAppState('idle');
+    selectedClass.current = null;
+    setMultiplayerRoomCode(null);
+    setAppState('modeSelect');
   }
 
   function handleRollDice(result: number) {
     sendMessage(`\u{1F3B2} I roll the dice... ${result}!`, result);
   }
+
+  // ----- Multiplayer handlers -----
+
+  function handleMultiplayer() {
+    setAppState('multiplayerLobby');
+  }
+
+  function handleMultiplayerGameStart(roomState: RoomState) {
+    setMultiplayerRoomCode(roomState.code);
+    setAppState('multiplayerGame');
+  }
+
+  function handleMultiplayerBack() {
+    socket.disconnect();
+    setAppState('modeSelect');
+  }
+
+  function handleMultiplayerLeave() {
+    socket.disconnect();
+    setMultiplayerRoomCode(null);
+    setAppState('modeSelect');
+  }
+
+  // Show Reset button for single-player adventure and multiplayer game
+  const showReset = appState === 'adventure' || appState === 'multiplayerGame';
+  const onResetClick = appState === 'multiplayerGame' ? handleMultiplayerLeave : handleReset;
 
   return (
     <div className="relative min-h-screen flex items-center justify-center">
@@ -60,19 +107,19 @@ export default function App() {
           <div className="flex items-center gap-4">
             <AudioControls />
             {appState === 'adventure' && sessionCost > 0 && (
-              <span className="font-mono text-xs text-dm-gold/70">
+              <span className="font-mono text-sm text-dm-gold/70">
                 ${sessionCost.toFixed(4)}
               </span>
             )}
-            <span className="font-sans text-xs text-parchment/50">
+            <span className="font-sans text-sm text-parchment/50">
               Powered by AWS Bedrock
             </span>
-            {appState === 'adventure' && (
+            {showReset && (
               <button
-                onClick={handleReset}
-                className="font-cinzel text-xs text-blood-light hover:text-parchment"
+                onClick={onResetClick}
+                className="font-cinzel text-sm text-blood-light hover:text-parchment"
               >
-                Reset
+                {appState === 'multiplayerGame' ? 'Leave Room' : 'Reset'}
               </button>
             )}
           </div>
@@ -80,11 +127,18 @@ export default function App() {
 
         {/* Main area */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          {appState === 'idle' ? (
-            <div className="flex-1 flex items-center justify-center">
-              <AudioPlayer onAdventureStart={handleStart} />
+          {appState === 'modeSelect' ? (
+            <ModeSelect onSinglePlayer={handleSinglePlayer} onMultiplayer={handleMultiplayer} />
+          ) : appState === 'idle' ? (
+            <ClassSelect onSelect={handleClassSelected} />
+          ) : appState === 'classSelect' ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4">
+              <p className="font-fell text-parchment/60 text-sm">
+                Playing as <span className="text-dm-gold font-cinzel font-semibold">{selectedClass.current?.icon} {selectedClass.current?.name}</span>
+              </p>
+              <AudioPlayer onAdventureStart={handleStart} characterClass={selectedClass.current?.name} />
             </div>
-          ) : (
+          ) : appState === 'adventure' ? (
             <>
               <ChatWindow messages={messages} isLoading={isLoading} onStopAudio={stopAudio} />
               <div className="border-t border-blood/30">
@@ -105,7 +159,17 @@ export default function App() {
                 />
               </div>
             </>
-          )}
+          ) : appState === 'multiplayerLobby' ? (
+            <MultiplayerLobby
+              onGameStart={handleMultiplayerGameStart}
+              onBack={handleMultiplayerBack}
+            />
+          ) : appState === 'multiplayerGame' ? (
+            <MultiplayerGame
+              roomCode={multiplayerRoomCode!}
+              onLeave={handleMultiplayerLeave}
+            />
+          ) : null}
         </main>
 
       </div>

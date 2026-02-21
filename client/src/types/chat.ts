@@ -7,4 +7,4 @@ export interface Message {
   isStreaming?: boolean; // true while token chunks still arriving (Phase 4 SSE indicator)
 }
 
-export type AppState = 'idle' | 'adventure';
+export type AppState = 'idle' | 'classSelect' | 'adventure' | 'modeSelect' | 'multiplayerLobby' | 'multiplayerGame';

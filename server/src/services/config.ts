@@ -19,6 +19,7 @@ const envDefaults: Record<string, string> = {
   DD_TRACE_AWS_SDK_BEDROCKRUNTIME_ENABLED: "true",
   MINIMAX_API_KEY: "",
   MINIMAX_GROUP_ID: "",
+  MINIMAX_MUSIC_API_KEY: "",
   SKIP_NEO4J_CONNECTIVITY_CHECK: "0",
 };
 
@@ -45,6 +46,7 @@ const envSchema = z.object({
 
   MINIMAX_API_KEY: z.string(),
   MINIMAX_GROUP_ID: z.string(),
+  MINIMAX_MUSIC_API_KEY: z.string(),
 
   SKIP_NEO4J_CONNECTIVITY_CHECK: z.enum(["0", "1"]),
 });

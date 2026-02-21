@@ -1,36 +1,47 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Message } from '../types/chat';
 import type { NarrateResult } from '../components/AudioPlayer';
+import { playAudio, stopAudio as stopGlobalAudio } from '../services/audioController';
 
 export function useSSEChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const conversationId = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const generationRef = useRef(0);
 
-  // Internal: fetch /api/chat and stream DM response into a new message bubble.
+  const stopAudio = useCallback(() => {
+    stopGlobalAudio();
+  }, []);
+
+  const skip = useCallback(() => {
+    abortRef.current?.abort();
+    stopGlobalAudio();
+  }, []);
+
+  // Internal: fetch /api/chat, buffer full text, then reveal text + play audio together.
   const fetchDMResponse = useCallback(async (message: string) => {
+    abortRef.current?.abort();
+    stopGlobalAudio();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const generation = ++generationRef.current;
+
     setIsLoading(true);
     const dmId = crypto.randomUUID();
+    let fullContent = '';
+    let wasAborted = false;
 
-    // Append an empty streaming DM bubble immediately
-    setMessages(prev => [
-      ...prev,
-      { id: dmId, role: 'dm', content: '', isStreaming: true },
-    ]);
-
+    // --- 1. Stream Bedrock response, accumulate silently ---
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId: conversationId.current,
-          message,
-        }),
+        body: JSON.stringify({ conversationId: conversationId.current, message }),
+        signal: controller.signal,
       });
 
-      if (!res.ok || !res.body) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -55,36 +66,62 @@ export function useSSEChat() {
             error?: string;
           };
 
-          if (data.conversationId) {
-            conversationId.current = data.conversationId;
-          }
-
-          if (data.text) {
-            setMessages(prev =>
-              prev.map(m =>
-                m.id === dmId
-                  ? { ...m, content: m.content + data.text }
-                  : m
-              )
-            );
-          }
+          if (data.conversationId) conversationId.current = data.conversationId;
+          if (data.text) fullContent += data.text;
         }
       }
-    } catch {
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === dmId
-            ? { ...m, content: 'The Dungeon Master was lost to the void. Please try again.' }
-            : m
-        )
-      );
-    } finally {
-      // Mark streaming complete
-      setMessages(prev =>
-        prev.map(m => (m.id === dmId ? { ...m, isStreaming: false } : m))
-      );
-      setIsLoading(false);
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        wasAborted = true;
+      } else {
+        setMessages(prev => [
+          ...prev,
+          { id: dmId, role: 'dm', content: 'The Dungeon Master was lost to the void. Please try again.' },
+        ]);
+        if (generation === generationRef.current) setIsLoading(false);
+        return;
+      }
     }
+
+    // Aborted mid-stream: show whatever arrived (if anything), no TTS
+    if (wasAborted) {
+      if (fullContent) setMessages(prev => [...prev, { id: dmId, role: 'dm', content: fullContent }]);
+      if (generation === generationRef.current) setIsLoading(false);
+      return;
+    }
+
+    if (!fullContent || generation !== generationRef.current) {
+      if (generation === generationRef.current) setIsLoading(false);
+      return;
+    }
+
+    // --- 2. Fetch TTS, then reveal text + play audio at the same moment ---
+    try {
+      const ttsRes = await fetch('/api/narrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: fullContent }),
+      });
+
+      if (ttsRes.ok && generation === generationRef.current) {
+        const arrayBuffer = await ttsRes.arrayBuffer();
+        const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+
+        setMessages(prev => [...prev, { id: dmId, role: 'dm', content: fullContent }]);
+        if (generation === generationRef.current) setIsLoading(false);
+        playAudio(audio);
+        return;
+      }
+    } catch {
+      // TTS failed — fall through to show text without audio
+    }
+
+    // TTS unavailable: reveal text without audio
+    setMessages(prev => [...prev, { id: dmId, role: 'dm', content: fullContent }]);
+    if (generation === generationRef.current) setIsLoading(false);
   }, []);
 
   // Called when "Start Adventure" is clicked.
@@ -116,10 +153,12 @@ export function useSSEChat() {
   }, [fetchDMResponse]);
 
   const reset = useCallback(() => {
+    abortRef.current?.abort();
+    stopGlobalAudio();
     setMessages([]);
     setIsLoading(false);
     conversationId.current = null;
   }, []);
 
-  return { messages, isLoading, sendMessage, startAdventure, reset };
+  return { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio };
 }

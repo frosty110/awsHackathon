@@ -5,15 +5,16 @@ import { MessageBubble } from './MessageBubble';
 interface ChatWindowProps {
   messages: Message[];
   isLoading: boolean;
+  onStopAudio: () => void;
 }
 
-export function ChatWindow({ messages, isLoading }: ChatWindowProps) {
+export function ChatWindow({ messages, isLoading, onStopAudio }: ChatWindowProps) {
   const bottomRef = useChatScroll(messages);
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4">
       {messages.map(message => (
-        <MessageBubble key={message.id} message={message} />
+        <MessageBubble key={message.id} message={message} onStopAudio={onStopAudio} />
       ))}
 
       {isLoading && (

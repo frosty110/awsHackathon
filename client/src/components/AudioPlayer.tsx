@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
+import { playAudio } from '../services/audioController';
 
 export interface NarrateResult {
   text: string;
@@ -11,7 +12,6 @@ interface AudioPlayerProps {
 
 export function AudioPlayer({ onAdventureStart }: AudioPlayerProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'playing'>('idle');
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   async function handleStartAdventure() {
     if (status !== 'idle') return;
@@ -41,21 +41,14 @@ export function AudioPlayer({ onAdventureStart }: AudioPlayerProps) {
       const blob = new Blob([bytes], { type: 'audio/mpeg' });
       const objectUrl = URL.createObjectURL(blob);
       const audio = new Audio(objectUrl);
+      audio.addEventListener('ended', () => URL.revokeObjectURL(objectUrl));
 
-      audioRef.current = audio;
       setStatus('playing');
 
       // Pass Bedrock-generated text + conversationId to chat
       onAdventureStart({ text: data.text, conversationId: data.conversationId });
 
-      audio.play().catch((err) => {
-        console.error('[AudioPlayer] play() failed:', err);
-      });
-
-      audio.addEventListener('ended', () => {
-        URL.revokeObjectURL(objectUrl);
-        audioRef.current = null;
-      });
+      playAudio(audio);
     } catch (error) {
       console.error('[AudioPlayer] narrate fetch failed:', error);
       setStatus('idle');

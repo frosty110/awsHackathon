@@ -2,6 +2,7 @@ import type { Message } from '../types/chat';
 
 interface MessageBubbleProps {
   message: Message;
+  onStopAudio: () => void;
 }
 
 function getOutcomeBracket(value: number) {
@@ -12,14 +13,21 @@ function getOutcomeBracket(value: number) {
   return { label: 'Natural 20!', bg: 'bg-yellow-700/70', border: 'border-yellow-400', text: 'text-yellow-300' };
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, onStopAudio }: MessageBubbleProps) {
   const { role, content } = message;
 
   if (role === 'dm') {
     return (
-      <div className="flex justify-start mb-3">
-        <div className="max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble font-fell italic leading-[1.75] text-[color:var(--color-dm-message)] text-base">
+      <div className="flex justify-start mb-3 group">
+        <div className="relative max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble font-fell leading-[1.8] text-[color:var(--color-dm-message)] text-[1.05rem]">
           {content}
+          <button
+            onClick={onStopAudio}
+            title="Stop audio"
+            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-blood/80 text-parchment/70 hover:text-parchment hover:bg-blood flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"
+          >
+            ■
+          </button>
         </div>
       </div>
     );
@@ -61,7 +69,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   // role === 'player'
   return (
     <div className="flex justify-end mb-3">
-      <div className="max-w-[75%] px-4 py-3 rounded-lg bg-player-bubble font-cinzel font-semibold text-[0.9rem] text-[color:var(--color-player-message)] opacity-90">
+      <div className="max-w-[75%] px-4 py-3 rounded-lg bg-player-bubble font-sans text-sm leading-relaxed text-[color:var(--color-player-message)]">
         {content}
       </div>
     </div>

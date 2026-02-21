@@ -4,6 +4,7 @@ import type { Driver } from "neo4j-driver";
 import healthRouter from "./routes/health.js";
 import chatRouter from "./routes/chat.js";
 import narrateRouter from "./routes/narrate.js";
+import musicRouter from "./routes/music.js";
 
 interface AppDeps {
   driver: Driver | null;
@@ -16,6 +17,7 @@ export function createApp(_deps: AppDeps): Express {
   app.use(healthRouter);
   app.use(chatRouter);
   app.use(narrateRouter);
+  app.use(musicRouter);
 
   return app;
 }

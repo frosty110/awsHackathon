@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSSEChat } from './hooks/useSSEChat';
+import { startBackgroundMusic } from './services/backgroundMusic';
 import { AudioPlayer, type NarrateResult } from './components/AudioPlayer';
 import { ChatWindow } from './components/ChatWindow';
 import { MessageInput } from './components/MessageInput';
@@ -8,11 +9,12 @@ import type { AppState } from './types/chat';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('idle');
-  const { messages, isLoading, sendMessage, startAdventure, reset } = useSSEChat();
+  const { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio } = useSSEChat();
 
   function handleStart(narration?: NarrateResult) {
     setAppState('adventure');
     void startAdventure(narration);
+    startBackgroundMusic();
   }
 
   function handleReset() {
@@ -66,9 +68,19 @@ export default function App() {
             </div>
           ) : (
             <>
-              <ChatWindow messages={messages} isLoading={isLoading} />
+              <ChatWindow messages={messages} isLoading={isLoading} onStopAudio={stopAudio} />
               <div className="border-t border-blood/30">
-                <MessageInput onSend={sendMessage} disabled={isLoading} />
+                {isLoading && (
+                  <div className="flex justify-center pt-2">
+                    <button
+                      onClick={skip}
+                      className="font-cinzel text-xs text-parchment/50 hover:text-parchment border border-parchment/20 hover:border-parchment/50 px-4 py-1 rounded transition-colors"
+                    >
+                      Skip ▶▶
+                    </button>
+                  </div>
+                )}
+                <MessageInput onSend={sendMessage} disabled={false} />
                 <DiceRoller
                   onRoll={handleRollDice}
                   disabled={isLoading}

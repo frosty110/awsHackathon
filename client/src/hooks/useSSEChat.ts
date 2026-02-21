@@ -27,7 +27,7 @@ export function useSSEChat() {
   }, []);
 
   // Internal: fetch /api/chat, buffer full text, then reveal text + play audio together.
-  const fetchDMResponse = useCallback(async (message: string) => {
+  const fetchDMResponse = useCallback(async (message: string, diceResult?: number) => {
     abortRef.current?.abort();
     stopGlobalAudio();
     const controller = new AbortController();
@@ -44,7 +44,11 @@ export function useSSEChat() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId: conversationId.current, message }),
+        body: JSON.stringify({
+          conversationId: conversationId.current,
+          message,
+          ...(diceResult != null ? { diceResult } : {}),
+        }),
         signal: controller.signal,
       });
 
@@ -186,13 +190,13 @@ export function useSSEChat() {
     );
   }, [fetchDMResponse]);
 
-  const sendMessage = useCallback((content: string) => {
+  const sendMessage = useCallback((content: string, diceResult?: number) => {
     const role = content.startsWith('\u{1F3B2}') ? 'dice' : 'player';
     setMessages(prev => [
       ...prev,
       { id: crypto.randomUUID(), role, content },
     ]);
-    void fetchDMResponse(content);
+    void fetchDMResponse(content, diceResult);
   }, [fetchDMResponse]);
 
   const reset = useCallback(() => {

@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 11 (Architecture Audit) in progress — Plans 01, 03, 04 complete. Plans 02 and 05 remain.
+**Current focus:** Phase 11 (Architecture Audit) COMPLETE — All 5 plans done.
 
 ## Current Position
 
-Phase: Phase 11 (Architecture Audit) — Plans 01, 03, 04 complete.
-Plan: Phase 11 Plan 01 complete (helmet + CORS + musicLimiter). Plans 03 and 04 were completed in prior session.
-Status: Security middleware (helmet, CORS, rate limits) wired. Store interfaces and rolling eviction added. Music service extracted.
-Last activity: 2026-02-21 — Phase 11 Plan 01 complete (helmet, CORS, musicLimiter).
+Phase: Phase 11 (Architecture Audit) — ALL plans complete (01, 02, 03, 04, 05).
+Plan: Phase 11 Plan 05 complete (vitest infrastructure + 41 unit tests).
+Status: All architecture audit improvements done. Security, store interfaces, eviction, music service, prompt extraction, and test infrastructure all in place.
+Last activity: 2026-02-21 — Phase 11 Plan 05 complete (vitest + unit tests for promptBuilder, conversationStore, usageTracker).
 
 Progress: [██████████] 97%
 
@@ -61,6 +61,7 @@ Progress: [██████████] 97%
 | Phase 11 P04 | 1 | 1 tasks | 2 files |
 | Phase 11 P03 | 3 | 2 tasks | 3 files |
 | Phase 11 P02 | 4 | 2 tasks | 2 files |
+| Phase 11 P05 | 3 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,9 @@ Recent decisions affecting current work:
 - [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
 - [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
 - [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
 
 ### Roadmap Evolution
 

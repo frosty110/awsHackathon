@@ -51,7 +51,37 @@
   }
 }
 
-/* 4. Full-screen dark background — fallback gradient ensures UI works without tavern-bg.jpg */
+/* 4. Markdown prose inside DM bubbles */
+.dm-prose p { margin: 0.4em 0; }
+.dm-prose p:first-child { margin-top: 0; }
+.dm-prose p:last-child { margin-bottom: 0; }
+.dm-prose strong { font-weight: 700; color: var(--color-dm-gold); }
+.dm-prose em { font-style: italic; }
+.dm-prose ul, .dm-prose ol { margin: 0.4em 0; padding-left: 1.4em; }
+.dm-prose li { margin: 0.15em 0; }
+.dm-prose li::marker { color: var(--color-dm-gold); }
+
+/* 5. Volume slider styling */
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-dm-gold);
+  cursor: pointer;
+  box-shadow: 0 0 4px oklch(0.75 0.15 55 / 0.5);
+}
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-dm-gold);
+  cursor: pointer;
+  box-shadow: 0 0 4px oklch(0.75 0.15 55 / 0.5);
+}
+
+/* 6. Full-screen dark background — fallback gradient ensures UI works without tavern-bg.jpg */
 /* TODO: Add royalty-free dark tavern/forest image from Unsplash to client/public/tavern-bg.jpg */
 body {
   background-color: oklch(0.07 0.01 260);

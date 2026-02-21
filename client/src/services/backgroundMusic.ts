@@ -1,11 +1,25 @@
 // Background music player — separate from TTS audioController.
 // Loops at low volume; won't interfere with voice audio.
 
-const VOLUME = 0.12;
+const DEFAULT_VOLUME = 0.12;
 const POLL_INTERVAL_MS = 4000;
 
 let audio: HTMLAudioElement | null = null;
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
+let currentVolume = DEFAULT_VOLUME;
+let paused = false;
+
+type Listener = () => void;
+const listeners = new Set<Listener>();
+
+export function subscribe(fn: Listener) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+function notify() {
+  listeners.forEach((fn) => fn());
+}
 
 function clearPoll() {
   if (pollTimer) {
@@ -37,8 +51,9 @@ async function tryPlay() {
 
     audio = new Audio(url);
     audio.loop = true;
-    audio.volume = VOLUME;
+    audio.volume = currentVolume;
     const playPromise = audio.play();
+    notify(); // controls can now render
     playPromise
       .then(() => console.log('[music] playing ✓'))
       .catch((err) => console.warn('[music] play() failed:', err));
@@ -58,4 +73,36 @@ export function stopBackgroundMusic() {
     audio.pause();
     audio = null;
   }
+  paused = false;
+  notify();
+}
+
+export function setVolume(v: number) {
+  currentVolume = Math.max(0, Math.min(1, v));
+  if (audio) audio.volume = currentVolume;
+  notify();
+}
+
+export function getVolume() {
+  return currentVolume;
+}
+
+export function togglePause() {
+  if (!audio) return;
+  if (paused) {
+    audio.play().catch(() => {});
+    paused = false;
+  } else {
+    audio.pause();
+    paused = true;
+  }
+  notify();
+}
+
+export function isPaused() {
+  return paused;
+}
+
+export function isReady() {
+  return audio !== null;
 }

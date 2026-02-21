@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSSEChat } from './hooks/useSSEChat';
 import { startBackgroundMusic } from './services/backgroundMusic';
+import { AudioControls } from './components/AudioControls';
 import { AudioPlayer, type NarrateResult } from './components/AudioPlayer';
 import { ChatWindow } from './components/ChatWindow';
 import { MessageInput } from './components/MessageInput';
@@ -57,6 +58,7 @@ export default function App() {
             AI Dungeon Master
           </span>
           <div className="flex items-center gap-4">
+            <AudioControls />
             <span className="font-sans text-xs text-parchment/50">
               Powered by AWS Bedrock
             </span>

@@ -1,3 +1,4 @@
+import Markdown from 'react-markdown';
 import type { Message } from '../types/chat';
 
 interface MessageBubbleProps {
@@ -19,8 +20,8 @@ export function MessageBubble({ message, onStopAudio }: MessageBubbleProps) {
   if (role === 'dm') {
     return (
       <div className="flex justify-start mb-3 group">
-        <div className="relative max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble font-fell leading-[1.8] text-[color:var(--color-dm-message)] text-[1.05rem]">
-          {content}
+        <div className="dm-prose relative max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble font-fell leading-[1.8] text-[color:var(--color-dm-message)] text-[1.05rem]">
+          <Markdown>{content}</Markdown>
           <button
             onClick={onStopAudio}
             title="Stop audio"

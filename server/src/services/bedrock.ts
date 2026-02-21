@@ -140,13 +140,15 @@ export type BedrockResult = {
  * The prompt instructs the DM to weave all player actions into one cohesive narrative.
  */
 export function buildMultiplayerSystemPrompt(
-  players: Array<{ displayName: string; characterClass: string; gender?: string }>
+  players: Array<{ displayName: string; characterClass: string; pronouns?: string }>
 ): string {
-  const roster = players.map((p) => `- ${p.displayName}: ${p.characterClass} (${p.gender ?? 'nonbinary'})`).join("\n");
+  const roster = players.map((p) => `- ${p.displayName}: ${p.characterClass} (${p.pronouns || 'They/Them'})`).join("\n");
+  const pronounInstructions = players.map((p) => `- ${p.displayName}: ${p.pronouns || 'They/Them'}`).join("\n");
   return (
     `${DM_SYSTEM_PROMPT}\n\n` +
     `## Multiplayer Party\n` +
     `This is a multiplayer session. The party consists of:\n${roster}\n\n` +
+    `When referring to each player character, use their specified pronouns:\n${pronounInstructions}\n\n` +
     `When players act simultaneously, weave ALL actions into ONE cohesive narrative. ` +
     `You have full authorial control — actions may succeed, fail, contradict, or complement each other. ` +
     `Do NOT narrate each player's action separately. Create a unified, dramatic story beat. ` +
@@ -173,12 +175,15 @@ export async function streamBedrockResponse(
     },
     async (span) => {
       // multiplayerPrompt already includes the full DM_SYSTEM_PROMPT as its base
-      const pronounsSuffix = options?.pronouns ? ` Use ${options.pronouns} pronouns when referring to the player's character.` : '';
+      const pronounClause = options?.pronouns
+        ? `\n\nThe player uses ${options.pronouns} pronouns. ALWAYS use these pronouns (${options.pronouns}) when referring to the player's character. Never use other pronouns for the player character.`
+        : '';
+
       const systemPrompt = options?.multiplayerPrompt
         ? options.multiplayerPrompt
         : options?.characterClass
-          ? `${DM_SYSTEM_PROMPT}\n\n## Player Character\nThe player is a ${options.characterClass}. Reference their class naturally in narration (e.g. their fighting style, spells, abilities, or background). Tailor combat descriptions and skill checks to their class.${pronounsSuffix}`
-          : DM_SYSTEM_PROMPT;
+          ? `${DM_SYSTEM_PROMPT}\n\n## Player Character\nThe player is a ${options.characterClass}. Reference their class naturally in narration (e.g. their fighting style, spells, abilities, or background). Tailor combat descriptions and skill checks to their class.${pronounClause}`
+          : `${DM_SYSTEM_PROMPT}${pronounClause}`;
 
       // Build system content blocks — base prompt + optional lore context
       const systemBlocks: Array<{ text: string }> = [{ text: systemPrompt }];

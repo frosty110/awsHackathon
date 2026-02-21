@@ -57,6 +57,7 @@ Progress: [██████████] 97%
 | Phase 09-scale-and-auth P01 | 3 | 2 tasks | 6 files |
 | Phase 09 P02 | 3 | 2 tasks | 5 files |
 | Phase 09-scale-and-auth P03 | 3 | 2 tasks | 5 files |
+| Phase 11 P04 | 1 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,8 @@ Recent decisions affecting current work:
 - [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
 - [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
 - [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
 
 ### Roadmap Evolution
 
@@ -169,5 +172,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 09-03-PLAN.md (JWT auth middleware, rate limiting, Redis user store)
-Resume context: Phase 09 fully complete. JWT register/login endpoints with bcrypt, requireAuth/optionalAuth middleware, and per-user rate limiting (20 req/min chat, 10 req/min narrate) with Redis-backed counters. All existing unauthenticated gameplay preserved. Phase 11 (architecture audit) is next.
+Stopped at: Completed 11-04-PLAN.md (music service extraction)
+Resume context: Phase 11 Plan 04 complete. Extracted music generation state machine from routes/music.ts into services/musicService.ts. Route reduced from 293 to 45 lines. getMusicForMood() public API with typed MusicResult union. All HTTP behavior preserved. Phase 11 Plan 05 is next.

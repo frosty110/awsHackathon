@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 4 plan 02 Tasks 1+2 complete — awaiting human-verify checkpoint (Task 3) for end-to-end streaming chat
+**Current focus:** Phase 8 multiplayer mode — 08-01 complete (Socket.IO infra + room store), starting 08-02 room event handlers
 
 ## Current Position
 
-Phase: 7 of 7 (Voice Demo Polish) — IN PROGRESS
-Plan: 2/3 complete (07-01 TTS + /narrate, 07-02 AudioPlayer component)
-Status: 07-02 executed — AudioPlayer component, App.tsx wired with TTS fetch and graceful degradation
-Last activity: 2026-02-21 — Completed quick task 1: Optimize MiniMax TTS (emotion tags, turbo model, mood prosody, multi-voice)
+Phase: 8 of 8 (Multiplayer Mode) — IN PROGRESS
+Plan: 1/5 complete (08-01 Socket.IO infra + room store)
+Status: 08-01 executed — Socket.IO init, typed events, room store CRUD, Vite WS proxy
+Last activity: 2026-02-21 — Completed 08-01: Socket.IO infrastructure, typed events, room store
 
-Progress: [███████░░░] 64%
+Progress: [████████░░] 70%
 
 ## Performance Metrics
 
@@ -46,6 +46,8 @@ Progress: [███████░░░] 64%
 | Phase 06-datadog-observability P01 | 3 | 2 tasks | 5 files |
 | Phase 06-datadog-observability P02 | 4 | 1 tasks | 4 files |
 | Phase 04 P02 | 5 | 2 tasks | 3 files |
+| Phase 08-multiplayer P01 | 3 | 2 tasks | 5 files |
+| Phase 08-multiplayer P02 | 3 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -88,6 +90,14 @@ Recent decisions affecting current work:
 - [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
 - [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
 - [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
 
 ### Roadmap Evolution
 
@@ -98,8 +108,8 @@ Recent decisions affecting current work:
 
 - Run `npm run dev` in client/ and verify Tailwind v4 classes load correctly (text-parchment, font-cinzel, etc.)
 - Add royalty-free dark tavern/forest image to client/public/tavern-bg.jpg (Unsplash free license) — CSS has gradient fallback if absent
-- Re-run `npx tsc --noEmit -p server` after server dependencies install.
 - Verify `curl http://localhost:3001/health` and `curl http://localhost:3001/api/health` once server runs.
+- Wire initSocketIO(server) call in server/src/index.ts (Phase 08-02 does this with the full handler setup)
 
 ### Blockers/Concerns
 
@@ -116,6 +126,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-20
-Stopped at: Checkpoint 04-02 Task 3 — human-verify end-to-end streaming chat with dice rolls (Tasks 1+2 committed: 88159a1, e871ba0)
-Resume file: `.planning/phases/04-bedrock-chat-core/04-02-SUMMARY.md`
+Last session: 2026-02-21
+Stopped at: Completed 08-01 — Socket.IO infra + room store (commits c52f1e2, 2c0006c)
+Resume file: `.planning/phases/08-multiplayer-mode-multiple-users-play-d-d-together-in-real-time/08-01-SUMMARY.md`

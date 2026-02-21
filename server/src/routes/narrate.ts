@@ -5,6 +5,7 @@ import type { ChatMessage } from "../services/bedrock.js";
 import { getOrCreate, appendMessage } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage, recordTtsUsage } from "../services/usageTracker.js";
+import { queueBedrockCall } from "../services/bedrockQueue.js";
 
 function buildOpeningPrompt(characterClass?: string, pronouns?: string): string {
   const classContext = characterClass
@@ -70,7 +71,9 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
   let bedrockCostUsd = 0;
 
   try {
-    const result = await streamBedrockResponse(messages, () => {}, { characterClass, pronouns });
+    const result = await queueBedrockCall(() =>
+      streamBedrockResponse(messages, () => {}, { characterClass, pronouns })
+    );
     text = result.text;
     bedrockCostUsd = recordBedrockUsage(null, "narrate-opening", result.inputTokens, result.outputTokens);
   } catch (err) {
@@ -90,9 +93,9 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
   }
 
   // Create conversation and store the assistant opening (stripped of TTS tags)
-  const conversation = getOrCreate(undefined, characterClass, pronouns);
+  const conversation = await getOrCreate(undefined, characterClass, pronouns);
   const cleanText = stripTTSTags(text);
-  appendMessage(conversation.id, { role: "assistant", content: cleanText });
+  await appendMessage(conversation.id, { role: "assistant", content: cleanText });
 
   try {
     const { audioBuffer } = await generateMultiVoiceTTS(text, { model: "speech-2.8-hd" });

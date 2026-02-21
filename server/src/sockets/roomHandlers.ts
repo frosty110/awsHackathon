@@ -29,10 +29,10 @@ type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<str
  */
 export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
   // ─── room:create ──────────────────────────────────────────────────────────
-  socket.on("room:create", ({ displayName, characterClass, gender, pronouns = 'They/Them' }) => {
+  socket.on("room:create", async ({ displayName, characterClass, gender, pronouns = 'They/Them' }) => {
     const code = generateUniqueRoomCode();
     // Create a conversation for this room so the DM has persistent history
-    const convo = getOrCreate();
+    const convo = await getOrCreate();
     createRoom(code, convo.id);
 
     const player = {

@@ -16,7 +16,9 @@ import {
   streamBedrockResponse,
   buildMultiplayerSystemPrompt,
 } from "../services/bedrock.js";
-import { generateMultiVoiceTTS } from "../services/tts.js";
+import { generateMultiVoiceTTS, extractMood } from "../services/tts.js";
+import { buildLoreContext } from "../services/rag.js";
+import { queueBedrockCall } from "../services/bedrockQueue.js";
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -139,7 +141,7 @@ export async function triggerDMOpening(io: IO, roomCode: string): Promise<void> 
   const multiplayerPrompt = buildMultiplayerSystemPrompt(players);
 
   // Ensure the conversation exists
-  getOrCreate(room.conversationId);
+  await getOrCreate(room.conversationId);
 
   // Build the opening trigger message as a user turn (isSystemTrigger — not stored in visible history
   // but we do store it so the DM has context for subsequent turns)
@@ -148,29 +150,35 @@ export async function triggerDMOpening(io: IO, roomCode: string): Promise<void> 
     content:
       "The party has gathered. Begin the adventure at the Shattered Crown Tavern. Introduce the scene and each character by name and class.",
   };
-  appendMessage(room.conversationId, openingMessage);
+  await appendMessage(room.conversationId, openingMessage);
+
+  const loreContext = await buildLoreContext(openingMessage.content).catch(() => "");
 
   io.to(roomCode).emit("dm:stream-start");
 
   let dmText = "";
 
   try {
-    const result = await streamBedrockResponse(
-      getWindowedHistory(room.conversationId),
-      (text: string) => {
-        dmText += text;
-        room.currentDmText = dmText;
-        io.to(roomCode).emit("dm:chunk", { text });
-      },
-      { multiplayerPrompt }
+    const history = await getWindowedHistory(room.conversationId);
+    const result = await queueBedrockCall(() =>
+      streamBedrockResponse(
+        history,
+        (text: string) => {
+          dmText += text;
+          room.currentDmText = dmText;
+          io.to(roomCode).emit("dm:chunk", { text });
+        },
+        { multiplayerPrompt, loreContext }
+      )
     );
 
-    appendMessage(room.conversationId, {
+    await appendMessage(room.conversationId, {
       role: "assistant",
       content: result.text,
     });
 
-    io.to(roomCode).emit("dm:stream-end", { fullText: result.text });
+    const [openingMood] = extractMood(result.text);
+    io.to(roomCode).emit("dm:stream-end", { fullText: result.text, mood: openingMood ?? undefined });
     room.currentDmText = "";
     room.phase = "playing";
 
@@ -226,32 +234,38 @@ export async function triggerDMResponse(io: IO, roomCode: string): Promise<void>
     `Weave all of these into one dramatic narrative. You have full creative authority — ` +
     `actions may succeed, fail, or cancel each other out.`;
 
-  appendMessage(room.conversationId, {
+  await appendMessage(room.conversationId, {
     role: "user",
     content: combinedMessage,
   });
+
+  const loreContext = await buildLoreContext(combinedMessage).catch(() => "");
 
   io.to(roomCode).emit("dm:stream-start");
 
   let dmText = "";
 
   try {
-    const result = await streamBedrockResponse(
-      getWindowedHistory(room.conversationId),
-      (text: string) => {
-        dmText += text;
-        room.currentDmText = dmText;
-        io.to(roomCode).emit("dm:chunk", { text });
-      },
-      { multiplayerPrompt }
+    const history = await getWindowedHistory(room.conversationId);
+    const result = await queueBedrockCall(() =>
+      streamBedrockResponse(
+        history,
+        (text: string) => {
+          dmText += text;
+          room.currentDmText = dmText;
+          io.to(roomCode).emit("dm:chunk", { text });
+        },
+        { multiplayerPrompt, loreContext }
+      )
     );
 
-    appendMessage(room.conversationId, {
+    await appendMessage(room.conversationId, {
       role: "assistant",
       content: result.text,
     });
 
-    io.to(roomCode).emit("dm:stream-end", { fullText: result.text });
+    const [turnMood] = extractMood(result.text);
+    io.to(roomCode).emit("dm:stream-end", { fullText: result.text, mood: turnMood ?? undefined });
     room.currentDmText = "";
 
     // Async TTS — don't block game flow

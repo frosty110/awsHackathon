@@ -9,8 +9,9 @@ import {
 } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage } from "../services/usageTracker.js";
-import { stripTTSTags } from "../services/tts.js";
+import { stripTTSTags, extractMood, extractScene } from "../services/tts.js";
 import { buildLoreContext } from "../services/rag.js";
+import { queueBedrockCall, isBedrockQueueOverloaded } from "../services/bedrockQueue.js";
 
 const router = Router();
 
@@ -46,12 +47,22 @@ router.post("/api/chat", async (req, res) => {
     return;
   }
 
-  const conversation = getOrCreate(body.conversationId, characterClass, pronouns);
+  // Backpressure: return 503 early when Bedrock queue is overloaded
+  if (isBedrockQueueOverloaded()) {
+    logEvent("warn", "chat.queue_overloaded", {
+      requestId,
+      route: "/api/chat",
+    });
+    res.status(503).json({ error: "Server busy, try again shortly", requestId });
+    return;
+  }
+
+  const conversation = await getOrCreate(body.conversationId, characterClass, pronouns);
 
   // System triggers (opening monologue) are sent to Bedrock but not stored
   // in history as player messages — keeps conversation context clean
   if (!isSystemTrigger) {
-    appendMessage(conversation.id, { role: "user", content: message });
+    await appendMessage(conversation.id, { role: "user", content: message });
   }
 
   res.setHeader("Content-Type", "text/event-stream");
@@ -62,7 +73,7 @@ router.post("/api/chat", async (req, res) => {
   // First event sends conversationId so client can track the session
   res.write(`data: ${JSON.stringify({ conversationId: conversation.id })}\n\n`);
 
-  const history = getWindowedHistory(conversation.id);
+  const history = await getWindowedHistory(conversation.id);
   // System triggers aren't stored in history, so we must include the message
   // directly in the Bedrock call so there's at least one user turn.
   const bedrockMessages = isSystemTrigger
@@ -77,11 +88,17 @@ router.post("/api/chat", async (req, res) => {
   try {
     // RAG: extract entities from user message and retrieve matching lore
     const loreContext = await buildLoreContext(message);
-    const resolvedClass = characterClass || getCharacterClass(conversation.id);
-    const resolvedPronouns = pronouns || getPronouns(conversation.id);
-    const result = await streamBedrockResponse(bedrockMessages, (chunk) => {
-      res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
-    }, { characterClass: resolvedClass, pronouns: resolvedPronouns, loreContext });
+    const resolvedClass = characterClass || (await getCharacterClass(conversation.id));
+    const resolvedPronouns = pronouns || (await getPronouns(conversation.id));
+    const result = await queueBedrockCall(() =>
+      streamBedrockResponse(
+        bedrockMessages,
+        (chunk) => {
+          res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+        },
+        { characterClass: resolvedClass, pronouns: resolvedPronouns, loreContext }
+      )
+    );
     fullText = result.text;
     inputTokens = result.inputTokens;
     outputTokens = result.outputTokens;
@@ -110,7 +127,9 @@ router.post("/api/chat", async (req, res) => {
 
   // Emit tagged text for client TTS consumption, then usage, before [DONE]
   if (!streamErrored && fullText) {
-    res.write(`data: ${JSON.stringify({ ttsText: fullText })}\n\n`);
+    const [mood] = extractMood(fullText);
+    const [scene] = extractScene(fullText);
+    res.write(`data: ${JSON.stringify({ ttsText: fullText, mood: mood ?? undefined, scene: scene ?? undefined })}\n\n`);
 
     const costUsd = recordBedrockUsage(conversation.id, "chat", inputTokens, outputTokens);
     res.write(`data: ${JSON.stringify({
@@ -123,7 +142,7 @@ router.post("/api/chat", async (req, res) => {
 
   // Persist assistant response after stream completes (stripped of TTS tags)
   if (fullText) {
-    appendMessage(conversation.id, { role: "assistant", content: stripTTSTags(fullText) });
+    await appendMessage(conversation.id, { role: "assistant", content: stripTTSTags(fullText) });
     logEvent("info", "chat.stream_completed", {
       requestId,
       route: "/api/chat",

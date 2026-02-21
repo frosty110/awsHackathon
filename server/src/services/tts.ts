@@ -25,7 +25,7 @@ export async function generateTTS(text: string): Promise<TTSResult> {
           stream: false,
           output_format: "hex",
           voice_setting: {
-            voice_id: "git",
+            voice_id: "English_CaptivatingStoryteller",
             speed: 1,
             vol: 1,
             pitch: 0,

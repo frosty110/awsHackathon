@@ -84,6 +84,8 @@ Recent decisions affecting current work:
 - [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
 - [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
 - [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
 
 ### Roadmap Evolution
 

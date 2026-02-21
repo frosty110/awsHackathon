@@ -11,7 +11,9 @@ let cachedAudio: Buffer | null = null;
 let generationError: string | null = null;
 let generating = false;
 let lastFailedAt: number | null = null;
+let serverRetryCount = 0;
 const RETRY_COOLDOWN_MS = 30_000; // wait 30s before retrying after a failure
+const MAX_SERVER_RETRIES = 3; // stop retrying after this many failures
 
 // Cache metrics
 let musicCacheHits = 0;
@@ -32,10 +34,17 @@ let audioSizeBytes: number | null = null;
 // Kick off generation in the background immediately on first request
 function startGeneration() {
   if (generating || cachedAudio) return;
+  // Stop retrying after max failures
+  if (serverRetryCount >= MAX_SERVER_RETRIES) return;
   // Allow retry after cooldown period
   if (generationError && lastFailedAt && Date.now() - lastFailedAt < RETRY_COOLDOWN_MS) return;
   if (generationError) {
-    logEvent("info", "music.retrying_after_failure", { previousError: generationError });
+    serverRetryCount++;
+    logEvent("info", "music.retrying_after_failure", {
+      previousError: generationError,
+      retryCount: serverRetryCount,
+      maxRetries: MAX_SERVER_RETRIES,
+    });
     generationError = null;
   }
   generating = true;
@@ -205,16 +214,31 @@ router.get(["/music", "/api/music"], (req, res) => {
       cacheMisses: musicCacheMisses,
     });
     res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Content-Length", cachedAudio.length);
     res.setHeader("Cache-Control", "public, max-age=3600");
     res.send(cachedAudio);
     return;
   }
 
   if (generationError) {
+    // If max retries exhausted, return terminal error (don't retry)
+    if (serverRetryCount >= MAX_SERVER_RETRIES) {
+      logEvent("warn", "music.max_retries_exhausted", {
+        route: "/api/music",
+        error: generationError,
+        retryCount: serverRetryCount,
+      });
+      res.status(500).json({ error: generationError, terminal: true });
+      return;
+    }
     // If cooldown has passed, retry instead of serving stale error
     if (lastFailedAt && Date.now() - lastFailedAt >= RETRY_COOLDOWN_MS) {
       startGeneration();
-      logEvent("info", "music.retry_triggered", { route: "/api/music" });
+      logEvent("info", "music.retry_triggered", {
+        route: "/api/music",
+        retryCount: serverRetryCount,
+        maxRetries: MAX_SERVER_RETRIES,
+      });
       res.status(202).json({ status: "generating" });
       return;
     }

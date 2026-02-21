@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 9 (Scale & Auth) complete — all 3 plans done. Phase 11 (architecture audit) is next.
+**Current focus:** Phase 11 (Architecture Audit) in progress — Plans 01, 03, 04 complete. Plans 02 and 05 remain.
 
 ## Current Position
 
-Phase: Phase 09 (Scale & Auth) — All 3 plans complete.
-Plan: 22/22 core plans executed across phases 1-8. 4 quick tasks shipped. Phase 10 Plan 01 complete. Phase 09 Plans 01-03 complete.
-Status: JWT auth routes, bcrypt user storage in Redis hashes, requireAuth/optionalAuth middleware, and per-user rate limiting (20 req/min chat, 10 req/min narrate) deployed. Existing unauthenticated gameplay preserved.
-Last activity: 2026-02-21 — Phase 09 Plan 03 complete (JWT auth, Redis user store, rate limiting).
+Phase: Phase 11 (Architecture Audit) — Plans 01, 03, 04 complete.
+Plan: Phase 11 Plan 01 complete (helmet + CORS + musicLimiter). Plans 03 and 04 were completed in prior session.
+Status: Security middleware (helmet, CORS, rate limits) wired. Store interfaces and rolling eviction added. Music service extracted.
+Last activity: 2026-02-21 — Phase 11 Plan 01 complete (helmet, CORS, musicLimiter).
 
 Progress: [██████████] 97%
 
@@ -57,6 +57,7 @@ Progress: [██████████] 97%
 | Phase 09-scale-and-auth P01 | 3 | 2 tasks | 6 files |
 | Phase 09 P02 | 3 | 2 tasks | 5 files |
 | Phase 09-scale-and-auth P03 | 3 | 2 tasks | 5 files |
+| Phase 11 P01 | 2 | 2 tasks | 5 files |
 | Phase 11 P04 | 1 | 1 tasks | 2 files |
 | Phase 11 P03 | 3 | 2 tasks | 3 files |
 
@@ -135,6 +136,9 @@ Recent decisions affecting current work:
 - [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
 - [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
 - [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
 
 ### Roadmap Evolution
 
@@ -175,5 +179,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 11-03-PLAN.md (store interfaces, class implementations, usageTracker rolling eviction)
-Resume context: Phase 11 Plan 03 complete. IConversationStore and IRoomStore interfaces with InMemoryConversationStore/InMemoryRoomStore class implementations. All existing free function exports preserved via .bind() delegation. usageTracker has 24h/10k rolling eviction. TypeScript compiles cleanly. Phase 11 Plan 04 is next.
+Stopped at: Completed 11-01-PLAN.md (helmet, CORS, musicLimiter)
+Resume context: Phase 11 Plan 01 complete. Helmet + CORS middleware wired as first middleware in app.ts. musicLimiter added on /api/music and /music. Socket.IO CORS updated to use shared ALLOWED_ORIGINS. Plans 02, 05 remain in Phase 11.

@@ -8,6 +8,7 @@ import { config, BEDROCK_MODEL_ID } from "./config.js";
 const client = new BedrockRuntimeClient({ region: config.AWS_REGION || "us-east-1" });
 
 const MODEL_ID = BEDROCK_MODEL_ID;
+const BEDROCK_STREAM_TIMEOUT_MS = 45_000;
 
 export const DM_SYSTEM_PROMPT = `You are a Dungeon Master running a D&D adventure called "The Ring of Ashwick". Be descriptive, dramatic, and immersive. Keep every response to 2-3 paragraphs. Always end with "What do you do?" or a similar prompt that invites the player to act.
 
@@ -94,36 +95,65 @@ export async function streamBedrockResponse(
         })),
       });
 
-      const response = await client.send(command);
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(
+        () => abortController.abort(),
+        BEDROCK_STREAM_TIMEOUT_MS
+      );
 
-      let fullText = "";
-      let inputTokens = 0;
-      let outputTokens = 0;
+      try {
+        const response = await client.send(command, {
+          abortSignal: abortController.signal,
+        });
 
-      for await (const chunk of response.stream!) {
-        const text = chunk.contentBlockDelta?.delta?.text;
-        if (text) {
-          fullText += text;
-          onChunk(text);
+        if (!response.stream) {
+          throw new Error("Bedrock response stream missing");
         }
-        if (chunk.metadata?.usage) {
-          inputTokens = chunk.metadata.usage.inputTokens ?? 0;
-          outputTokens = chunk.metadata.usage.outputTokens ?? 0;
+
+        let fullText = "";
+        let inputTokens = 0;
+        let outputTokens = 0;
+
+        for await (const chunk of response.stream) {
+          const text = chunk.contentBlockDelta?.delta?.text;
+          if (text) {
+            fullText += text;
+            onChunk(text);
+          }
+          if (chunk.metadata?.usage) {
+            inputTokens = chunk.metadata.usage.inputTokens ?? 0;
+            outputTokens = chunk.metadata.usage.outputTokens ?? 0;
+          }
         }
+
+        // Annotate BEFORE callback returns — span finishes on return
+        tracer.llmobs.annotate(span, {
+          inputData: messages.map((m) => ({ role: m.role, content: String(m.content) })),
+          outputData: { role: "assistant", content: fullText },
+          metrics: {
+            inputTokens,
+            outputTokens,
+            totalTokens: inputTokens + outputTokens,
+          },
+        });
+
+        return fullText;
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          throw new Error(
+            `Bedrock stream timed out after ${BEDROCK_STREAM_TIMEOUT_MS}ms`,
+            { cause: error }
+          );
+        }
+
+        if (error instanceof Error) {
+          throw error;
+        }
+
+        throw new Error(`Bedrock stream failed: ${String(error)}`);
+      } finally {
+        clearTimeout(timeoutId);
       }
-
-      // Annotate BEFORE callback returns — span finishes on return
-      tracer.llmobs.annotate(span, {
-        inputData: messages.map((m) => ({ role: m.role, content: String(m.content) })),
-        outputData: { role: "assistant", content: fullText },
-        metrics: {
-          inputTokens,
-          outputTokens,
-          totalTokens: inputTokens + outputTokens,
-        },
-      });
-
-      return fullText;
     }
   );
 }

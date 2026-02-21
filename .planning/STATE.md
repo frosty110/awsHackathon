@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 8 multiplayer mode — 08-02 complete (client socket singleton, types, ModeSelect, MultiplayerLobby)
+**Current focus:** Phase 8 multiplayer mode — 08-04 complete (useMultiplayerRoom hook, MultiplayerGame, PlayerStatusBar, PlayerChat)
 
 ## Current Position
 
 Phase: 8 of 8 (Multiplayer Mode) — IN PROGRESS
-Plan: 2/5 complete (08-01 Socket.IO infra + room store, 08-02 client socket + lobby UI)
-Status: 08-02 executed — socket.ts singleton, multiplayer.ts types, ModeSelect, MultiplayerLobby with full socket event wiring
-Last activity: 2026-02-21 — Completed 08-02: client socket singleton, 6-class type system, ModeSelect, MultiplayerLobby
+Plan: 4/5 complete (08-01 Socket.IO infra, 08-02 client socket + lobby UI, 08-03 server turn orchestration, 08-04 game UI components)
+Status: 08-04 executed — useMultiplayerRoom hook, MultiplayerGame, PlayerStatusBar, PlayerChat with 60s timer and emoji reactions
+Last activity: 2026-02-21 — Completed 08-04: game UI — DM streaming view, countdown timer, player status bar, private party chat
 
 Progress: [████████░░] 70%
 
@@ -48,6 +48,7 @@ Progress: [████████░░] 70%
 | Phase 04 P02 | 5 | 2 tasks | 3 files |
 | Phase 08-multiplayer P01 | 3 | 2 tasks | 5 files |
 | Phase 08-multiplayer P02 | 3 | 2 tasks | 5 files |
+| Phase 08-multiplayer P04 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,8 @@ Recent decisions affecting current work:
 - [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
 - [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
 - [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
 
 ### Roadmap Evolution
 
@@ -127,5 +130,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 08-02 — client socket singleton, types, ModeSelect, MultiplayerLobby (commits 84c496a, 241de83)
-Resume file: `.planning/phases/08-multiplayer-mode-multiple-users-play-d-d-together-in-real-time/08-02-SUMMARY.md`
+Stopped at: Completed 08-04 — useMultiplayerRoom hook, MultiplayerGame, PlayerStatusBar, PlayerChat (commits e1f02db, 278f18b)
+Resume file: `.planning/phases/08-multiplayer-mode-multiple-users-play-d-d-together-in-real-time/08-04-SUMMARY.md`

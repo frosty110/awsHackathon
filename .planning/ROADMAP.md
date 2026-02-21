@@ -19,6 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 5: RAG Pipeline** - Entity extraction, Neo4j lore injection, and NPC personality from graph attributes
 - [ ] **Phase 6: Datadog Observability** - Full LLM tracing, named pipeline spans, and live dashboard
 - [ ] **Phase 7: Voice + Demo Polish** - MiniMax TTS opening monologue and rehearsed 3-turn scenario
+- [ ] **Phase 8: Multiplayer Mode** - Multiple users play D&D together in real-time
 
 ## Phase Details
 
@@ -143,12 +144,21 @@ Plans:
 - [ ] 07-02-PLAN.md — AudioPlayer + Start Adventure: `client/src/components/AudioPlayer.tsx` (fetch /narrate, blob playback, loading state, graceful degradation); App.tsx wiring
 - [ ] 07-03-PLAN.md — Demo system prompt + rehearsal: `server/src/services/system-prompt.ts` (DM persona, constraints, dice brackets, buildSystemPrompt for lore injection); human verification of demo script alignment
 
+### Phase 8: Multiplayer Mode — multiple users play D&D together in real-time
+
+**Goal:** [To be planned]
+**Depends on:** Phase 7
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 8 to break down)
+
 ---
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously if needed (lore seeding does not block UI work).
 
@@ -161,3 +171,4 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 5. RAG Pipeline | 0/2 | Not started | - |
 | 6. Datadog Observability | 0/2 | Not started | - |
 | 7. Voice + Demo Polish | 0/3 | Not started | - |
+| 8. Multiplayer Mode | 0/0 | Not started | - |

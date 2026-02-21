@@ -81,6 +81,10 @@ Recent decisions affecting current work:
 - [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
 - [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
 
+### Roadmap Evolution
+
+- Phase 8 added: Multiplayer Mode — multiple users play D&D together in real-time
+
 ### Pending Todos
 
 - Run `npm run dev` in client/ and verify Tailwind v4 classes load correctly (text-parchment, font-cinzel, etc.)

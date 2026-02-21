@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Datadog Observability** - Full LLM tracing, named pipeline spans, and live dashboard
 - [x] **Phase 7: Voice + Demo Polish** - MiniMax TTS opening monologue and adventure scenario validation
 - [x] **Phase 8: Multiplayer Mode** - Multiple users play D&D together in real-time
-- [ ] **Phase 9: Scale & Auth** — Redis session store, user authentication, per-user rate limiting
+- [x] **Phase 9: Scale & Auth** — Redis session store, user authentication, per-user rate limiting
 - [ ] **Phase 10: S3 Audio Cache Infrastructure**
 - [ ] **Phase 11: System Architecture Review**
 
@@ -188,9 +188,9 @@ Note: Deployment infrastructure (auto-scaling, ECS/EKS config) is deferred to a 
 **Plans:** 3 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — Redis client singleton, Bedrock queue, config additions, Socket.IO Redis adapter wiring
-- [ ] 09-02-PLAN.md — Conversation store async migration to Redis with in-memory fallback, all callers updated, Bedrock queue wired into chat/narrate/multiplayer
-- [ ] 09-03-PLAN.md — JWT auth routes (register/login), auth middleware, per-user rate limiting on /api/chat and /api/narrate with Redis-backed counters
+- [x] 09-01-PLAN.md — Redis client singleton, Bedrock queue, config additions, Socket.IO Redis adapter wiring
+- [x] 09-02-PLAN.md — Conversation store async migration to Redis with in-memory fallback, all callers updated, Bedrock queue wired into chat/narrate/multiplayer
+- [x] 09-03-PLAN.md — JWT auth routes (register/login), auth middleware, per-user rate limiting on /api/chat and /api/narrate with Redis-backed counters
 
 ### Phase 10: S3 Audio Cache Infrastructure
 
@@ -233,5 +233,5 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 6. Datadog Observability | 2/2 | ✅ Complete | 2026-02-20 |
 | 7. Voice + Demo Polish | 3/3 | ✅ Complete | 2026-02-20 |
 | 8. Multiplayer Mode | 5/5 | ✅ Complete | 2026-02-21 |
-| 9. Scale & Auth | 0/3 | In Progress | - |
+| 9. Scale & Auth | 3/3 | ✅ Complete | 2026-02-21 |
 | 10. S3 Audio Cache | 1/1 | ✅ Complete | 2026-02-21 |

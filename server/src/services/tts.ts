@@ -1,13 +1,93 @@
 import tracer from "dd-trace";
 import { config } from "./config.js";
 
+export type TTSModel = "speech-2.8-hd" | "speech-2.8-turbo";
+
+export type SceneMood = "combat" | "tavern" | "mystery" | "dramatic" | "danger";
+
+export type CharacterVoice = "narrator" | "barkeep" | "goblin";
+
+export interface TTSOptions {
+  model?: TTSModel;         // default "speech-2.8-hd"
+  mood?: SceneMood;         // affects speed/pitch
+  voice?: CharacterVoice;   // affects voice_id
+  stream?: boolean;         // default false
+}
+
 export interface TTSResult {
   audioBuffer: Buffer;
   audioFormat: string;
   durationMs: number;
 }
 
-export async function generateTTS(text: string): Promise<TTSResult> {
+const VOICE_MAP: Record<CharacterVoice, string> = {
+  narrator: "English_CaptivatingStoryteller",
+  barkeep: "English_ManSportsCommentator",    // deep, gruff male
+  goblin: "English_FloridaMan",               // nasal, energetic
+};
+
+const MOOD_PROSODY: Record<SceneMood, { speed: number; pitch: number }> = {
+  combat:   { speed: 1.15, pitch: 2 },
+  tavern:   { speed: 0.9,  pitch: -1 },
+  mystery:  { speed: 0.85, pitch: -2 },
+  dramatic: { speed: 0.95, pitch: 1 },
+  danger:   { speed: 1.05, pitch: 3 },
+};
+
+/** Extract and strip {{mood:TAG}} from start of text. Returns [mood, cleanText]. */
+export function extractMood(text: string): [SceneMood | null, string] {
+  const match = text.match(/^\{\{mood:(\w+)\}\}\s*/);
+  if (!match) return [null, text];
+  const mood = match[1] as SceneMood;
+  const valid: SceneMood[] = ["combat", "tavern", "mystery", "dramatic", "danger"];
+  return valid.includes(mood) ? [mood, text.slice(match[0].length)] : [null, text];
+}
+
+/** Split text into segments by {{voice:ID}}...{{/voice}} tags.
+ *  Returns array of { voice: CharacterVoice, text: string } segments. */
+export function splitVoiceSegments(text: string): Array<{ voice: CharacterVoice; text: string }> {
+  const segments: Array<{ voice: CharacterVoice; text: string }> = [];
+  const regex = /\{\{voice:(\w+)\}\}([\s\S]*?)\{\{\/voice\}\}/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Text before this voice tag = narrator
+    if (match.index > lastIndex) {
+      const before = text.slice(lastIndex, match.index).trim();
+      if (before) segments.push({ voice: "narrator", text: before });
+    }
+    const voice = match[1] as CharacterVoice;
+    const validVoices: CharacterVoice[] = ["narrator", "barkeep", "goblin"];
+    segments.push({
+      voice: validVoices.includes(voice) ? voice : "narrator",
+      text: match[2].trim()
+    });
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Remaining text after last voice tag
+  const remaining = text.slice(lastIndex).trim();
+  if (remaining) segments.push({ voice: "narrator", text: remaining });
+
+  return segments.length > 0 ? segments : [{ voice: "narrator", text }];
+}
+
+/** Strip emotion tags, mood tags, and voice tags for UI display. */
+export function stripTTSTags(text: string): string {
+  return text
+    .replace(/^\{\{mood:\w+\}\}\s*/, "")
+    .replace(/\{\{voice:\w+\}\}/g, "")
+    .replace(/\{\{\/voice\}\}/g, "")
+    .replace(/\[(excited|whisper|angry|fearful|sad|shouting)\]\s*/g, "")
+    .trim();
+}
+
+export async function generateTTS(text: string, options: TTSOptions = {}): Promise<TTSResult> {
+  const model = options.model ?? "speech-2.8-hd";
+  const voice = options.voice ?? "narrator";
+  const prosody = options.mood ? MOOD_PROSODY[options.mood] : { speed: 1, pitch: 0 };
+
   return tracer.llmobs.trace(
     { kind: "tool", name: "minimax.tts" },
     async (span) => {
@@ -20,15 +100,15 @@ export async function generateTTS(text: string): Promise<TTSResult> {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "speech-2.8-hd",
+          model,
           text,
           stream: false,
           output_format: "hex",
           voice_setting: {
-            voice_id: "English_CaptivatingStoryteller",
-            speed: 1,
+            voice_id: VOICE_MAP[voice],
+            speed: prosody.speed,
             vol: 1,
-            pitch: 0,
+            pitch: prosody.pitch,
           },
           audio_setting: {
             sample_rate: 32000,
@@ -67,11 +147,48 @@ export async function generateTTS(text: string): Promise<TTSResult> {
       // Annotate BEFORE callback returns — span finishes on return
       tracer.llmobs.annotate(span, {
         inputData: text.slice(0, 200),
-        outputData: JSON.stringify({ byteLength: audioBuffer.byteLength }),
-        tags: { "tts.provider": "minimax" },
+        outputData: JSON.stringify({
+          byteLength: audioBuffer.byteLength,
+          model,
+          voice: VOICE_MAP[voice],
+          mood: options.mood ?? "neutral",
+        }),
+        tags: { "tts.provider": "minimax", "tts.model": model, "tts.voice": voice },
       });
 
       return result;
     }
   );
+}
+
+/**
+ * Generate TTS for text that may contain multiple character voice segments.
+ * Generates audio for each segment sequentially and concatenates the buffers.
+ */
+export async function generateMultiVoiceTTS(
+  text: string,
+  options: Omit<TTSOptions, "voice"> = {}
+): Promise<TTSResult> {
+  const [mood, cleanText] = extractMood(text);
+  const segments = splitVoiceSegments(cleanText);
+  const effectiveMood = options.mood ?? mood ?? undefined;
+
+  const buffers: Buffer[] = [];
+  let totalDuration = 0;
+
+  for (const segment of segments) {
+    const result = await generateTTS(segment.text, {
+      ...options,
+      mood: effectiveMood,
+      voice: segment.voice,
+    });
+    buffers.push(result.audioBuffer);
+    totalDuration += result.durationMs;
+  }
+
+  return {
+    audioBuffer: Buffer.concat(buffers),
+    audioFormat: "mp3",
+    durationMs: totalDuration,
+  };
 }

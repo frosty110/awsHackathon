@@ -5,6 +5,7 @@ import healthRouter from "./routes/health.js";
 import chatRouter from "./routes/chat.js";
 import narrateRouter from "./routes/narrate.js";
 import musicRouter from "./routes/music.js";
+import usageRouter from "./routes/usage.js";
 import { buildRequestId, logEvent } from "./services/logger.js";
 
 interface AppDeps {
@@ -19,6 +20,7 @@ export function createApp(_deps: AppDeps): Express {
   app.use(chatRouter);
   app.use(narrateRouter);
   app.use(musicRouter);
+  app.use(usageRouter);
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     const requestId = buildRequestId(req.get("x-request-id"));
     res.setHeader("x-request-id", requestId);

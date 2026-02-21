@@ -51,7 +51,7 @@ export function ModeSelect({ onSinglePlayer, onMultiplayer }: ModeSelectProps) {
             transition-all duration-200 cursor-pointer
           "
         >
-          <span className="text-5xl" aria-hidden="true">⚔️🛡️⚔️</span>
+          <span className="text-5xl" aria-hidden="true">👥🎭</span>
           <div className="text-center">
             <p className="font-cinzel font-bold text-xl text-parchment tracking-wide mb-1">
               Multiplayer Party

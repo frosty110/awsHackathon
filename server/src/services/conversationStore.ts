@@ -6,16 +6,25 @@ export type ChatMessage = {
 type Conversation = {
   id: string;
   history: ChatMessage[];
+  characterClass?: string;
 };
 
 const store = new Map<string, Conversation>();
 
-export function getOrCreate(conversationId?: string): Conversation {
+export function getOrCreate(conversationId?: string, characterClass?: string): Conversation {
   const id = conversationId ?? crypto.randomUUID();
   if (!store.has(id)) {
-    store.set(id, { id, history: [] });
+    store.set(id, { id, history: [], characterClass });
   }
-  return store.get(id)!;
+  const convo = store.get(id)!;
+  if (characterClass && !convo.characterClass) {
+    convo.characterClass = characterClass;
+  }
+  return convo;
+}
+
+export function getCharacterClass(conversationId: string): string | undefined {
+  return store.get(conversationId)?.characterClass;
 }
 
 export function appendMessage(conversationId: string, message: ChatMessage): void {

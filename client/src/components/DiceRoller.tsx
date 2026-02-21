@@ -38,7 +38,7 @@ export function DiceRoller({ onRoll, disabled }: DiceRollerProps) {
         onClick={handleClick}
         disabled={disabled}
         className={[
-          'w-full py-2 font-cinzel text-sm text-parchment border border-blood bg-blood/30 hover:bg-blood/50 rounded',
+          'w-full py-2 font-cinzel text-base text-parchment border border-blood bg-blood/30 hover:bg-blood/50 rounded',
           'disabled:opacity-40 disabled:cursor-not-allowed',
           shaking ? 'animate-dice-shake' : '',
         ]

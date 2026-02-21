@@ -19,7 +19,7 @@ export function ChatWindow({ messages, isLoading, onStopAudio }: ChatWindowProps
 
       {isLoading && (
         <div className="flex justify-start mb-3">
-          <div className="max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble text-parchment font-fell italic leading-relaxed animate-pulse-glow">
+          <div className="max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble text-parchment font-fell italic text-lg leading-relaxed animate-pulse-glow">
             The Dungeon Master is thinking...
           </div>
         </div>

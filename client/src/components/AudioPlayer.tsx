@@ -8,9 +8,10 @@ export interface NarrateResult {
 
 interface AudioPlayerProps {
   onAdventureStart: (narration?: NarrateResult) => void;
+  characterClass?: string;
 }
 
-export function AudioPlayer({ onAdventureStart }: AudioPlayerProps) {
+export function AudioPlayer({ onAdventureStart, characterClass }: AudioPlayerProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'playing'>('idle');
 
   async function handleStartAdventure() {
@@ -22,6 +23,7 @@ export function AudioPlayer({ onAdventureStart }: AudioPlayerProps) {
       const response = await fetch('/api/narrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...(characterClass ? { characterClass } : {}) }),
       });
 
       if (!response.ok) {
@@ -88,7 +90,7 @@ export function AudioPlayer({ onAdventureStart }: AudioPlayerProps) {
       disabled={status === 'loading'}
       className="font-cinzel text-xl text-parchment px-8 py-4 border border-blood bg-blood/20 hover:bg-blood/40 tracking-widest disabled:opacity-60 disabled:cursor-not-allowed"
     >
-      {status === 'loading' ? 'The Dungeon Master is speaking...' : 'Start Adventure'}
+      {status === 'loading' ? 'The Dungeon Master is speaking...' : 'Enter the Realm'}
     </button>
   );
 }

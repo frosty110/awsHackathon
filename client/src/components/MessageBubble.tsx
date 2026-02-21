@@ -30,7 +30,7 @@ export function MessageBubble({ message, onStopAudio }: MessageBubbleProps) {
     const cleanContent = stripTTSTags(content);
     return (
       <div className="flex justify-start mb-3 group">
-        <div className="dm-prose relative max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble font-fell leading-[1.8] text-[color:var(--color-dm-message)] text-[1.05rem]">
+        <div className="dm-prose text-lg relative max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble font-fell leading-[1.8] text-[color:var(--color-dm-message)] text-[1.05rem]">
           <Markdown>{cleanContent}</Markdown>
           <button
             onClick={onStopAudio}
@@ -80,7 +80,7 @@ export function MessageBubble({ message, onStopAudio }: MessageBubbleProps) {
   // role === 'player'
   return (
     <div className="flex justify-end mb-3">
-      <div className="max-w-[75%] px-4 py-3 rounded-lg bg-player-bubble font-sans text-sm leading-relaxed text-[color:var(--color-player-message)]">
+      <div className="max-w-[75%] px-4 py-3 rounded-lg bg-player-bubble font-sans text-base leading-relaxed text-[color:var(--color-player-message)]">
         {content}
       </div>
     </div>

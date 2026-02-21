@@ -30,12 +30,12 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
         onKeyDown={handleKeyDown}
         disabled={disabled}
         placeholder="What do you do?"
-        className="flex-1 px-3 py-2 rounded bg-surface text-parchment font-sans text-sm border border-blood/30 placeholder:text-parchment/40 focus:outline-none focus:border-blood/60 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="flex-1 px-3 py-2 rounded bg-surface text-parchment font-sans text-base border border-blood/30 placeholder:text-parchment/40 focus:outline-none focus:border-blood/60 disabled:opacity-40 disabled:cursor-not-allowed"
       />
       <button
         onClick={handleSubmit}
         disabled={disabled}
-        className="px-4 py-2 font-cinzel text-sm text-parchment bg-blood/30 hover:bg-blood/50 border border-blood rounded disabled:opacity-40 disabled:cursor-not-allowed"
+        className="px-4 py-2 font-cinzel text-base text-parchment bg-blood/30 hover:bg-blood/50 border border-blood rounded disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Send
       </button>

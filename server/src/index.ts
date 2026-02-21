@@ -1,11 +1,15 @@
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
-dotenv.config({ path: "../.env" });
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: resolve(__dirname, "../../.env") });
 
 import { createServer } from "node:http";
 import neo4j from "neo4j-driver";
 
 import { createApp } from "./app.js";
-import { config, warnOnBlankConfig, requireConfigValues } from "./services/config.js";
+import { config, warnOnBlankConfig } from "./services/config.js";
 
 async function main(): Promise<void> {
   warnOnBlankConfig(
@@ -23,30 +27,33 @@ async function main(): Promise<void> {
 
   const allowNeo4jSkip =
     config.SKIP_NEO4J_CONNECTIVITY_CHECK === "1" && config.NODE_ENV !== "production";
+  const neo4jConfigKeys = ["NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD"] as const;
+  const hasNeo4jConfig = neo4jConfigKeys.every((key) => config[key].trim() !== "");
 
   let driver: neo4j.Driver | null = null;
 
-  if (allowNeo4jSkip) {
+  if (!hasNeo4jConfig) {
     warnOnBlankConfig(
       ["NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD"],
-      "Neo4j (skipping connectivity check)"
+      "Neo4j disabled (chat continues without lore)"
     );
   } else {
-    requireConfigValues(
-      ["NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD"],
-      "Neo4j connectivity check"
-    );
     driver = neo4j.driver(
       config.NEO4J_URI,
       neo4j.auth.basic(config.NEO4J_USERNAME, config.NEO4J_PASSWORD)
     );
-    try {
-      await driver.verifyConnectivity();
-      console.log("Neo4j connectivity verified");
-    } catch (error) {
-      console.error("Neo4j connectivity check failed:", error);
-      await driver.close();
-      process.exit(1);
+
+    if (allowNeo4jSkip) {
+      console.warn("[config] Neo4j connectivity check skipped via SKIP_NEO4J_CONNECTIVITY_CHECK=1");
+    } else {
+      try {
+        await driver.verifyConnectivity();
+        console.log("Neo4j connectivity verified");
+      } catch (error) {
+        console.error("Neo4j connectivity check failed, continuing without lore:", error);
+        await driver.close();
+        driver = null;
+      }
     }
   }
 

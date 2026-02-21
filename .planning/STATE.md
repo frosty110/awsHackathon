@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A playable AI Dungeon Master demo that runs live with visible Datadog LLM observability — the minimum viable path to hackathon prize eligibility.
-**Current focus:** Phase 6 complete — LLMObs spans wired (06-01) and dashboard script created (06-02); Phase 7 in progress — 07-02 (AudioPlayer) complete, next: 07-03
+**Current focus:** Phase 4 plan 01 complete (retroactive SUMMARY); Phase 7 in progress — 07-02 (AudioPlayer) complete, next: 07-03
 
 ## Current Position
 
 Phase: 7 of 7 (Voice Demo Polish) — IN PROGRESS
 Plan: 2/3 complete (07-01 TTS + /narrate, 07-02 AudioPlayer component)
 Status: 07-02 executed — AudioPlayer component, App.tsx wired with TTS fetch and graceful degradation
-Last activity: 2026-02-20 — Completed 07-02 (AudioPlayer component and App.tsx wiring)
+Last activity: 2026-02-21 — Completed 04-01 retroactive SUMMARY (Bedrock chat pipeline)
 
 Progress: [███████░░░] 64%
 
@@ -36,6 +36,7 @@ Progress: [███████░░░] 64%
 - Trend: Stable
 
 *Updated after each plan completion*
+| Phase 04-bedrock-chat-core P01 | 3 | 2 tasks | 4 files |
 | Phase 02-chat-ui P01 | 2 | 2 tasks | 6 files |
 | Phase 02-chat-ui P02 | 2 | 2 tasks | 5 files |
 | Phase 03-lore-graph-seed P01 | 2 | 1 task | 1 file |
@@ -80,6 +81,9 @@ Recent decisions affecting current work:
 - [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
 - [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
 - [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
 
 ### Roadmap Evolution
 
@@ -102,5 +106,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 06-02-PLAN.md — Datadog dashboard creation script (scripts/create-dashboard.ts, @datadog/datadog-api-client).
-Resume file: `.planning/phases/06-datadog-observability/06-02-SUMMARY.md`
+Stopped at: Completed 04-01-PLAN.md (retroactive) — Bedrock chat pipeline, conversation store, POST /api/chat SSE route.
+Resume file: `.planning/phases/04-bedrock-chat-core/04-01-SUMMARY.md`

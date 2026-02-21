@@ -7,9 +7,12 @@ export type Player = {
   socketId: string;
   displayName: string;
   characterClass: string;
+  gender: string;
+  pronouns: string;
   connected: boolean;
   ready: boolean;
   submittedAction: string | null;
+  idle: boolean;
 };
 
 export type Room = {
@@ -118,6 +121,28 @@ export function markPlayerReconnected(code: string, socketId: string): void {
 }
 
 /**
+ * Mark a player as idle.
+ */
+export function markPlayerIdle(code: string, socketId: string): void {
+  const room = rooms.get(code);
+  const player = room?.players.get(socketId);
+  if (player) {
+    player.idle = true;
+  }
+}
+
+/**
+ * Mark a player as active (not idle).
+ */
+export function markPlayerActive(code: string, socketId: string): void {
+  const room = rooms.get(code);
+  const player = room?.players.get(socketId);
+  if (player) {
+    player.idle = false;
+  }
+}
+
+/**
  * Mark a player as ready in the lobby.
  */
 export function markPlayerReady(code: string, socketId: string): void {
@@ -191,9 +216,12 @@ export function getRoomStatePayload(code: string): RoomStatePayload | null {
     socketId: p.socketId,
     displayName: p.displayName,
     characterClass: p.characterClass,
+    gender: p.gender,
+    pronouns: p.pronouns,
     connected: p.connected,
     ready: p.ready,
     submittedAction: p.submittedAction !== null, // hide action text
+    idle: p.idle,
   }));
 
   return {

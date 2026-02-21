@@ -6,6 +6,8 @@ import {
   addPlayer,
   markPlayerDisconnected,
   markPlayerReconnected,
+  markPlayerIdle,
+  markPlayerActive,
   deleteRoom,
   markPlayerReady,
   getRoomStatePayload,
@@ -27,7 +29,7 @@ type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<str
  */
 export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
   // ─── room:create ──────────────────────────────────────────────────────────
-  socket.on("room:create", ({ displayName, characterClass }) => {
+  socket.on("room:create", ({ displayName, characterClass, gender, pronouns = 'They/Them' }) => {
     const code = generateUniqueRoomCode();
     // Create a conversation for this room so the DM has persistent history
     const convo = getOrCreate();
@@ -37,9 +39,12 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
       socketId: socket.id,
       displayName,
       characterClass,
+      gender,
+      pronouns,
       connected: true,
       ready: false,
       submittedAction: null as string | null,
+      idle: false,
     };
 
     addPlayer(code, player);
@@ -47,6 +52,8 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
     socket.data.roomCode = code;
     socket.data.displayName = displayName;
     socket.data.characterClass = characterClass;
+    socket.data.gender = gender;
+    socket.data.pronouns = pronouns;
 
     void socket.join(code);
 
@@ -60,7 +67,7 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
   });
 
   // ─── room:join ────────────────────────────────────────────────────────────
-  socket.on("room:join", ({ code, displayName, characterClass }) => {
+  socket.on("room:join", ({ code, displayName, characterClass, gender, pronouns = 'They/Them' }) => {
     const normalizedCode = code.toUpperCase();
     const room = getRoom(normalizedCode);
     console.log(`[room:join] code="${normalizedCode}" socket=${socket.id} found=${!!room}`);
@@ -81,9 +88,12 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
       socketId: socket.id,
       displayName,
       characterClass,
+      gender,
+      pronouns,
       connected: true,
       ready: false,
       submittedAction: null as string | null,
+      idle: false,
     };
 
     addPlayer(normalizedCode, player);
@@ -91,6 +101,8 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
     socket.data.roomCode = normalizedCode;
     socket.data.displayName = displayName;
     socket.data.characterClass = characterClass;
+    socket.data.gender = gender;
+    socket.data.pronouns = pronouns;
 
     void socket.join(normalizedCode);
 
@@ -99,9 +111,12 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
       socketId: socket.id,
       displayName,
       characterClass,
+      gender,
+      pronouns,
       connected: true,
       ready: false,
       submittedAction: false,
+      idle: false,
     };
     io.to(normalizedCode).emit("room:player-joined", playerPayload);
 
@@ -150,6 +165,21 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
           console.error("[roomHandlers] Failed to trigger DM opening:", err);
         });
     }
+  });
+
+  // ─── player:idle / player:active ─────────────────────────────────────────
+  socket.on("player:idle", () => {
+    const roomCode = socket.data.roomCode;
+    if (!roomCode) return;
+    markPlayerIdle(roomCode, socket.id);
+    io.to(roomCode).emit("room:player-idle", { socketId: socket.id });
+  });
+
+  socket.on("player:active", () => {
+    const roomCode = socket.data.roomCode;
+    if (!roomCode) return;
+    markPlayerActive(roomCode, socket.id);
+    io.to(roomCode).emit("room:player-active", { socketId: socket.id });
   });
 
   // ─── disconnect ───────────────────────────────────────────────────────────

@@ -23,6 +23,7 @@ export function registerChatHandlers(io: IO, socket: TypedSocket): void {
       fromSocketId: socket.id,
       fromName: socket.data.displayName ?? "Unknown",
       fromClass: socket.data.characterClass ?? "Unknown",
+      fromGender: socket.data.gender ?? "nonbinary",
       text,
       timestamp: Date.now(),
     };

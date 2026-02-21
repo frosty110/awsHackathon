@@ -1,3 +1,29 @@
+// Gender identifiers for character creation
+export type GenderId = 'male' | 'female' | 'nonbinary';
+
+export interface GenderDef {
+  id: GenderId;
+  name: string;
+  icon: string;
+}
+
+export const GENDERS: GenderDef[] = [
+  { id: 'male', name: 'Male', icon: '\u2642\uFE0F' },
+  { id: 'female', name: 'Female', icon: '\u2640\uFE0F' },
+  { id: 'nonbinary', name: 'Non-binary', icon: '\u26A7\uFE0F' },
+];
+
+// Pick a random gender
+export function randomGender(): GenderId {
+  return GENDERS[Math.floor(Math.random() * GENDERS.length)].id;
+}
+
+// Helper: return the emoji icon for a given gender
+export function getGenderIcon(genderId: GenderId): string {
+  const def = GENDERS.find(g => g.id === genderId);
+  return def?.icon ?? '?';
+}
+
 // Character class identifiers for multiplayer D&D
 export type CharacterClassId =
   | 'fighter'
@@ -35,6 +61,7 @@ export interface MultiplayerPlayer {
   socketId: string;
   displayName: string;
   characterClass: CharacterClassId;
+  gender: GenderId;
   pronouns?: string;
   connected: boolean;
   ready: boolean;
@@ -55,6 +82,7 @@ export interface ChatMessage {
   fromSocketId: string;
   fromName: string;
   fromClass: CharacterClassId;
+  fromGender?: GenderId;
   text: string;
   timestamp: number;
   type?: 'chat' | 'action';

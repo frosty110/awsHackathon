@@ -140,9 +140,9 @@ export type BedrockResult = {
  * The prompt instructs the DM to weave all player actions into one cohesive narrative.
  */
 export function buildMultiplayerSystemPrompt(
-  players: Array<{ displayName: string; characterClass: string }>
+  players: Array<{ displayName: string; characterClass: string; gender?: string }>
 ): string {
-  const roster = players.map((p) => `- ${p.displayName}: ${p.characterClass}`).join("\n");
+  const roster = players.map((p) => `- ${p.displayName}: ${p.characterClass} (${p.gender ?? 'nonbinary'})`).join("\n");
   return (
     `${DM_SYSTEM_PROMPT}\n\n` +
     `## Multiplayer Party\n` +
@@ -162,7 +162,7 @@ export function buildMultiplayerSystemPrompt(
 export async function streamBedrockResponse(
   messages: ChatMessage[],
   onChunk: (text: string) => void,
-  options?: { characterClass?: string; multiplayerPrompt?: string; loreContext?: string }
+  options?: { characterClass?: string; pronouns?: string; multiplayerPrompt?: string; loreContext?: string }
 ): Promise<BedrockResult> {
   return tracer.llmobs.trace(
     {
@@ -173,10 +173,11 @@ export async function streamBedrockResponse(
     },
     async (span) => {
       // multiplayerPrompt already includes the full DM_SYSTEM_PROMPT as its base
+      const pronounsSuffix = options?.pronouns ? ` Use ${options.pronouns} pronouns when referring to the player's character.` : '';
       const systemPrompt = options?.multiplayerPrompt
         ? options.multiplayerPrompt
         : options?.characterClass
-          ? `${DM_SYSTEM_PROMPT}\n\n## Player Character\nThe player is a ${options.characterClass}. Reference their class naturally in narration (e.g. their fighting style, spells, abilities, or background). Tailor combat descriptions and skill checks to their class.`
+          ? `${DM_SYSTEM_PROMPT}\n\n## Player Character\nThe player is a ${options.characterClass}. Reference their class naturally in narration (e.g. their fighting style, spells, abilities, or background). Tailor combat descriptions and skill checks to their class.${pronounsSuffix}`
           : DM_SYSTEM_PROMPT;
 
       // Build system content blocks — base prompt + optional lore context

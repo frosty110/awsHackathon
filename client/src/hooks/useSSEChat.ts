@@ -47,36 +47,22 @@ export function useSSEChat() {
         signal: controller.signal,
       });
 
-<<<<<<< HEAD
-      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
-=======
       if (!res.ok) {
         let requestId: string | undefined;
         let errorMessage = `HTTP ${res.status}`;
-
         try {
           const errorBody = await res.json() as { error?: string; requestId?: string };
           requestId = errorBody.requestId;
-          if (errorBody.error) {
-            errorMessage = errorBody.error;
-          }
-        } catch {
-          // no-op: best effort to read server error payload
-        }
-
+          if (errorBody.error) errorMessage = errorBody.error;
+        } catch { /* best effort */ }
         throw new Error(buildUserVisibleError(errorMessage, requestId));
       }
 
-      if (!res.body) {
-        throw new Error('No response body returned from /api/chat');
-      }
->>>>>>> 147404b45c3aa92e634bf1c885fdec2fbed50938
+      if (!res.body) throw new Error('No response body returned from /api/chat');
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let streamError: string | null = null;
-      let streamDone = false;
 
       readLoop:
       while (true) {
@@ -91,7 +77,6 @@ export function useSSEChat() {
           if (!part.startsWith('data: ')) continue;
           const payload = part.slice(6).trim();
           if (payload === '[DONE]') {
-            streamDone = true;
             break readLoop;
           }
 
@@ -113,8 +98,13 @@ export function useSSEChat() {
             continue;
           }
 
-<<<<<<< HEAD
           if (data.conversationId) conversationId.current = data.conversationId;
+
+          if (data.error) {
+            console.error('[useSSEChat] server stream error', data);
+            break readLoop;
+          }
+
           if (data.text) fullContent += data.text;
         }
       }
@@ -122,71 +112,14 @@ export function useSSEChat() {
       if ((err as Error).name === 'AbortError') {
         wasAborted = true;
       } else {
+        console.error('[useSSEChat] chat request failed', err);
         setMessages(prev => [
           ...prev,
-          { id: dmId, role: 'dm', content: 'The Dungeon Master was lost to the void. Please try again.' },
+          { id: dmId, role: 'dm', content: err instanceof Error ? err.message : 'The Dungeon Master was lost to the void. Please try again.' },
         ]);
         if (generation === generationRef.current) setIsLoading(false);
         return;
       }
-=======
-          if (data.conversationId) {
-            conversationId.current = data.conversationId;
-          }
-
-          if (data.error) {
-            streamError = buildUserVisibleError(data.error, data.requestId);
-            console.error('[useSSEChat] server stream error', data);
-            break readLoop;
-          }
-
-          if (data.text) {
-            setMessages(prev =>
-              prev.map(m =>
-                m.id === dmId
-                  ? { ...m, content: m.content + data.text }
-                  : m
-              )
-            );
-          }
-        }
-      }
-      if (streamError) {
-        if (!streamDone) {
-          await reader.cancel().catch(() => undefined);
-        }
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === dmId
-              ? {
-                ...m,
-                content: m.content
-                  ? `${m.content}\n\n[Stream error] ${streamError}`
-                  : streamError,
-              }
-              : m
-          )
-        );
-      }
-    } catch (error) {
-      console.error('[useSSEChat] chat request failed', error);
-      const fallbackMessage = error instanceof Error && error.message
-        ? error.message
-        : 'The Dungeon Master was lost to the void. Please try again.';
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === dmId
-            ? { ...m, content: fallbackMessage }
-            : m
-        )
-      );
-    } finally {
-      // Mark streaming complete
-      setMessages(prev =>
-        prev.map(m => (m.id === dmId ? { ...m, isStreaming: false } : m))
-      );
-      setIsLoading(false);
->>>>>>> 147404b45c3aa92e634bf1c885fdec2fbed50938
     }
 
     // Aborted mid-stream: show whatever arrived (if anything), no TTS

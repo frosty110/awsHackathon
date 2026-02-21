@@ -28,7 +28,20 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center">
-      {/* Dark overlay for readability over background image */}
+      {/* Looping video background on landing page */}
+      {appState === 'idle' && (
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        >
+          <source src="/hero-bg.webm" type="video/webm" />
+        </video>
+      )}
+
+      {/* Dark overlay for readability */}
       <div className="absolute inset-0 bg-black/60" />
 
       {/* App container */}

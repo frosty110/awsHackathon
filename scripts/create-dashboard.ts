@@ -21,14 +21,11 @@ async function main(): Promise<void> {
       { name: 'service', defaults: ['ai-dungeon-master'] },
     ],
     widgets: [
-      // Widget 1: Bedrock Token Usage (timeseries, bars)
-      // Note: The exact metric name for Bedrock ConverseStream token counts may differ.
-      // After the smoke test, check Datadog Metrics Explorer for `aws.bedrockruntime` or
-      // `trace.aws.bedrockruntime` and update this query with the confirmed metric name.
+      // Widget 1: Request Hits (timeseries, bars)
       {
         definition: {
           type: 'timeseries',
-          title: 'Bedrock Token Usage',
+          title: 'Request Hits',
           requests: [
             {
               displayType: 'bars',
@@ -37,7 +34,7 @@ async function main(): Promise<void> {
                   name: 'q1',
                   dataSource: 'metrics',
                   query:
-                    'sum:trace.aws.bedrockruntime.converse_stream{service:$service,env:$env}.as_count()',
+                    'sum:trace.express.request.hits{service:$service,env:$env}.as_count()',
                 },
               ],
               responseFormat: 'timeseries',
@@ -58,7 +55,7 @@ async function main(): Promise<void> {
                   name: 'q1',
                   dataSource: 'metrics',
                   query:
-                    'p95:trace.express.request{service:$service,env:$env,resource_name:POST_/chat}',
+                    'p95:trace.express.request{service:$service,env:$env}',
                 },
               ],
               responseFormat: 'timeseries',
@@ -90,8 +87,16 @@ async function main(): Promise<void> {
     ],
   };
 
-  const result = await dashApi.createDashboard({ body: dashboard });
-  console.log('Dashboard created:', result.url);
+  // Update existing dashboard if ID is provided, otherwise create new
+  const dashboardId = process.env.DD_DASHBOARD_ID;
+  if (dashboardId) {
+    const result = await dashApi.updateDashboard({ dashboardId, body: dashboard });
+    console.log('Dashboard updated:', result.url);
+  } else {
+    const result = await dashApi.createDashboard({ body: dashboard });
+    console.log('Dashboard created:', result.url);
+    console.log('To update this dashboard later, set DD_DASHBOARD_ID=' + result.id);
+  }
 }
 
 main().catch((err: unknown) => {

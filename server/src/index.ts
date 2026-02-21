@@ -10,6 +10,7 @@ import neo4j from "neo4j-driver";
 
 import { createApp } from "./app.js";
 import { config, warnOnBlankConfig } from "./services/config.js";
+import { initSocketIO } from "./sockets/index.js";
 
 async function main(): Promise<void> {
   warnOnBlankConfig(
@@ -59,6 +60,9 @@ async function main(): Promise<void> {
 
   const app = createApp({ driver });
   const server = createServer(app);
+
+  // Attach Socket.IO to the http.Server (must be done before server.listen)
+  initSocketIO(server);
 
   server.listen(config.PORT, () => {
     console.log(`Server listening on http://localhost:${config.PORT}`);

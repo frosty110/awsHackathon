@@ -5,6 +5,9 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from "./types.js";
+import { registerRoomHandlers, handleReconnection } from "./roomHandlers.js";
+import { registerChatHandlers } from "./chatHandlers.js";
+import { registerTurnHandlers } from "./turnHandlers.js";
 
 export type { ClientToServerEvents, ServerToClientEvents, SocketData };
 
@@ -34,6 +37,18 @@ export function initSocketIO(
       },
     }
   );
+
+  io.on("connection", (socket) => {
+    // Handle reconnection first — if session was recovered, restore room state
+    if (socket.recovered) {
+      handleReconnection(io, socket);
+    }
+
+    // Register all event handler groups for this socket
+    registerRoomHandlers(io, socket);
+    registerTurnHandlers(io, socket);
+    registerChatHandlers(io, socket);
+  });
 
   return io;
 }

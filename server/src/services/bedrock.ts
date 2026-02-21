@@ -136,6 +136,25 @@ export type BedrockResult = {
 };
 
 /**
+ * Build the multiplayer system prompt by appending a party roster to the base DM prompt.
+ * The prompt instructs the DM to weave all player actions into one cohesive narrative.
+ */
+export function buildMultiplayerSystemPrompt(
+  players: Array<{ displayName: string; characterClass: string }>
+): string {
+  const roster = players.map((p) => `- ${p.displayName}: ${p.characterClass}`).join("\n");
+  return (
+    `${DM_SYSTEM_PROMPT}\n\n` +
+    `## Multiplayer Party\n` +
+    `This is a multiplayer session. The party consists of:\n${roster}\n\n` +
+    `When players act simultaneously, weave ALL actions into ONE cohesive narrative. ` +
+    `You have full authorial control — actions may succeed, fail, contradict, or complement each other. ` +
+    `Do NOT narrate each player's action separately. Create a unified, dramatic story beat. ` +
+    `Address characters by their display names.`
+  );
+}
+
+/**
  * Stream a Bedrock response, calling onChunk for each text delta.
  * Wrapped in a tracer.llmobs.trace() span so it appears in Datadog LLM Observability.
  * Returns the full accumulated text.
@@ -143,7 +162,7 @@ export type BedrockResult = {
 export async function streamBedrockResponse(
   messages: ChatMessage[],
   onChunk: (text: string) => void,
-  options?: { characterClass?: string }
+  options?: { characterClass?: string; multiplayerPrompt?: string }
 ): Promise<BedrockResult> {
   return tracer.llmobs.trace(
     {
@@ -153,9 +172,12 @@ export async function streamBedrockResponse(
       modelProvider: "aws",
     },
     async (span) => {
-      const systemPrompt = options?.characterClass
-        ? `${DM_SYSTEM_PROMPT}\n\n## Player Character\nThe player is a ${options.characterClass}. Reference their class naturally in narration (e.g. their fighting style, spells, abilities, or background). Tailor combat descriptions and skill checks to their class.`
-        : DM_SYSTEM_PROMPT;
+      // multiplayerPrompt already includes the full DM_SYSTEM_PROMPT as its base
+      const systemPrompt = options?.multiplayerPrompt
+        ? options.multiplayerPrompt
+        : options?.characterClass
+          ? `${DM_SYSTEM_PROMPT}\n\n## Player Character\nThe player is a ${options.characterClass}. Reference their class naturally in narration (e.g. their fighting style, spells, abilities, or background). Tailor combat descriptions and skill checks to their class.`
+          : DM_SYSTEM_PROMPT;
 
       const command = new ConverseStreamCommand({
         modelId: MODEL_ID,

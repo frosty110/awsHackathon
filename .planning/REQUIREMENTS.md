@@ -1,7 +1,7 @@
 # Requirements: AI Dungeon Master
 
 **Defined:** 2026-02-20
-**Updated:** 2026-02-20
+**Updated:** 2026-02-21
 **Core Value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
 
 ## v1 Requirements
@@ -10,43 +10,43 @@ Core requirements for the community product. Each maps to roadmap phases.
 
 ### Chat & LLM
 
-- [ ] **CHAT-01**: User can type messages and receive streaming DM narration via SSE
-- [ ] **CHAT-02**: DM responses powered by Claude via AWS Bedrock with D&D system prompt
-- [ ] **CHAT-03**: Full conversation history sent with each request for narrative continuity
-- [ ] **CHAT-04**: Dice roll result injected into LLM prompt so Claude narrates the actual number
+- [x] **CHAT-01**: User can type messages and receive streaming DM narration via SSE
+- [x] **CHAT-02**: DM responses powered by Claude via AWS Bedrock with D&D system prompt
+- [x] **CHAT-03**: Full conversation history sent with each request for narrative continuity
+- [x] **CHAT-04**: Dice roll result injected into LLM prompt so Claude narrates the actual number
 
 ### Game Mechanics
 
-- [ ] **GAME-01**: User can trigger a d20 dice roll via a "Roll Dice" button
-- [ ] **GAME-02**: "Roll Dice" triggers a distinct dice action message with brief button animation (no frontend d20 reveal)
-- [ ] **GAME-03**: DM narrates combat outcome based on actual roll result (1-5 failure, 16-20 great success)
+- [x] **GAME-01**: User can trigger a d20 dice roll via a "Roll Dice" button
+- [x] **GAME-02**: "Roll Dice" triggers a distinct dice action message with brief button animation (no frontend d20 reveal)
+- [x] **GAME-03**: DM narrates combat outcome based on actual roll result (1-5 failure, 16-20 great success)
 
 ### Knowledge Graph (Neo4j)
 
-- [ ] **NEO4J-01**: Neo4j AuraDB seeded with demo lore (~20 nodes: locations, NPCs, items, quests, relationships)
-- [ ] **NEO4J-02**: RAG pipeline extracts entities from player messages and queries Neo4j for matching lore
-- [ ] **NEO4J-03**: Lore context injected into system prompt before each Bedrock call
-- [ ] **NEO4J-04**: NPC personality and motivation driven by graph node attributes
+- [x] **NEO4J-01**: Neo4j AuraDB seeded with demo lore (~20 nodes: locations, NPCs, items, quests, relationships)
+- [x] **NEO4J-02**: RAG pipeline extracts entities from player messages and queries Neo4j for matching lore
+- [x] **NEO4J-03**: Lore context injected into system prompt before each Bedrock call
+- [x] **NEO4J-04**: NPC personality and motivation driven by graph node attributes
 
 ### Observability (Datadog)
 
-- [ ] **DD-01**: dd-trace auto-instrumentation captures every Bedrock LLM call
-- [ ] **DD-02**: Named custom spans per pipeline stage (neo4j.lore_query, minimax.tts, bedrock.dm_response)
-- [ ] **DD-03**: Live Datadog dashboard showing token usage, latency timeseries, trace waterfall
-- [ ] **DD-04**: Datadog dashboards created and managed programmatically via code (Datadog API)
+- [x] **DD-01**: dd-trace auto-instrumentation captures every Bedrock LLM call
+- [x] **DD-02**: Named custom spans per pipeline stage (neo4j.lore_query, minimax.tts, bedrock.dm_response)
+- [x] **DD-03**: Live Datadog dashboard showing token usage, latency timeseries, trace waterfall
+- [x] **DD-04**: Datadog dashboards created and managed programmatically via code (Datadog API)
 
 ### Voice (MiniMax)
 
-- [ ] **VOICE-01**: MiniMax TTS generates voiced DM opening monologue
-- [ ] **VOICE-02**: "Start Adventure" button plays voiced intro and displays first DM message
+- [x] **VOICE-01**: MiniMax TTS generates voiced DM opening monologue
+- [x] **VOICE-02**: "Start Adventure" button plays voiced intro and displays first DM message
 
 ### UI & Demo
 
-- [ ] **UI-01**: Dark fantasy chat UI (parchment gold #e0d0b0, blood red accent, Cinzel/IM Fell English fonts)
-- [ ] **UI-02**: Styled chat bubbles distinguishing DM messages from player messages
-- [ ] **UI-03**: Loading indicator ("The Dungeon Master is thinking...") during Bedrock calls
-- [ ] **UI-04**: Auto-scroll to latest message
-- [ ] **DEMO-01**: Default adventure scenario works reliably (tavern → barkeep quest → goblin combat) with open-ended continuation
+- [x] **UI-01**: Dark fantasy chat UI (parchment gold #e0d0b0, blood red accent, Cinzel/IM Fell English fonts)
+- [x] **UI-02**: Styled chat bubbles distinguishing DM messages from player messages
+- [x] **UI-03**: Loading indicator ("The Dungeon Master is thinking...") during Bedrock calls
+- [x] **UI-04**: Auto-scroll to latest message
+- [x] **DEMO-01**: Default adventure scenario works reliably (tavern → barkeep quest → goblin combat) with open-ended continuation
 
 ### Scale & Infrastructure
 
@@ -58,14 +58,14 @@ Core requirements for the community product. Each maps to roadmap phases.
 
 ### Extended Gameplay
 
-- [ ] **EXT-01**: Character creation flow with class/race selection
-- [ ] **EXT-03**: Multiplayer party support (2-6 players)
+- [x] **EXT-01**: Character creation flow with class/race selection
+- [x] **EXT-03**: Multiplayer party support (2-4 players)
 - [ ] **EXT-04**: Persistent campaign memory via vector DB
 
 ### Extended Voice
 
-- [ ] **EXTV-01**: TTS narration for every DM response (not just opening monologue)
-- [ ] **EXTV-03**: Different voice profiles per NPC
+- [x] **EXTV-01**: TTS narration for every DM response (not just opening monologue)
+- [x] **EXTV-03**: Different voice profiles per NPC (narrator, barkeep, goblin)
 
 ## v2 Requirements
 
@@ -100,45 +100,45 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CHAT-01 | Phase 4 | Pending |
-| CHAT-02 | Phase 4 | Pending |
-| CHAT-03 | Phase 4 | Pending |
-| CHAT-04 | Phase 4 | Pending |
-| GAME-01 | Phase 2 | Pending |
-| GAME-02 | Phase 2 | Pending |
-| GAME-03 | Phase 4 | Pending |
-| NEO4J-01 | Phase 3 | Pending |
-| NEO4J-02 | Phase 5 | Pending |
-| NEO4J-03 | Phase 5 | Pending |
-| NEO4J-04 | Phase 5 | Pending |
-| DD-01 | Phase 6 | Pending |
-| DD-02 | Phase 6 | Pending |
-| DD-03 | Phase 6 | Pending |
-| DD-04 | Phase 6 | Pending |
-| VOICE-01 | Phase 7 | Pending |
-| VOICE-02 | Phase 7 | Pending |
-| UI-01 | Phase 2 | Pending |
-| UI-02 | Phase 2 | Pending |
-| UI-03 | Phase 2 | Pending |
-| UI-04 | Phase 2 | Pending |
-| DEMO-01 | Phase 7 | Pending |
-
-| SCALE-01 | TBD | Pending |
-| SCALE-02 | TBD | Pending |
-| SCALE-03 | TBD | Pending |
-| SCALE-04 | TBD | Pending |
-| SCALE-05 | TBD | Pending |
-| EXT-01 | TBD | Pending |
-| EXT-03 | Phase 8 | Pending |
+| CHAT-01 | Phase 4 | ✅ Complete |
+| CHAT-02 | Phase 4 | ✅ Complete |
+| CHAT-03 | Phase 4 | ✅ Complete |
+| CHAT-04 | Phase 4 | ✅ Complete |
+| GAME-01 | Phase 2 | ✅ Complete |
+| GAME-02 | Phase 2 | ✅ Complete |
+| GAME-03 | Phase 4 | ✅ Complete |
+| NEO4J-01 | Phase 3 | ✅ Complete |
+| NEO4J-02 | Phase 5 | ✅ Complete |
+| NEO4J-03 | Phase 5 | ✅ Complete |
+| NEO4J-04 | Phase 5 | ✅ Complete |
+| DD-01 | Phase 6 | ✅ Complete |
+| DD-02 | Phase 6 | ✅ Complete |
+| DD-03 | Phase 6 | ✅ Complete |
+| DD-04 | Phase 6 | ✅ Complete |
+| VOICE-01 | Phase 7 | ✅ Complete |
+| VOICE-02 | Phase 7 | ✅ Complete |
+| UI-01 | Phase 2 | ✅ Complete |
+| UI-02 | Phase 2 | ✅ Complete |
+| UI-03 | Phase 2 | ✅ Complete |
+| UI-04 | Phase 2 | ✅ Complete |
+| DEMO-01 | Phase 7 | ✅ Complete |
+| SCALE-01 | Phase 9 | Pending |
+| SCALE-02 | Phase 9 | Pending |
+| SCALE-03 | Phase 9 | Pending |
+| SCALE-04 | Phase 9 | Pending |
+| SCALE-05 | Phase 9 | Pending |
+| EXT-01 | Quick tasks | ✅ Complete |
+| EXT-03 | Phase 8 | ✅ Complete |
 | EXT-04 | TBD | Pending |
-| EXTV-01 | TBD | Pending |
-| EXTV-03 | TBD | Pending |
+| EXTV-01 | Quick task 1 | ✅ Complete |
+| EXTV-03 | Quick task 1 | ✅ Complete |
 
 **Coverage:**
 - v1 requirements: 32 total
-- Mapped to phases: 22
-- Unmapped: 10 (SCALE-*, EXT-01, EXT-04, EXTV-01, EXTV-03)
+- Complete: 27
+- Pending: 5 (SCALE-01..05)
+- Unmapped: 1 (EXT-04)
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-20 — scope shift from hackathon to community product*
+*Last updated: 2026-02-21 — synced all requirement statuses with implementation reality*

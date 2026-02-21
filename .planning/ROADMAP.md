@@ -13,14 +13,14 @@ Build a production-quality AI Dungeon Master for small gaming communities (~1000
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Scaffold** - Monorepo structure, environment validation, and dev tooling for both client and server
-- [ ] **Phase 2: Chat UI** - Dark fantasy chat interface with dice roll mechanic (Blaise's pre-hackathon frontend build)
+- [x] **Phase 2: Chat UI** - Dark fantasy chat interface with dice roll mechanic (Blaise's pre-hackathon frontend build)
 - [x] **Phase 3: Lore Graph Seed** - Neo4j AuraDB seeded with the 3-scene demo lore
-- [ ] **Phase 4: Bedrock Chat Core** - Claude via Bedrock with SSE streaming and full conversation history
-- [ ] **Phase 5: RAG Pipeline** - Entity extraction, Neo4j lore injection, and NPC personality from graph attributes
-- [ ] **Phase 6: Datadog Observability** - Full LLM tracing, named pipeline spans, and live dashboard
-- [ ] **Phase 7: Voice + Demo Polish** - MiniMax TTS opening monologue and adventure scenario validation
-- [ ] **Phase 8: Multiplayer Mode** - Multiple users play D&D together in real-time
-- [ ] **Phase 9: Scale & Auth** - Redis session store, user authentication, per-user rate limiting, deployment
+- [x] **Phase 4: Bedrock Chat Core** - Claude via Bedrock with SSE streaming and full conversation history
+- [x] **Phase 5: RAG Pipeline** - Entity extraction, Neo4j lore injection, and NPC personality from graph attributes
+- [x] **Phase 6: Datadog Observability** - Full LLM tracing, named pipeline spans, and live dashboard
+- [x] **Phase 7: Voice + Demo Polish** - MiniMax TTS opening monologue and adventure scenario validation
+- [x] **Phase 8: Multiplayer Mode** - Multiple users play D&D together in real-time
+- [ ] **Phase 9: Scale & Auth** — Redis session store, user authentication, per-user rate limiting, deployment
 
 ## Phase Details
 
@@ -57,8 +57,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Tailwind v4 setup + dark fantasy theme tokens, chat types (Message/AppState), useSSEChat mock hook, useChatScroll auto-scroll hook
-- [ ] 02-02-PLAN.md — ChatWindow, MessageBubble, MessageInput, DiceRoller components; App.tsx with idle/adventure state, header, reset, full wiring
+- [x] 02-01-PLAN.md — Tailwind v4 setup + dark fantasy theme tokens, chat types (Message/AppState), useSSEChat mock hook, useChatScroll auto-scroll hook
+- [x] 02-02-PLAN.md — ChatWindow, MessageBubble, MessageInput, DiceRoller components; App.tsx with idle/adventure state, header, reset, full wiring
 
 ---
 
@@ -75,8 +75,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Lore data: `data/lore.json` with 21 nodes (5 Character, 5 Location, 4 Item, 2 Quest, 5 Faction) and 11 relationships covering all 3 demo turns
-- [ ] 03-02-PLAN.md — Seed script: `data/seed.ts` with uniqueness constraints, UNWIND+MERGE node seeding, MERGE relationships, driver.close() cleanup; `npm run seed` in root package.json
+- [x] 03-01-PLAN.md — Lore data: `data/lore.json` with 21 nodes (5 Character, 5 Location, 4 Item, 2 Quest, 5 Faction) and 11 relationships covering all 3 demo turns
+- [x] 03-02-PLAN.md — Seed script: `data/seed.ts` with uniqueness constraints, UNWIND+MERGE node seeding, MERGE relationships, driver.close() cleanup; `npm run seed` in root package.json
 
 ---
 
@@ -92,8 +92,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Bedrock service + conversation store + chat route: BedrockRuntimeClient singleton with ConverseStreamCommand, in-memory conversation Map, POST /chat SSE endpoint with D&D system prompt and dice injection
-- [ ] 04-02-PLAN.md — Frontend SSE wiring + dice result: replace useSSEChat stub with real fetch+ReadableStream SSE, wire DiceRoller to generate d20 number, human-verify end-to-end streaming
+- [x] 04-01-PLAN.md — Bedrock service + conversation store + chat route: BedrockRuntimeClient singleton with ConverseStreamCommand, in-memory conversation Map, POST /chat SSE endpoint with D&D system prompt and dice injection
+- [x] 04-02-PLAN.md — Frontend SSE wiring + dice result: replace useSSEChat stub with real fetch+ReadableStream SSE, wire DiceRoller to generate d20 number, human-verify end-to-end streaming
 
 ---
 
@@ -108,8 +108,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — RAG service: `server/src/services/rag.ts` with alias-based keyword entity extraction, Neo4j Cypher retrieval via `driver.executeQuery()`, lore context assembly with narrative attribute filtering; `initRag(driver)` startup wiring in `index.ts`
-- [ ] 05-02-PLAN.md — Prompt injection: modify `bedrock.ts` to accept loreContext as second SystemContentBlock; wire `buildLoreContext()` call into `chat.ts` route before each Bedrock call
+- [x] 05-01-PLAN.md — RAG service: `server/src/services/rag.ts` with alias-based keyword entity extraction, Neo4j Cypher retrieval via `driver.executeQuery()`, lore context assembly with narrative attribute filtering; `initRag(driver)` startup wiring in `index.ts`
+- [x] 05-02-PLAN.md — Prompt injection: modify `bedrock.ts` to accept loreContext as second SystemContentBlock; wire `buildLoreContext()` call into `chat.ts` route before each Bedrock call
 
 ---
 
@@ -125,8 +125,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Bootstrap verification + named LLMObs spans: confirm dd-trace NODE_OPTIONS and env vars; add DD_APP_KEY to .env.example; wrap bedrock.ts, neo4j.ts, tts.ts with tracer.llmobs.trace() (NOT startSpan) using correct span kinds (llm for bedrock, tool for neo4j/tts)
-- [ ] 06-02-PLAN.md — Programmatic dashboard: install @datadog/datadog-api-client; scripts/create-dashboard.ts creates dashboard with token usage timeseries, latency p95, and live trace stream widgets; template variables for env/service
+- [x] 06-01-PLAN.md — Bootstrap verification + named LLMObs spans: confirm dd-trace NODE_OPTIONS and env vars; add DD_APP_KEY to .env.example; wrap bedrock.ts, neo4j.ts, tts.ts with tracer.llmobs.trace() (NOT startSpan) using correct span kinds (llm for bedrock, tool for neo4j/tts)
+- [x] 06-02-PLAN.md — Programmatic dashboard: install @datadog/datadog-api-client; scripts/create-dashboard.ts creates dashboard with token usage timeseries, latency p95, and live trace stream widgets; template variables for env/service
 
 ---
 
@@ -141,9 +141,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — MiniMax TTS service: `server/src/services/tts.ts` (T2A v2 fetch + hex decode), `server/src/routes/narrate.ts` (POST /narrate returns audio/mpeg), mounted in `app.ts`
-- [ ] 07-02-PLAN.md — AudioPlayer + Start Adventure: `client/src/components/AudioPlayer.tsx` (fetch /narrate, blob playback, loading state, graceful degradation); App.tsx wiring
-- [ ] 07-03-PLAN.md — Demo system prompt + rehearsal: `server/src/services/system-prompt.ts` (DM persona, constraints, dice brackets, buildSystemPrompt for lore injection); human verification of demo script alignment
+- [x] 07-01-PLAN.md — MiniMax TTS service: `server/src/services/tts.ts` (T2A v2 fetch + hex decode), `server/src/routes/narrate.ts` (POST /narrate returns audio/mpeg), mounted in `app.ts`
+- [x] 07-02-PLAN.md — AudioPlayer + Start Adventure: `client/src/components/AudioPlayer.tsx` (fetch /narrate, blob playback, loading state, graceful degradation); App.tsx wiring
+- [x] 07-03-PLAN.md — Demo system prompt + rehearsal: `server/src/services/system-prompt.ts` (DM persona, constraints, dice brackets, buildSystemPrompt for lore injection); human verification of demo script alignment
 
 ### Phase 8: Multiplayer Mode — multiple users play D&D together in real-time
 
@@ -162,11 +162,11 @@ Plans:
 **Plans:** 5 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Server Socket.IO foundation: install deps, typed events, Socket.IO init, room store, Vite WS proxy
-- [ ] 08-02-PLAN.md — Client multiplayer foundation: socket.io-client, socket singleton, types, ModeSelect screen, MultiplayerLobby
-- [ ] 08-03-PLAN.md — Server socket handlers: room create/join/ready/disconnect, turn timer + DM trigger, player chat relay, multiplayer system prompt
-- [ ] 08-04-PLAN.md — Client game UI: useMultiplayerRoom hook, MultiplayerGame component, PlayerStatusBar, PlayerChat panel
-- [ ] 08-05-PLAN.md — Integration wiring: Socket.IO init in server startup, App.tsx mode routing, end-to-end human verification
+- [x] 08-01-PLAN.md — Server Socket.IO foundation: install deps, typed events, Socket.IO init, room store, Vite WS proxy
+- [x] 08-02-PLAN.md — Client multiplayer foundation: socket.io-client, socket singleton, types, ModeSelect screen, MultiplayerLobby
+- [x] 08-03-PLAN.md — Server socket handlers: room create/join/ready/disconnect, turn timer + DM trigger, player chat relay, multiplayer system prompt
+- [x] 08-04-PLAN.md — Client game UI: useMultiplayerRoom hook, MultiplayerGame component, PlayerStatusBar, PlayerChat panel
+- [x] 08-05-PLAN.md — Integration wiring: Socket.IO init in server startup, App.tsx mode routing, end-to-end human verification
 
 ---
 
@@ -193,7 +193,7 @@ Plans:
 **Plans:** 1 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — Install @aws-sdk/client-s3, create audioCache.ts with S3 get/put/buildCacheKey + Datadog tracing, wire into tts.ts as L2 cache behind existing in-memory L1
+- [x] 10-01-PLAN.md — Install @aws-sdk/client-s3, create audioCache.ts with S3 get/put/buildCacheKey + Datadog tracing, wire into tts.ts as L2 cache behind existing in-memory L1
 
 ---
 
@@ -206,13 +206,13 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Scaffold | 3/3 | ✓ Complete | 2026-02-20 |
-| 2. Chat UI | 2/2 | ✓ Complete | 2026-02-20 |
-| 3. Lore Graph Seed | 2/2 | ✓ Complete | 2026-02-20 |
-| 4. Bedrock Chat Core | 0/2 | Not started | - |
-| 5. RAG Pipeline | 0/2 | Not started | - |
-| 6. Datadog Observability | 0/2 | Not started | - |
-| 7. Voice + Demo Polish | 0/3 | Not started | - |
-| 8. Multiplayer Mode | 0/5 | Not started | - |
+| 1. Scaffold | 3/3 | ✅ Complete | 2026-02-20 |
+| 2. Chat UI | 2/2 | ✅ Complete | 2026-02-20 |
+| 3. Lore Graph Seed | 2/2 | ✅ Complete | 2026-02-20 |
+| 4. Bedrock Chat Core | 2/2 | ✅ Complete | 2026-02-20 |
+| 5. RAG Pipeline | 2/2 | ✅ Complete | 2026-02-20 |
+| 6. Datadog Observability | 2/2 | ✅ Complete | 2026-02-20 |
+| 7. Voice + Demo Polish | 3/3 | ✅ Complete | 2026-02-20 |
+| 8. Multiplayer Mode | 5/5 | ✅ Complete | 2026-02-21 |
 | 9. Scale & Auth | 0/0 | Not started | - |
-| 10. S3 Audio Cache | 0/1 | Not started | - |
+| 10. S3 Audio Cache | 1/1 | ✅ Complete | 2026-02-21 |

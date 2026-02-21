@@ -24,8 +24,8 @@ export interface TTSResult {
 
 const VOICE_MAP: Record<CharacterVoice, string> = {
   narrator: "English_CaptivatingStoryteller",
-  barkeep: "English_ManSportsCommentator",    // deep, gruff male
-  goblin: "English_FloridaMan",               // nasal, energetic
+  barkeep: "English_ManWithDeepVoice",        // deep, gruff male
+  goblin: "English_Comedian",                 // energetic, quirky
 };
 
 const MOOD_PROSODY: Record<SceneMood, { speed: number; pitch: number }> = {
@@ -270,13 +270,33 @@ export async function generateMultiVoiceTTS(
   let totalDuration = 0;
 
   for (const segment of segments) {
-    const result = await generateTTS(segment.text, {
-      ...options,
-      mood: effectiveMood,
-      voice: segment.voice,
-    });
-    buffers.push(result.audioBuffer);
-    totalDuration += result.durationMs;
+    try {
+      const result = await generateTTS(segment.text, {
+        ...options,
+        mood: effectiveMood,
+        voice: segment.voice,
+      });
+      buffers.push(result.audioBuffer);
+      totalDuration += result.durationMs;
+    } catch (err) {
+      // If a non-narrator voice fails, retry with narrator as fallback
+      if (segment.voice !== "narrator") {
+        logEvent("warn", "tts.voice_fallback", {
+          failedVoice: segment.voice,
+          voiceId: VOICE_MAP[segment.voice],
+          error: String(err),
+        });
+        const fallback = await generateTTS(segment.text, {
+          ...options,
+          mood: effectiveMood,
+          voice: "narrator",
+        });
+        buffers.push(fallback.audioBuffer);
+        totalDuration += fallback.durationMs;
+      } else {
+        throw err; // narrator voice failing is unrecoverable
+      }
+    }
   }
 
   return {

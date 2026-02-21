@@ -10,7 +10,7 @@ import type { AppState } from './types/chat';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('idle');
-  const { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio } = useSSEChat();
+  const { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, sessionCost } = useSSEChat();
 
   function handleStart(narration?: NarrateResult) {
     setAppState('adventure');
@@ -59,6 +59,11 @@ export default function App() {
           </span>
           <div className="flex items-center gap-4">
             <AudioControls />
+            {appState === 'adventure' && sessionCost > 0 && (
+              <span className="font-mono text-xs text-dm-gold/70">
+                ${sessionCost.toFixed(4)}
+              </span>
+            )}
             <span className="font-sans text-xs text-parchment/50">
               Powered by AWS Bedrock
             </span>

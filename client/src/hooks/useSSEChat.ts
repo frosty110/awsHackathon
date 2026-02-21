@@ -12,6 +12,7 @@ function buildUserVisibleError(message: string, requestId?: string) {
 export function useSSEChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionCost, setSessionCost] = useState(0);
   const conversationId = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
@@ -85,14 +86,10 @@ export function useSSEChat() {
             text?: string;
             error?: string;
             requestId?: string;
+            usage?: { costUsd?: number };
           };
           try {
-            data = JSON.parse(payload) as {
-              conversationId?: string;
-              text?: string;
-              error?: string;
-              requestId?: string;
-            };
+            data = JSON.parse(payload) as typeof data;
           } catch (error) {
             console.error('[useSSEChat] failed to parse SSE payload', { payload, error });
             continue;
@@ -103,6 +100,10 @@ export function useSSEChat() {
           if (data.error) {
             console.error('[useSSEChat] server stream error', data);
             break readLoop;
+          }
+
+          if (data.usage?.costUsd) {
+            setSessionCost(prev => prev + data.usage!.costUsd!);
           }
 
           if (data.text) fullContent += data.text;
@@ -139,7 +140,7 @@ export function useSSEChat() {
       const ttsRes = await fetch('/api/narrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: fullContent }),
+        body: JSON.stringify({ text: fullContent, conversationId: conversationId.current }),
       });
 
       if (ttsRes.ok && generation === generationRef.current) {
@@ -166,9 +167,12 @@ export function useSSEChat() {
   // Called when "Start Adventure" is clicked.
   // If narration is provided (from /api/narrate Bedrock call), use it directly.
   // Otherwise fall back to a separate /api/chat call.
-  const startAdventure = useCallback(async (narration?: NarrateResult) => {
+  const startAdventure = useCallback(async (narration?: NarrateResult & { usage?: { totalCostUsd?: number } }) => {
     if (narration) {
       conversationId.current = narration.conversationId;
+      if (narration.usage?.totalCostUsd) {
+        setSessionCost(prev => prev + narration.usage!.totalCostUsd!);
+      }
       setMessages([{
         id: crypto.randomUUID(),
         role: 'dm',
@@ -196,8 +200,9 @@ export function useSSEChat() {
     stopGlobalAudio();
     setMessages([]);
     setIsLoading(false);
+    setSessionCost(0);
     conversationId.current = null;
   }, []);
 
-  return { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio };
+  return { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, sessionCost };
 }

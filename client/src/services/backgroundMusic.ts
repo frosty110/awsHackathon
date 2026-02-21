@@ -40,7 +40,12 @@ async function tryPlay() {
     const res = await fetch('/api/music');
 
     if (res.status === 202) {
-      console.log('[music] still generating, polling again in', POLL_INTERVAL_MS, 'ms');
+      pollCount++;
+      if (pollCount > MAX_POLLS) {
+        console.warn('[music] max polls reached (' + MAX_POLLS + ') — giving up');
+        return;
+      }
+      console.log('[music] still generating, poll', pollCount + '/' + MAX_POLLS);
       pollTimer = setTimeout(tryPlay, POLL_INTERVAL_MS);
       return;
     }
@@ -56,17 +61,16 @@ async function tryPlay() {
       return;
     }
 
-    const blob = await res.blob();
-    console.log('[music] received', (blob.size / 1024).toFixed(0), 'KB — playing');
-    const url = URL.createObjectURL(blob);
-
-    audio = new Audio(url);
+    // Use native audio element with src URL for browser-managed streaming/buffering.
+    // The server caches the audio, so direct src avoids downloading the full blob first.
+    audio = new Audio('/api/music');
     audio.loop = true;
     audio.volume = currentVolume;
+    audio.preload = 'auto';
     const playPromise = audio.play();
-    notify(); // controls can now render
+    notify();
     playPromise
-      .then(() => console.log('[music] playing ✓'))
+      .then(() => console.log('[music] playing'))
       .catch((err) => console.warn('[music] play() failed:', err));
   } catch (err) {
     console.warn('[music] fetch failed:', err);
@@ -85,6 +89,8 @@ export function stopBackgroundMusic() {
     audio = null;
   }
   paused = false;
+  retryCount = 0;
+  pollCount = 0;
   notify();
 }
 

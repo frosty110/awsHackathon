@@ -49,6 +49,7 @@ Progress: [████████░░] 70%
 | Phase 08-multiplayer P01 | 3 | 2 tasks | 5 files |
 | Phase 08-multiplayer P02 | 3 | 2 tasks | 5 files |
 | Phase 08-multiplayer P04 | 2 | 2 tasks | 4 files |
+| Phase 08-multiplayer P03 | 3 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,9 @@ Recent decisions affecting current work:
 - [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
 - [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
 - [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
 
 ### Roadmap Evolution
 
@@ -112,7 +116,7 @@ Recent decisions affecting current work:
 - Run `npm run dev` in client/ and verify Tailwind v4 classes load correctly (text-parchment, font-cinzel, etc.)
 - Add royalty-free dark tavern/forest image to client/public/tavern-bg.jpg (Unsplash free license) — CSS has gradient fallback if absent
 - Verify `curl http://localhost:3001/health` and `curl http://localhost:3001/api/health` once server runs.
-- Wire initSocketIO(server) call in server/src/index.ts (Phase 08-02 does this with the full handler setup)
+- ~~Wire initSocketIO(server) call in server/src/index.ts~~ — Done in 08-03 (e8fa6cd)
 
 ### Blockers/Concerns
 

@@ -181,10 +181,12 @@ Plans:
   3. Per-user rate limiting prevents abuse on `/chat` and `/narrate`
   4. Bedrock request queuing handles backpressure under 1000 concurrent users
   5. Application deployed with health checks, auto-scaling, and Datadog monitoring
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 9 to break down)
+- [ ] 09-01-PLAN.md — Redis client singleton, Bedrock queue, config additions, Socket.IO Redis adapter wiring
+- [ ] 09-02-PLAN.md — Conversation store async migration to Redis with in-memory fallback, all callers updated, Bedrock queue wired into chat/narrate/multiplayer
+- [ ] 09-03-PLAN.md — JWT auth routes (register/login), auth middleware, per-user rate limiting on /api/chat and /api/narrate with Redis-backed counters
 
 ### Phase 10: S3 Audio Cache Infrastructure
 
@@ -194,6 +196,15 @@ Plans:
 
 Plans:
 - [x] 10-01-PLAN.md — Install @aws-sdk/client-s3, create audioCache.ts with S3 get/put/buildCacheKey + Datadog tracing, wire into tts.ts as L2 cache behind existing in-memory L1
+
+### Phase 11: Investigate our system architecture to determine architecture improvements to get us to a more ideal/perfect state for future iterations for this product.
+
+**Goal:** [To be planned]
+**Depends on:** Phase 10
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 11 to break down)
 
 ---
 
@@ -214,5 +225,5 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 6. Datadog Observability | 2/2 | ✅ Complete | 2026-02-20 |
 | 7. Voice + Demo Polish | 3/3 | ✅ Complete | 2026-02-20 |
 | 8. Multiplayer Mode | 5/5 | ✅ Complete | 2026-02-21 |
-| 9. Scale & Auth | 0/0 | Not started | - |
+| 9. Scale & Auth | 0/3 | In Progress | - |
 | 10. S3 Audio Cache | 1/1 | ✅ Complete | 2026-02-21 |

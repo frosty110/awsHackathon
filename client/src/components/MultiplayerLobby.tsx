@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 import { socket } from '../services/socket';
 import {
   CHARACTER_CLASSES,
+  GENDERS,
   getClassColor,
   getClassIcon,
+  getGenderIcon,
   randomDisplayName,
   randomCharacterClass,
+  randomGender,
   type CharacterClassId,
+  type GenderId,
   type RoomState,
   type MultiplayerPlayer,
 } from '../types/multiplayer';
@@ -22,6 +26,7 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
   const [step, setStep] = useState<LobbyStep>('choose');
   const [displayName, setDisplayName] = useState(randomDisplayName);
   const [characterClass, setCharacterClass] = useState<CharacterClassId | null>(randomCharacterClass);
+  const [gender, setGender] = useState<GenderId | null>(randomGender);
   const [pronouns, setPronouns] = useState<string>('They/Them');
   const [customPronouns, setCustomPronouns] = useState('');
   const [joinCode, setJoinCode] = useState('');
@@ -111,7 +116,7 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
   }, [onGameStart]);
 
   function handleSubmit() {
-    if (!displayName.trim() || !characterClass) return;
+    if (!displayName.trim() || !characterClass || !gender) return;
     setError(null);
 
     if (!socket.connected) {
@@ -124,6 +129,7 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
       socket.emit('room:create', {
         displayName: displayName.trim(),
         characterClass,
+        gender,
         pronouns: resolvedPronouns,
       });
     } else if (step === 'join') {
@@ -135,6 +141,7 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
         code: joinCode,
         displayName: displayName.trim(),
         characterClass,
+        gender,
         pronouns: resolvedPronouns,
       });
     }
@@ -187,6 +194,7 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
     const isValid =
       displayName.trim().length > 0 &&
       characterClass !== null &&
+      gender !== null &&
       (step === 'create' || joinCode.length === 6);
 
     return (
@@ -244,6 +252,36 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
               />
             </div>
           )}
+
+          {/* Gender picker */}
+          <div>
+            <label className="font-cinzel text-xs text-parchment/60 tracking-widest uppercase block mb-2">
+              Choose Your Identity
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {GENDERS.map(g => (
+                <button
+                  key={g.id}
+                  onClick={() => setGender(g.id)}
+                  className={`
+                    flex flex-col items-center gap-1 p-3 border rounded
+                    transition-all duration-150 cursor-pointer
+                    ${gender === g.id
+                      ? 'border-dm-gold bg-dm-gold/10 text-dm-gold'
+                      : 'border-blood/30 bg-surface text-parchment hover:border-blood-light'
+                    }
+                  `}
+                >
+                  <span className="text-2xl">{g.icon}</span>
+                  <span className={`font-cinzel text-xs tracking-wide ${
+                    gender === g.id ? 'text-dm-gold' : 'text-parchment'
+                  }`}>
+                    {g.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Character class picker */}
           <div>
@@ -386,9 +424,12 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
                   }`}
                   title={player.connected ? 'Connected' : 'Disconnected'}
                 />
-                {/* Class icon + name */}
+                {/* Class icon + gender icon + name */}
                 <span className="text-lg" aria-hidden="true">
                   {getClassIcon(player.characterClass)}
+                </span>
+                <span className="text-sm" aria-hidden="true">
+                  {getGenderIcon(player.gender)}
                 </span>
                 <div>
                   <p className="font-cinzel text-sm text-parchment font-semibold">

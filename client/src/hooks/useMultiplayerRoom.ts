@@ -6,6 +6,7 @@ import type {
   MultiplayerPlayer,
   ChatMessage,
   CharacterClassId,
+  GenderId,
   RoomState,
 } from '../types/multiplayer';
 
@@ -232,6 +233,22 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       });
     }
 
+    function onPlayerIdle(payload: { socketId: string }) {
+      setPlayers(prev =>
+        prev.map(p =>
+          p.socketId === payload.socketId ? { ...p, idle: true } : p
+        )
+      );
+    }
+
+    function onPlayerActive(payload: { socketId: string }) {
+      setPlayers(prev =>
+        prev.map(p =>
+          p.socketId === payload.socketId ? { ...p, idle: false } : p
+        )
+      );
+    }
+
     socket.on('room:state', onRoomState);
     socket.on('room:player-joined', onPlayerJoined);
     socket.on('room:player-disconnected', onPlayerDisconnected);
@@ -250,6 +267,8 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
     socket.on('chat:message', onChatMessage);
     socket.on('chat:reaction', onChatReaction);
     socket.on('dice:rolled', onDiceRolled);
+    socket.on('room:player-idle', onPlayerIdle);
+    socket.on('room:player-active', onPlayerActive);
 
     return () => {
       socket.off('room:state', onRoomState);
@@ -270,8 +289,57 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       socket.off('chat:message', onChatMessage);
       socket.off('chat:reaction', onChatReaction);
       socket.off('dice:rolled', onDiceRolled);
+      socket.off('room:player-idle', onPlayerIdle);
+      socket.off('room:player-active', onPlayerActive);
     };
   }, []);
+
+  // Idle detection: emit player:idle after 60s of no activity, player:active on resume
+  useEffect(() => {
+    if (!roomCode) return;
+
+    let idleTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isIdle = false;
+    let lastActivity = Date.now();
+
+    const IDLE_MS = 60_000;
+
+    function resetIdleTimer() {
+      // Throttle: ignore activity within 1s of last call
+      const now = Date.now();
+      if (now - lastActivity < 1000) return;
+      lastActivity = now;
+
+      if (isIdle) {
+        isIdle = false;
+        socket.emit('player:active' as never);
+      }
+
+      if (idleTimeout) clearTimeout(idleTimeout);
+      idleTimeout = setTimeout(() => {
+        isIdle = true;
+        socket.emit('player:idle' as never);
+      }, IDLE_MS);
+    }
+
+    const events: Array<keyof DocumentEventMap> = ['keydown', 'mousemove', 'mousedown', 'touchstart'];
+    for (const evt of events) {
+      document.addEventListener(evt, resetIdleTimer, { passive: true });
+    }
+
+    // Start the initial idle timer
+    idleTimeout = setTimeout(() => {
+      isIdle = true;
+      socket.emit('player:idle' as never);
+    }, IDLE_MS);
+
+    return () => {
+      for (const evt of events) {
+        document.removeEventListener(evt, resetIdleTimer);
+      }
+      if (idleTimeout) clearTimeout(idleTimeout);
+    };
+  }, [roomCode]);
 
   const submitAction = useCallback((action: string) => {
     socket.emit('turn:submit-action', { action });
@@ -292,6 +360,7 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       fromSocketId: socket.id ?? 'local',
       fromName: 'You',
       fromClass: (me?.characterClass ?? 'fighter') as CharacterClassId,
+      fromGender: (me?.gender ?? 'nonbinary') as GenderId,
       text,
       timestamp: Date.now(),
     };
@@ -313,6 +382,7 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       fromSocketId: socket.id ?? 'local',
       fromName: me?.displayName ?? 'You',
       fromClass: (me?.characterClass ?? 'fighter') as CharacterClassId,
+      fromGender: (me?.gender ?? 'nonbinary') as GenderId,
       text: actionText,
       timestamp: Date.now(),
       type: 'action',

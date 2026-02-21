@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ChatMessage, MultiplayerPlayer } from '../types/multiplayer';
-import { getClassColor, getClassBorderColor, getClassBgColor, getClassIcon } from '../types/multiplayer';
+import { getClassColor, getClassBorderColor, getClassBgColor, getClassIcon, getGenderIcon } from '../types/multiplayer';
 
 // Emoji reactions palette (6 options matching chatHandlers emoji IDs)
 const REACTION_EMOJIS = [
@@ -140,7 +140,7 @@ export function PlayerChat({
               {/* Sender name */}
               {!isLocal && (
                 <span className={`text-xs font-cinzel ${colorClass} mb-0.5`}>
-                  {msg.fromName}
+                  {msg.fromName} {msg.fromGender ? getGenderIcon(msg.fromGender) : ''}
                 </span>
               )}
 

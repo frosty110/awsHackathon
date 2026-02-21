@@ -1,0 +1,50 @@
+import { rateLimit } from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
+import { redisClient, isRedisAvailable } from "../services/redis.js";
+import type { AuthenticatedRequest } from "./auth.js";
+
+/**
+ * Creates a rate limit store.
+ * Uses Redis when available (persistent across restarts, supports multi-instance).
+ * Falls back to MemoryStore (built into express-rate-limit) when Redis is unavailable.
+ */
+function createStore(prefix: string) {
+  if (isRedisAvailable()) {
+    return new RedisStore({
+      sendCommand: (...args: string[]) => redisClient.sendCommand(args),
+      prefix,
+    });
+  }
+  // Default MemoryStore (in-process, resets on restart — acceptable for single-instance dev)
+  return undefined;
+}
+
+/**
+ * chatRateLimiter — 20 requests per minute per authenticated user (or IP for unauthenticated).
+ * Applied to /api/chat.
+ */
+export const chatRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) =>
+    (req as AuthenticatedRequest).userId ?? req.ip ?? "unknown",
+  store: createStore("rl:chat:"),
+  message: { error: "Too many chat requests, slow down" },
+});
+
+/**
+ * narrateRateLimiter — 10 requests per minute per authenticated user (or IP for unauthenticated).
+ * Applied to /api/narrate (TTS is expensive — stricter limit).
+ */
+export const narrateRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) =>
+    (req as AuthenticatedRequest).userId ?? req.ip ?? "unknown",
+  store: createStore("rl:narrate:"),
+  message: { error: "Too many narrate requests, slow down" },
+});

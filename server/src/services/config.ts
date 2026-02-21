@@ -21,6 +21,7 @@ const envDefaults: Record<string, string> = {
   MINIMAX_GROUP_ID: "",
   MINIMAX_MUSIC_API_KEY: "",
   SKIP_NEO4J_CONNECTIVITY_CHECK: "0",
+  S3_AUDIO_CACHE_BUCKET: "",
 };
 
 const envSchema = z.object({
@@ -49,6 +50,8 @@ const envSchema = z.object({
   MINIMAX_MUSIC_API_KEY: z.string(),
 
   SKIP_NEO4J_CONNECTIVITY_CHECK: z.enum(["0", "1"]),
+
+  S3_AUDIO_CACHE_BUCKET: z.string(),
 });
 
 const result = envSchema.safeParse({ ...envDefaults, ...process.env });

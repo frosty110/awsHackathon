@@ -21,3 +21,13 @@ export function stopAudio() {
     current = null;
   }
 }
+
+/** Play audio from a fetch Response (audio/mpeg). Consolidates Blob logic. */
+export async function playFromResponse(response: Response): Promise<void> {
+  const arrayBuffer = await response.arrayBuffer();
+  const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+  playAudio(audio);
+}

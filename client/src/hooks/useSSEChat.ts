@@ -1,7 +1,17 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Message } from '../types/chat';
 import type { NarrateResult } from '../components/AudioPlayer';
-import { playAudio, stopAudio as stopGlobalAudio } from '../services/audioController';
+import type { CharacterClass } from '../components/ClassSelect';
+import { playFromResponse, stopAudio as stopGlobalAudio } from '../services/audioController';
+
+function stripTTSTags(text: string): string {
+  return text
+    .replace(/^\{\{mood:\w+\}\}\s*/, "")
+    .replace(/\{\{voice:\w+\}\}/g, "")
+    .replace(/\{\{\/voice\}\}/g, "")
+    .replace(/\[(excited|whisper|angry|fearful|sad|shouting)\]\s*/g, "")
+    .trim();
+}
 
 function buildUserVisibleError(message: string, requestId?: string) {
   return requestId
@@ -14,6 +24,7 @@ export function useSSEChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionCost, setSessionCost] = useState(0);
   const conversationId = useRef<string | null>(null);
+  const characterClassRef = useRef<CharacterClass | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
 
@@ -37,6 +48,7 @@ export function useSSEChat() {
     setIsLoading(true);
     const dmId = crypto.randomUUID();
     let fullContent = '';
+    let ttsText = '';
     let wasAborted = false;
 
     // --- 1. Stream Bedrock response, accumulate silently ---
@@ -48,6 +60,7 @@ export function useSSEChat() {
           conversationId: conversationId.current,
           message,
           ...(diceResult != null ? { diceResult } : {}),
+          ...(characterClassRef.current ? { characterClass: characterClassRef.current.name } : {}),
         }),
         signal: controller.signal,
       });
@@ -88,6 +101,7 @@ export function useSSEChat() {
           let data: {
             conversationId?: string;
             text?: string;
+            ttsText?: string;
             error?: string;
             requestId?: string;
             usage?: { costUsd?: number };
@@ -110,6 +124,8 @@ export function useSSEChat() {
             setSessionCost(prev => prev + data.usage!.costUsd!);
           }
 
+          if (data.ttsText) ttsText = data.ttsText;
+
           if (data.text) fullContent += data.text;
         }
       }
@@ -129,7 +145,7 @@ export function useSSEChat() {
 
     // Aborted mid-stream: show whatever arrived (if anything), no TTS
     if (wasAborted) {
-      if (fullContent) setMessages(prev => [...prev, { id: dmId, role: 'dm', content: fullContent }]);
+      if (fullContent) setMessages(prev => [...prev, { id: dmId, role: 'dm', content: stripTTSTags(fullContent) }]);
       if (generation === generationRef.current) setIsLoading(false);
       return;
     }
@@ -140,23 +156,18 @@ export function useSSEChat() {
     }
 
     // --- 2. Fetch TTS, then reveal text + play audio at the same moment ---
+    const ttsPayload = ttsText || fullContent;
     try {
       const ttsRes = await fetch('/api/narrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: fullContent, conversationId: conversationId.current }),
+        body: JSON.stringify({ text: ttsPayload, conversationId: conversationId.current }),
       });
 
       if (ttsRes.ok && generation === generationRef.current) {
-        const arrayBuffer = await ttsRes.arrayBuffer();
-        const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audio.addEventListener('ended', () => URL.revokeObjectURL(url));
-
-        setMessages(prev => [...prev, { id: dmId, role: 'dm', content: fullContent }]);
+        setMessages(prev => [...prev, { id: dmId, role: 'dm', content: stripTTSTags(fullContent) }]);
         if (generation === generationRef.current) setIsLoading(false);
-        playAudio(audio);
+        await playFromResponse(ttsRes);
         return;
       }
     } catch {
@@ -164,14 +175,17 @@ export function useSSEChat() {
     }
 
     // TTS unavailable: reveal text without audio
-    setMessages(prev => [...prev, { id: dmId, role: 'dm', content: fullContent }]);
+    setMessages(prev => [...prev, { id: dmId, role: 'dm', content: stripTTSTags(fullContent) }]);
     if (generation === generationRef.current) setIsLoading(false);
   }, []);
 
   // Called when "Start Adventure" is clicked.
   // If narration is provided (from /api/narrate Bedrock call), use it directly.
   // Otherwise fall back to a separate /api/chat call.
-  const startAdventure = useCallback(async (narration?: NarrateResult & { usage?: { totalCostUsd?: number } }) => {
+  const startAdventure = useCallback(async (narration?: NarrateResult & { usage?: { totalCostUsd?: number } }, characterClass?: CharacterClass) => {
+    if (characterClass) {
+      characterClassRef.current = characterClass;
+    }
     if (narration) {
       conversationId.current = narration.conversationId;
       if (narration.usage?.totalCostUsd) {
@@ -206,6 +220,7 @@ export function useSSEChat() {
     setIsLoading(false);
     setSessionCost(0);
     conversationId.current = null;
+    characterClassRef.current = null;
   }, []);
 
   return { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, sessionCost };

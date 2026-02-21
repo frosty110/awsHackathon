@@ -1,6 +1,15 @@
 import Markdown from 'react-markdown';
 import type { Message } from '../types/chat';
 
+function stripTTSTags(text: string): string {
+  return text
+    .replace(/^\{\{mood:\w+\}\}\s*/, "")
+    .replace(/\{\{voice:\w+\}\}/g, "")
+    .replace(/\{\{\/voice\}\}/g, "")
+    .replace(/\[(excited|whisper|angry|fearful|sad|shouting)\]\s*/g, "")
+    .trim();
+}
+
 interface MessageBubbleProps {
   message: Message;
   onStopAudio: () => void;
@@ -18,10 +27,11 @@ export function MessageBubble({ message, onStopAudio }: MessageBubbleProps) {
   const { role, content } = message;
 
   if (role === 'dm') {
+    const cleanContent = stripTTSTags(content);
     return (
       <div className="flex justify-start mb-3 group">
         <div className="dm-prose relative max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble font-fell leading-[1.8] text-[color:var(--color-dm-message)] text-[1.05rem]">
-          <Markdown>{content}</Markdown>
+          <Markdown>{cleanContent}</Markdown>
           <button
             onClick={onStopAudio}
             title="Stop audio"

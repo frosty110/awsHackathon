@@ -15,6 +15,7 @@ async function main(): Promise<void> {
 
   const dashboard: v1.Dashboard = {
     title: '[Hackathon] AI Dungeon Master - LLM Observability',
+    description: 'AI Dungeon Master LLM pipeline observability for AWS x Anthropic x Datadog Hackathon',
     layoutType: 'ordered',
     templateVariables: [
       { name: 'env', defaults: ['hackathon'] },
@@ -73,7 +74,7 @@ async function main(): Promise<void> {
               responseFormat: 'event_list',
               query: {
                 dataSource: 'trace_stream',
-                queryString: 'service:$service env:$env',
+                queryString: 'service:$service env:$env @ml_app:ai-dm',
               },
               columns: [
                 { field: 'resource_name', width: 'auto' },

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 9 (Scale & Auth) in progress — Plans 01-02 complete. Plan 03 (auth middleware, rate limiting) remains.
+**Current focus:** Phase 9 (Scale & Auth) complete — all 3 plans done. Phase 11 (architecture audit) is next.
 
 ## Current Position
 
-Phase: Phase 09 (Scale & Auth) — Plans 01-02 complete, Plan 03 pending.
-Plan: 22/22 core plans executed across phases 1-8. 4 quick tasks shipped. Phase 10 Plan 01 complete. Phase 09 Plans 01-02 complete.
-Status: Redis-backed conversationStore deployed with 7-day TTL and in-memory fallback. All chat/narrate/multiplayer callers converted to async. Bedrock queue wired into all 3 Bedrock call sites with 503 backpressure. Plan 03 will add JWT auth middleware and rate limiting.
-Last activity: 2026-02-21 — Phase 09 Plan 02 complete (Redis conversationStore, async callers, Bedrock queue wiring).
+Phase: Phase 09 (Scale & Auth) — All 3 plans complete.
+Plan: 22/22 core plans executed across phases 1-8. 4 quick tasks shipped. Phase 10 Plan 01 complete. Phase 09 Plans 01-03 complete.
+Status: JWT auth routes, bcrypt user storage in Redis hashes, requireAuth/optionalAuth middleware, and per-user rate limiting (20 req/min chat, 10 req/min narrate) deployed. Existing unauthenticated gameplay preserved.
+Last activity: 2026-02-21 — Phase 09 Plan 03 complete (JWT auth, Redis user store, rate limiting).
 
-Progress: [█████████░] 95%
+Progress: [██████████] 97%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [█████████░] 95%
 | Phase 08-multiplayer P05 | 8 | 2 tasks | 2 files |
 | Phase 09-scale-and-auth P01 | 3 | 2 tasks | 6 files |
 | Phase 09 P02 | 3 | 2 tasks | 5 files |
+| Phase 09-scale-and-auth P03 | 3 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,11 @@ Recent decisions affecting current work:
 - [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
 - [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
 - [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
 
 ### Roadmap Evolution
 
@@ -163,5 +169,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 09-02-PLAN.md (Redis-backed conversationStore, async callers, Bedrock queue wiring)
-Resume context: Phase 09 Plans 01-02 complete. Redis-backed conversationStore with 7-day TTL, all callers async, Bedrock queue in chat/narrate/turnHandlers with 503 backpressure. Phase 09 Plan 03 ready — adds JWT auth middleware and rate limiting to routes.
+Stopped at: Completed 09-03-PLAN.md (JWT auth middleware, rate limiting, Redis user store)
+Resume context: Phase 09 fully complete. JWT register/login endpoints with bcrypt, requireAuth/optionalAuth middleware, and per-user rate limiting (20 req/min chat, 10 req/min narrate) with Redis-backed counters. All existing unauthenticated gameplay preserved. Phase 11 (architecture audit) is next.

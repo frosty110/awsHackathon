@@ -2,11 +2,11 @@
 
 ## What This Is
 
-An AI-powered Dungeon Master for tabletop D&D, built for the AWS x Anthropic x Datadog GenAI Hackathon at AWS Builder Loft, SF. Players interact through a dark fantasy chat UI. The DM (powered by Claude via AWS Bedrock) narrates scenes, manages dice rolls, and weaves lore from a Neo4j knowledge graph — all with full LLM observability via Datadog. Optional voice narration via MiniMax TTS.
+An AI-powered Dungeon Master for tabletop D&D, built for small gaming communities. Players interact through a dark fantasy chat UI. The DM (powered by Claude via AWS Bedrock) narrates scenes, manages dice rolls, and weaves lore from a Neo4j knowledge graph — all with full LLM observability via Datadog. Voice narration via MiniMax TTS.
 
 ## Core Value
 
-A playable AI Dungeon Master demo that runs live with visible Datadog LLM observability — the minimum viable path to hackathon prize eligibility.
+A production-quality AI Dungeon Master that serves ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
 
 ## Requirements
 
@@ -29,59 +29,42 @@ A playable AI Dungeon Master demo that runs live with visible Datadog LLM observ
 
 ### Out of Scope
 
-- Mobile app — web-only demo
-- User authentication — single-player demo, no login needed
-- Persistent game state / save games — demo is a one-shot
-- Real-time multiplayer — single player interacts with DM
+- Mobile app — web-only for now
 - Video or image generation — text + voice only
-- Production deployment — runs locally or on a single dev server for demo
+- Full 5e rules engine — AI handles rules narratively
 
 ## Context
 
-**Hackathon details:**
-- AWS x Anthropic x Datadog GenAI Hackathon, AWS Builder Loft, SF
-- 6-hour hacking window (11:00 AM - 5:00 PM), science fair judging 5:00-7:00 PM
-- Live demo required — must run on a screen with Datadog dashboard visible on second screen
+**Product vision:**
+- Community-facing AI D&D game for small gaming communities (~1000 concurrent users).
+- Players get immersive, open-ended D&D adventures with AI narration, voice, and lore-grounded storytelling.
+- Full observability via Datadog for monitoring quality, latency, and cost at scale.
 
 **Team:**
-- Aristarkh (Product Lead) — prompt engineering, D&D game logic, demo scenario, pitch
+- Aristarkh (Product Lead) — prompt engineering, D&D game logic, scenario design
 - Brandon (Backend Lead) — AWS Bedrock API, server, Datadog integration, Neo4j RAG pipeline
-- Blaise (Fullstack Lead) — Chat UI, MiniMax voice, Neo4j data seeding, CSS polish
-
-**Prize targets (priority order):**
-1. Main prize pool ($15K AWS credits + cash) — Bedrock + Datadog working end-to-end [MUST]
-2. Datadog Observability Award (Meta Glasses) — rich LLM observability dashboard [MUST]
-3. Neo4j Award (Bose headphones + credits) — graph-powered RAG lore retrieval [HIGH]
-4. MiniMax cash prize ($12K pool) — voice/audio for the DM [HIGH]
-
-**Emergency cut order (bottom first):**
-CSS polish → MiniMax voice → Neo4j RAG → Datadog → Bedrock chat (never cut)
-
-**Demo scenario (3 turns):**
-- Turn 0: Opening monologue (MiniMax voiced if available)
-- Turn 1: Player enters tavern, approaches barkeep (Neo4j lore: Shattered Crown Tavern, Gorm)
-- Turn 2: Player asks about the ring (Neo4j quest data: Ring of Ashwick, goblin caves)
-- Turn 3: Goblin attacks, player rolls dice, DM narrates outcome
+- Blaise (Fullstack Lead) — Chat UI, MiniMax voice, Neo4j data seeding, frontend polish
 
 ## Constraints
 
-- **Timeline**: 6 hours of hacking — every feature must justify its time cost
-- **Tech stack (required for prizes)**: AWS Bedrock (Claude), Datadog LLM Observability, Neo4j AuraDB, MiniMax TTS
-- **Backend**: Node.js + Express
-- **Frontend**: React
-- **Demo**: Must run live during science fair judging with Datadog dashboard visible
-- **Pre-work scope**: Full project scaffold + frontend build. Backend and prompt engineering done by teammates day-of.
+- **Scale target**: ~1000 concurrent users — architecture must handle real load.
+- **Tech stack**: AWS Bedrock (Claude), Datadog LLM Observability, Neo4j AuraDB, MiniMax TTS.
+- **Backend**: Node.js + Express.
+- **Frontend**: React.
+- **Deployment**: Production deployment with monitoring and alerting.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Node.js + Express for backend | Team familiarity, fast to scaffold | — Pending |
-| React for frontend | Fast to build chat UI, Blaise's strength | — Pending |
-| Neo4j AuraDB free tier | Required for Neo4j prize, free cloud instance | — Pending |
-| MiniMax for voice only on opening monologue | Reduces complexity vs voicing every message | — Pending |
+| Node.js + Express for backend | Team familiarity, proven at scale | — Pending |
+| React for frontend | Rich UI capabilities, team strength | — Pending |
+| Neo4j AuraDB | Graph-powered lore retrieval, scalable managed service | — Pending |
+| MiniMax TTS | Voice narration for immersive gameplay | — Pending |
 | Single repo for full project | Team coordination, shared configs | — Pending |
-| Dark fantasy theme (parchment gold, blood red) | Fits D&D atmosphere, quick to implement with CSS variables | — Pending |
+| Dark fantasy theme (parchment gold, blood red) | Fits D&D atmosphere, strong brand identity | — Pending |
+| Redis for session/conversation state | Required for multi-instance deployment at 1000 users | — Pending |
+| User authentication | Required for persistent sessions and per-user rate limiting | — Pending |
 
 ---
 *Last updated: 2026-02-20 after initialization*

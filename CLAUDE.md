@@ -9,28 +9,25 @@ Compatibility links:
 
 ## Operating Mode
 
-This is a hackathon project. Speed is the priority.
+This is a community product targeting ~1000 concurrent users. Balance speed with reliability.
 
-- Execute plans without flagging hypothetical concerns. If something breaks, fix it then.
-- Don't preemptively optimize, add defensive code for unlikely scenarios, or suggest production-grade improvements.
-- Don't review or critique plans unless asked. Just build.
-- Skip verification steps that aren't in the plan (e.g., don't test `npm run build` if the plan only asks for `npm run dev`).
+- Execute plans efficiently, but flag genuine reliability or scalability concerns that affect 1000 users.
+- Write production-quality code: proper error handling, input validation, and graceful degradation.
+- Don't over-engineer for 100K+ scale, but do build for real concurrent usage.
 - Cosmetic warnings (dd-trace noise, deprecation notices) are not problems. Ignore them.
 
 ## Project Snapshot
 
 - Name: AI Dungeon Master
-- Goal: Deliver a reliable, immersive 5-minute hackathon demo with visible Datadog LLM observability.
+- Goal: A community-facing AI Dungeon Master game supporting ~1000 concurrent players with full Datadog LLM observability.
 - Stack: React frontend, Node.js/Express backend, AWS Bedrock (Claude), Neo4j, Datadog, MiniMax TTS.
 
-## Current Demo Scope
+## Current Scope
 
-- Single-player web demo (no authentication).
-- 3-turn scripted flow:
-  1. Tavern arrival
-  2. Barkeep quest hook
-  3. Goblin combat with dice outcome narration
+- Web-based single-player D&D experience for small communities (~1000 users).
+- Open-ended gameplay (not limited to scripted turns).
 - Opening monologue uses TTS; turn-by-turn gameplay is text-streamed.
+- Users can play full adventures with persistent conversation sessions.
 
 ## Architecture Contracts (Do Not Drift)
 
@@ -55,21 +52,21 @@ This is a hackathon project. Speed is the priority.
 - TTS failures must not block core chat experience.
 - SSE streams should emit clear error payloads before completion when recoverable.
 
-## Security Posture (Demo)
+## Security Posture
 
-- No auth for the hackathon demo.
-- Still required:
-  - Strict CORS allowlist for demo origin(s)
-  - Body size limits
-  - Basic rate limiting on `/chat` and `/narrate`
-  - Keep all secrets server-side only
+- Authentication required for production deployment.
+- Strict CORS allowlist for allowed origins.
+- Body size limits on all endpoints.
+- Rate limiting on `/chat` and `/narrate` (per-user, not just per-IP).
+- Keep all secrets server-side only.
+- Prompt hardening and input sanitization on user messages.
 
 ## Team Workflow
 
 - Prefer the roadmap/planning flow under `.planning/`.
 - Keep changes small and shippable.
 - Update relevant planning docs when architecture or scope decisions change.
-- Prioritize demo reliability over feature breadth.
+- Prioritize reliability and user experience at scale.
 
 ## Key References in Repo
 

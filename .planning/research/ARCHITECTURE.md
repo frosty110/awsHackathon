@@ -77,7 +77,7 @@
 | React Chat UI | Render conversation, send `{ conversationId?, message }`, consume SSE stream, play TTS audio | Express server (HTTP + SSE) |
 | Express `/chat` | Accept message, load+persist conversation state, run RAG pipeline, stream Bedrock response as SSE | Conversation Store, RAG Pipeline Service, Bedrock Service |
 | Express `/narrate` | Accept text, call MiniMax TTS, return audio buffer | TTS Service |
-| Conversation Store | Source of truth for conversation state keyed by `conversationId` (in-memory for demo, Redis later) | Express `/chat` |
+| Conversation Store | Source of truth for conversation state keyed by `conversationId` (in-memory for dev, Redis for production) | Express `/chat` |
 | RAG Pipeline Service | Extract entities from user message, query Neo4j, assemble injected prompt | Neo4j, Bedrock Service |
 | Bedrock Service | Call `BedrockRuntimeClient.ConverseStream`, pipe chunks to response | AWS Bedrock (Claude) |
 | TTS Service | POST to MiniMax T2A v2 API, decode hex PCM, wrap as WAV buffer, return to caller | MiniMax REST API |
@@ -224,7 +224,7 @@ async function sendMessage(conversationId: string | null, userMessage: string) {
 
 **When to use:** Every chat turn. This is the default for the project.
 
-**Trade-offs:** Prevents client tampering with history and keeps prompt assembly centralized. In-memory storage is enough for demo scale; move to Redis for multi-instance deployment.
+**Trade-offs:** Prevents client tampering with history and keeps prompt assembly centralized. In-memory storage works for development; Redis required for production multi-instance deployment.
 
 **Example:**
 ```typescript
@@ -563,14 +563,16 @@ Define explicit failure behavior so the demo does not stall on dependency issues
 
 ---
 
-## Demo Security Posture (No Auth)
+## Security Posture
 
-No authentication is required for this hackathon demo. Treat this as an explicit non-production decision.
+Production deployment requires proper authentication and access controls.
 
-- **CORS:** Allow only the demo frontend origin(s), not `*`.
-- **Request limits:** Apply JSON body size limits (for example `1mb`) and basic per-IP rate limiting on `/chat` and `/narrate`.
+- **Authentication:** User login with session management (required for persistent sessions and per-user rate limiting).
+- **CORS:** Allow only the production frontend origin(s), not `*`.
+- **Request limits:** Apply JSON body size limits (e.g., `1mb`) and per-user rate limiting on `/chat` and `/narrate`.
 - **Secrets:** Keep API keys server-side only; never expose `MINIMAX_API_KEY`, `DD_API_KEY`, or AWS credentials to client code.
-- **Prompt hardening:** Keep system prompt guardrails and sanitize any user-provided text that may be reflected in logs/UI.
+- **Prompt hardening:** System prompt guardrails and sanitize user-provided text that may be reflected in logs/UI.
+- **Session security:** Secure cookies, CSRF protection, session expiry.
 
 ---
 
@@ -600,17 +602,17 @@ No authentication is required for this hackathon demo. Treat this as an explicit
 
 ## Scaling Considerations
 
-This is a 6-hour hackathon demo. The architecture is deliberately scoped for a single-server, demo-scale deployment.
+The architecture targets ~1000 concurrent users as the primary scale point.
 
 | Scale | Architecture Adjustments |
 |-------|--------------------------|
-| Demo (1-2 users) | Current design is sufficient. Single Express process, local/AuraDB Neo4j, no queue. |
-| 0-100 users | Add Redis for conversation history (replace in-memory array). Rate-limit Bedrock calls. |
-| 100k+ users | Separate RAG worker pool, Neo4j cluster, Bedrock request queue with backpressure, Redis pub/sub for SSE fan-out. Not relevant for this project. |
+| Dev/testing (1-2 users) | In-memory conversation store, single Express process, local/AuraDB Neo4j. |
+| Production (~1000 users) | Redis for conversation state, user authentication, per-user rate limiting, Bedrock request queuing with backpressure, multi-instance Express behind a load balancer. |
+| 100k+ users | Separate RAG worker pool, Neo4j cluster, Redis pub/sub for SSE fan-out, CDN for static assets. Out of scope for now. |
 
-**First bottleneck:** Bedrock latency (not throughput). Claude ConverseStream returns first tokens in ~300-600ms. For the demo, this is fine. The SSE streaming pattern masks the latency by showing characters as they arrive.
+**First bottleneck:** Bedrock latency (not throughput). Claude ConverseStream returns first tokens in ~300-600ms. The SSE streaming pattern masks the latency by showing characters as they arrive. At 1000 users, Bedrock concurrency limits become the constraint — implement request queuing.
 
-**Second bottleneck (if it matters):** Neo4j query time. With a seeded lore graph of < 500 nodes and proper indexes on `name` property, queries return in < 10ms. No concern at demo scale.
+**Second bottleneck:** Neo4j query time. With a seeded lore graph of < 500 nodes and proper indexes on `name` property, queries return in < 10ms. At 1000 users, connection pooling via the Neo4j driver handles this well.
 
 ---
 
@@ -629,3 +631,4 @@ This is a 6-hour hackathon demo. The architecture is deliberately scoped for a s
 
 *Architecture research for: AI D&D Dungeon Master (React + Node.js/Express + AWS Bedrock + Neo4j + Datadog + MiniMax TTS)*
 *Researched: 2026-02-20*
+*Updated: 2026-02-20 — scope shift from hackathon demo to ~1000-user community product*

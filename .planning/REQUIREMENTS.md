@@ -1,11 +1,12 @@
 # Requirements: AI Dungeon Master
 
 **Defined:** 2026-02-20
-**Core Value:** A playable AI Dungeon Master demo that runs live with visible Datadog LLM observability — the minimum viable path to hackathon prize eligibility.
+**Updated:** 2026-02-20
+**Core Value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
 
 ## v1 Requirements
 
-Requirements for hackathon demo. Each maps to roadmap phases.
+Core requirements for the community product. Each maps to roadmap phases.
 
 ### Chat & LLM
 
@@ -45,24 +46,38 @@ Requirements for hackathon demo. Each maps to roadmap phases.
 - [ ] **UI-02**: Styled chat bubbles distinguishing DM messages from player messages
 - [ ] **UI-03**: Loading indicator ("The Dungeon Master is thinking...") during Bedrock calls
 - [ ] **UI-04**: Auto-scroll to latest message
-- [ ] **DEMO-01**: Scripted 3-turn demo scenario works reliably (tavern → barkeep quest → goblin combat)
+- [ ] **DEMO-01**: Default adventure scenario works reliably (tavern → barkeep quest → goblin combat) with open-ended continuation
 
-## v2 Requirements
+### Scale & Infrastructure
 
-Deferred to post-hackathon. Tracked but not in current roadmap.
+- [ ] **SCALE-01**: Redis-backed conversation store for multi-instance deployment
+- [ ] **SCALE-02**: User authentication (login/session management)
+- [ ] **SCALE-03**: Per-user rate limiting on `/chat` and `/narrate`
+- [ ] **SCALE-04**: Persistent game sessions (users can resume adventures)
+- [ ] **SCALE-05**: Bedrock request queuing with backpressure for 1000 concurrent users
 
 ### Extended Gameplay
 
-- **EXT-01**: Character creation flow with class/race selection
-- **EXT-02**: Full D&D 5e rules engine (initiative, action economy, spell slots)
-- **EXT-03**: Multiplayer party support (2-6 players)
-- **EXT-04**: Persistent campaign memory via vector DB
+- [ ] **EXT-01**: Character creation flow with class/race selection
+- [ ] **EXT-03**: Multiplayer party support (2-6 players)
+- [ ] **EXT-04**: Persistent campaign memory via vector DB
 
 ### Extended Voice
 
-- **EXTV-01**: TTS narration for every DM response (not just opening monologue)
+- [ ] **EXTV-01**: TTS narration for every DM response (not just opening monologue)
+- [ ] **EXTV-03**: Different voice profiles per NPC
+
+## v2 Requirements
+
+Tracked but not in current roadmap.
+
+### Extended Gameplay
+
+- **EXT-02**: Full D&D 5e rules engine (initiative, action economy, spell slots)
+
+### Extended Voice
+
 - **EXTV-02**: Voice-to-text player input via ASR
-- **EXTV-03**: Different voice profiles per NPC
 
 ### Extended UI
 
@@ -74,12 +89,9 @@ Deferred to post-hackathon. Tracked but not in current roadmap.
 
 | Feature | Reason |
 |---------|--------|
-| User authentication / accounts | Zero demo value — single-player demo session |
-| Save/load game state | 3-turn scripted demo needs no persistence |
-| Mobile app / responsive mobile layout | Desktop demo for judges on laptops |
-| Full 5e rules engine | Days of work, judges don't check rules fidelity |
-| Image generation (DALL-E/SD) | No image prize track, adds latency and cost |
-| Real-time multiplayer | Single demonstrator runs the 3-turn script |
+| Mobile app / responsive mobile layout | Web-first, mobile deferred |
+| Full 5e rules engine | AI handles rules narratively; formal engine is v2 |
+| Image generation (DALL-E/SD) | Adds latency and cost, text + voice is the core experience |
 | Streaming token-by-token TTS sync | Hard real-time problem, high failure risk |
 
 ## Traceability
@@ -111,11 +123,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-04 | Phase 2 | Pending |
 | DEMO-01 | Phase 7 | Pending |
 
+| SCALE-01 | TBD | Pending |
+| SCALE-02 | TBD | Pending |
+| SCALE-03 | TBD | Pending |
+| SCALE-04 | TBD | Pending |
+| SCALE-05 | TBD | Pending |
+| EXT-01 | TBD | Pending |
+| EXT-03 | Phase 8 | Pending |
+| EXT-04 | TBD | Pending |
+| EXTV-01 | TBD | Pending |
+| EXTV-03 | TBD | Pending |
+
 **Coverage:**
-- v1 requirements: 22 total
+- v1 requirements: 32 total
 - Mapped to phases: 22
-- Unmapped: 0
+- Unmapped: 10 (SCALE-*, EXT-01, EXT-04, EXTV-01, EXTV-03)
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-20 after roadmap creation*
+*Last updated: 2026-02-20 — scope shift from hackathon to community product*

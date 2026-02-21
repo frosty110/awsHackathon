@@ -2,6 +2,12 @@ import { useState, useCallback, useRef } from 'react';
 import type { Message } from '../types/chat';
 import type { NarrateResult } from '../components/AudioPlayer';
 
+function buildUserVisibleError(message: string, requestId?: string) {
+  return requestId
+    ? `${message} (request: ${requestId})`
+    : message;
+}
+
 export function useSSEChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,14 +34,34 @@ export function useSSEChat() {
         }),
       });
 
-      if (!res.ok || !res.body) {
-        throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        let requestId: string | undefined;
+        let errorMessage = `HTTP ${res.status}`;
+
+        try {
+          const errorBody = await res.json() as { error?: string; requestId?: string };
+          requestId = errorBody.requestId;
+          if (errorBody.error) {
+            errorMessage = errorBody.error;
+          }
+        } catch {
+          // no-op: best effort to read server error payload
+        }
+
+        throw new Error(buildUserVisibleError(errorMessage, requestId));
+      }
+
+      if (!res.body) {
+        throw new Error('No response body returned from /api/chat');
       }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let streamError: string | null = null;
+      let streamDone = false;
 
+      readLoop:
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -47,16 +73,37 @@ export function useSSEChat() {
         for (const part of parts) {
           if (!part.startsWith('data: ')) continue;
           const payload = part.slice(6).trim();
-          if (payload === '[DONE]') break;
+          if (payload === '[DONE]') {
+            streamDone = true;
+            break readLoop;
+          }
 
-          const data = JSON.parse(payload) as {
+          let data: {
             conversationId?: string;
             text?: string;
             error?: string;
+            requestId?: string;
           };
+          try {
+            data = JSON.parse(payload) as {
+              conversationId?: string;
+              text?: string;
+              error?: string;
+              requestId?: string;
+            };
+          } catch (error) {
+            console.error('[useSSEChat] failed to parse SSE payload', { payload, error });
+            continue;
+          }
 
           if (data.conversationId) {
             conversationId.current = data.conversationId;
+          }
+
+          if (data.error) {
+            streamError = buildUserVisibleError(data.error, data.requestId);
+            console.error('[useSSEChat] server stream error', data);
+            break readLoop;
           }
 
           if (data.text) {
@@ -70,11 +117,32 @@ export function useSSEChat() {
           }
         }
       }
-    } catch {
+      if (streamError) {
+        if (!streamDone) {
+          await reader.cancel().catch(() => undefined);
+        }
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === dmId
+              ? {
+                ...m,
+                content: m.content
+                  ? `${m.content}\n\n[Stream error] ${streamError}`
+                  : streamError,
+              }
+              : m
+          )
+        );
+      }
+    } catch (error) {
+      console.error('[useSSEChat] chat request failed', error);
+      const fallbackMessage = error instanceof Error && error.message
+        ? error.message
+        : 'The Dungeon Master was lost to the void. Please try again.';
       setMessages(prev =>
         prev.map(m =>
           m.id === dmId
-            ? { ...m, content: 'The Dungeon Master was lost to the void. Please try again.' }
+            ? { ...m, content: fallbackMessage }
             : m
         )
       );

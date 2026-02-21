@@ -25,14 +25,41 @@ export function AudioPlayer({ onAdventureStart }: AudioPlayerProps) {
       });
 
       if (!response.ok) {
-        throw new Error(`[AudioPlayer] narrate returned ${response.status}`);
+        let details = `narrate returned ${response.status}`;
+        try {
+          const errorBody = await response.json() as { error?: string; requestId?: string };
+          if (errorBody.error) details = errorBody.error;
+          if (errorBody.requestId) details = `${details} (request: ${errorBody.requestId})`;
+        } catch {
+          // no-op: keep status-based fallback details
+        }
+        throw new Error(`[AudioPlayer] ${details}`);
       }
 
       const data = await response.json() as {
-        audio: string;
-        text: string;
-        conversationId: string;
+        audio?: string;
+        text?: string;
+        conversationId?: string;
+        ttsError?: string;
+        requestId?: string;
       };
+
+      if (!data.text || !data.conversationId) {
+        throw new Error('[AudioPlayer] narrate response missing text or conversationId');
+      }
+
+      if (!data.audio) {
+        if (data.ttsError || data.requestId) {
+          console.error('[AudioPlayer] narration audio unavailable', {
+            ttsError: data.ttsError,
+            requestId: data.requestId,
+          });
+        }
+        setStatus('idle');
+        // Pass Bedrock-generated text + conversationId to chat even if TTS audio failed.
+        onAdventureStart({ text: data.text, conversationId: data.conversationId });
+        return;
+      }
 
       // Decode base64 audio
       const binaryStr = atob(data.audio);
@@ -44,8 +71,6 @@ export function AudioPlayer({ onAdventureStart }: AudioPlayerProps) {
 
       audioRef.current = audio;
       setStatus('playing');
-
-      // Pass Bedrock-generated text + conversationId to chat
       onAdventureStart({ text: data.text, conversationId: data.conversationId });
 
       audio.play().catch((err) => {

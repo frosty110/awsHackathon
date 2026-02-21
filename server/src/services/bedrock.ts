@@ -1,3 +1,4 @@
+import tracer from "dd-trace";
 import {
   BedrockRuntimeClient,
   ConverseStreamCommand,
@@ -67,22 +68,62 @@ export type ChatMessage = {
   content: string;
 };
 
-export async function* streamBedrockChunks(
-  messages: ChatMessage[]
-): AsyncGenerator<string> {
-  const command = new ConverseStreamCommand({
-    modelId: MODEL_ID,
-    system: [{ text: DM_SYSTEM_PROMPT }],
-    messages: messages.map((m) => ({
-      role: m.role,
-      content: [{ text: m.content }],
-    })),
-  });
+/**
+ * Stream a Bedrock response, calling onChunk for each text delta.
+ * Wrapped in a tracer.llmobs.trace() span so it appears in Datadog LLM Observability.
+ * Returns the full accumulated text.
+ */
+export async function streamBedrockResponse(
+  messages: ChatMessage[],
+  onChunk: (text: string) => void
+): Promise<string> {
+  return tracer.llmobs.trace(
+    {
+      kind: "llm",
+      name: "bedrock.dm_response",
+      modelName: MODEL_ID,
+      modelProvider: "aws",
+    },
+    async (span) => {
+      const command = new ConverseStreamCommand({
+        modelId: MODEL_ID,
+        system: [{ text: DM_SYSTEM_PROMPT }],
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: [{ text: m.content }],
+        })),
+      });
 
-  const response = await client.send(command);
+      const response = await client.send(command);
 
-  for await (const chunk of response.stream!) {
-    const text = chunk.contentBlockDelta?.delta?.text;
-    if (text) yield text;
-  }
+      let fullText = "";
+      let inputTokens = 0;
+      let outputTokens = 0;
+
+      for await (const chunk of response.stream!) {
+        const text = chunk.contentBlockDelta?.delta?.text;
+        if (text) {
+          fullText += text;
+          onChunk(text);
+        }
+        if (chunk.metadata?.usage) {
+          inputTokens = chunk.metadata.usage.inputTokens ?? 0;
+          outputTokens = chunk.metadata.usage.outputTokens ?? 0;
+        }
+      }
+
+      // Annotate BEFORE callback returns — span finishes on return
+      tracer.llmobs.annotate(span, {
+        inputData: messages.map((m) => ({ role: m.role, content: String(m.content) })),
+        outputData: { role: "assistant", content: fullText },
+        metrics: {
+          inputTokens,
+          outputTokens,
+          totalTokens: inputTokens + outputTokens,
+        },
+      });
+
+      return fullText;
+    }
+  );
 }

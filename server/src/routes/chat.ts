@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { streamBedrockChunks } from "../services/bedrock.js";
+import { streamBedrockResponse } from "../services/bedrock.js";
 import {
   getOrCreate,
   appendMessage,
@@ -42,13 +42,13 @@ router.post("/api/chat", async (req, res) => {
   const bedrockMessages = isSystemTrigger
     ? [...history, { role: "user" as const, content: message }]
     : history;
+
   let fullText = "";
 
   try {
-    for await (const chunk of streamBedrockChunks(bedrockMessages)) {
-      fullText += chunk;
+    fullText = await streamBedrockResponse(bedrockMessages, (chunk) => {
       res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
-    }
+    });
   } catch (err) {
     res.write(`data: ${JSON.stringify({ error: "Bedrock stream failed" })}\n\n`);
   }

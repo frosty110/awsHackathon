@@ -1,31 +1,36 @@
-// Pricing per model (USD)
-const BEDROCK_HAIKU_INPUT_PER_TOKEN = 0.25 / 1_000_000;
-const BEDROCK_HAIKU_OUTPUT_PER_TOKEN = 1.25 / 1_000_000;
-const MINIMAX_TTS_PER_CHAR = 0.004 / 1_000;
-const MINIMAX_MUSIC_PER_GENERATION = 0.10;
+import {
+  BEDROCK_HAIKU_INPUT_PER_TOKEN,
+  BEDROCK_HAIKU_OUTPUT_PER_TOKEN,
+  MINIMAX_TTS_PER_CHAR,
+  MINIMAX_MUSIC_PER_GENERATION,
+  MINIMAX_VIDEO_PER_GENERATION,
+  type UsageEntry,
+  type UsageSummary,
+} from "@ai-dm/shared-types";
 
-export interface UsageEntry {
-  timestamp: number;
-  conversationId: string | null;
-  feature: string;
-  model: string;
-  inputTokens: number;
-  outputTokens: number;
-  characters: number;
-  costUsd: number;
-}
+export type { UsageEntry, UsageSummary };
 
-export interface UsageSummary {
-  totalCostUsd: number;
-  totalInputTokens: number;
-  totalOutputTokens: number;
-  totalCharacters: number;
-  byFeature: Record<string, { costUsd: number; count: number }>;
-  byModel: Record<string, { costUsd: number; count: number }>;
-  entries: number;
-}
+const MAX_ENTRIES = 10_000;
+const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const entries: UsageEntry[] = [];
+
+/**
+ * Lazy eviction: removes entries older than 24h from the front of the array
+ * (entries are chronologically ordered), then hard-caps at MAX_ENTRIES.
+ * Called at the start of every record* function — no timer needed.
+ */
+export function evictStaleEntries(): void {
+  const cutoff = Date.now() - MAX_AGE_MS;
+  // Remove entries older than 24h from the front (chronological order)
+  while (entries.length > 0 && entries[0].timestamp < cutoff) {
+    entries.shift();
+  }
+  // Hard cap: if still over MAX_ENTRIES, remove oldest
+  if (entries.length > MAX_ENTRIES) {
+    entries.splice(0, entries.length - MAX_ENTRIES);
+  }
+}
 
 export function recordBedrockUsage(
   conversationId: string | null,
@@ -33,6 +38,7 @@ export function recordBedrockUsage(
   inputTokens: number,
   outputTokens: number,
 ) {
+  evictStaleEntries();
   const costUsd =
     inputTokens * BEDROCK_HAIKU_INPUT_PER_TOKEN +
     outputTokens * BEDROCK_HAIKU_OUTPUT_PER_TOKEN;
@@ -53,6 +59,7 @@ export function recordTtsUsage(
   conversationId: string | null,
   characters: number,
 ) {
+  evictStaleEntries();
   const costUsd = characters * MINIMAX_TTS_PER_CHAR;
   entries.push({
     timestamp: Date.now(),
@@ -68,6 +75,7 @@ export function recordTtsUsage(
 }
 
 export function recordMusicUsage() {
+  evictStaleEntries();
   entries.push({
     timestamp: Date.now(),
     conversationId: null,
@@ -79,6 +87,21 @@ export function recordMusicUsage() {
     costUsd: MINIMAX_MUSIC_PER_GENERATION,
   });
   return MINIMAX_MUSIC_PER_GENERATION;
+}
+
+export function recordVideoUsage() {
+  evictStaleEntries();
+  entries.push({
+    timestamp: Date.now(),
+    conversationId: null,
+    feature: "video",
+    model: "minimax-video-01",
+    inputTokens: 0,
+    outputTokens: 0,
+    characters: 0,
+    costUsd: MINIMAX_VIDEO_PER_GENERATION,
+  });
+  return MINIMAX_VIDEO_PER_GENERATION;
 }
 
 function summarize(subset: UsageEntry[]): UsageSummary {

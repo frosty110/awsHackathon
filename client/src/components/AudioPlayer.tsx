@@ -9,9 +9,10 @@ export interface NarrateResult {
 interface AudioPlayerProps {
   onAdventureStart: (narration?: NarrateResult) => void;
   characterClass?: string;
+  pronouns?: string;
 }
 
-export function AudioPlayer({ onAdventureStart, characterClass }: AudioPlayerProps) {
+export function AudioPlayer({ onAdventureStart, characterClass, pronouns }: AudioPlayerProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'playing'>('idle');
 
   async function handleStartAdventure() {
@@ -23,7 +24,10 @@ export function AudioPlayer({ onAdventureStart, characterClass }: AudioPlayerPro
       const response = await fetch('/api/narrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...(characterClass ? { characterClass } : {}) }),
+        body: JSON.stringify({
+          ...(characterClass ? { characterClass } : {}),
+          ...(pronouns ? { pronouns } : {}),
+        }),
       });
 
       if (!response.ok) {

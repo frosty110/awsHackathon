@@ -5,6 +5,7 @@ import {
   appendMessage,
   getWindowedHistory,
   getCharacterClass,
+  getPronouns,
 } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage } from "../services/usageTracker.js";
@@ -19,10 +20,12 @@ router.post("/api/chat", async (req, res) => {
     message?: unknown;
     isSystemTrigger?: boolean;
     characterClass?: string;
+    pronouns?: string;
   };
   const message = typeof body.message === "string" ? body.message : "";
   const isSystemTrigger = Boolean(body.isSystemTrigger);
   const characterClass = typeof body.characterClass === "string" ? body.characterClass.trim() : undefined;
+  const pronouns = typeof body.pronouns === "string" ? body.pronouns.trim() : undefined;
   const requestId = buildRequestId(req.get("x-request-id"));
   res.setHeader("x-request-id", requestId);
   logEvent("info", "chat.request_received", {
@@ -43,7 +46,7 @@ router.post("/api/chat", async (req, res) => {
     return;
   }
 
-  const conversation = getOrCreate(body.conversationId, characterClass);
+  const conversation = getOrCreate(body.conversationId, characterClass, pronouns);
 
   // System triggers (opening monologue) are sent to Bedrock but not stored
   // in history as player messages — keeps conversation context clean
@@ -75,9 +78,10 @@ router.post("/api/chat", async (req, res) => {
     // RAG: extract entities from user message and retrieve matching lore
     const loreContext = await buildLoreContext(message);
     const resolvedClass = characterClass || getCharacterClass(conversation.id);
+    const resolvedPronouns = pronouns || getPronouns(conversation.id);
     const result = await streamBedrockResponse(bedrockMessages, (chunk) => {
       res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
-    }, { characterClass: resolvedClass, loreContext });
+    }, { characterClass: resolvedClass, pronouns: resolvedPronouns, loreContext });
     fullText = result.text;
     inputTokens = result.inputTokens;
     outputTokens = result.outputTokens;

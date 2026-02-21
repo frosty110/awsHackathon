@@ -18,6 +18,7 @@ export default function App() {
   const [appState, setAppState] = useState<AppState>('modeSelect');
   const [multiplayerRoomCode, setMultiplayerRoomCode] = useState<string | null>(null);
   const selectedClass = useRef<CharacterClass | null>(null);
+  const selectedPronouns = useRef<string>('They/Them');
   const { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, sessionCost } = useSSEChat();
 
   // ----- Single-player handlers -----
@@ -26,20 +27,22 @@ export default function App() {
     setAppState('idle');
   }
 
-  function handleClassSelected(cls: CharacterClass) {
+  function handleClassSelected(cls: CharacterClass, pronouns: string) {
     selectedClass.current = cls;
+    selectedPronouns.current = pronouns;
     setAppState('classSelect');
   }
 
   function handleStart(narration?: NarrateResult) {
     setAppState('adventure');
-    void startAdventure(narration, selectedClass.current ?? undefined);
+    void startAdventure(narration, selectedClass.current ?? undefined, selectedPronouns.current);
     startBackgroundMusic();
   }
 
   function handleReset() {
     reset();
     selectedClass.current = null;
+    selectedPronouns.current = 'They/Them';
     setMultiplayerRoomCode(null);
     setAppState('modeSelect');
   }
@@ -135,8 +138,9 @@ export default function App() {
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
               <p className="font-fell text-parchment/60 text-sm">
                 Playing as <span className="text-dm-gold font-cinzel font-semibold">{selectedClass.current?.icon} {selectedClass.current?.name}</span>
+                <span className="text-parchment/40"> ({selectedPronouns.current})</span>
               </p>
-              <AudioPlayer onAdventureStart={handleStart} characterClass={selectedClass.current?.name} />
+              <AudioPlayer onAdventureStart={handleStart} characterClass={selectedClass.current?.name} pronouns={selectedPronouns.current} />
             </div>
           ) : appState === 'adventure' ? (
             <>

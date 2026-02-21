@@ -7,24 +7,32 @@ type Conversation = {
   id: string;
   history: ChatMessage[];
   characterClass?: string;
+  pronouns?: string;
 };
 
 const store = new Map<string, Conversation>();
 
-export function getOrCreate(conversationId?: string, characterClass?: string): Conversation {
+export function getOrCreate(conversationId?: string, characterClass?: string, pronouns?: string): Conversation {
   const id = conversationId ?? crypto.randomUUID();
   if (!store.has(id)) {
-    store.set(id, { id, history: [], characterClass });
+    store.set(id, { id, history: [], characterClass, pronouns });
   }
   const convo = store.get(id)!;
   if (characterClass && !convo.characterClass) {
     convo.characterClass = characterClass;
+  }
+  if (pronouns && !convo.pronouns) {
+    convo.pronouns = pronouns;
   }
   return convo;
 }
 
 export function getCharacterClass(conversationId: string): string | undefined {
   return store.get(conversationId)?.characterClass;
+}
+
+export function getPronouns(conversationId: string): string | undefined {
+  return store.get(conversationId)?.pronouns;
 }
 
 export function appendMessage(conversationId: string, message: ChatMessage): void {

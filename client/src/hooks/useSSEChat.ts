@@ -25,6 +25,7 @@ export function useSSEChat() {
   const [sessionCost, setSessionCost] = useState(0);
   const conversationId = useRef<string | null>(null);
   const characterClassRef = useRef<CharacterClass | null>(null);
+  const pronounsRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
 
@@ -61,6 +62,7 @@ export function useSSEChat() {
           message,
           ...(diceResult != null ? { diceResult } : {}),
           ...(characterClassRef.current ? { characterClass: characterClassRef.current.name } : {}),
+          ...(pronounsRef.current ? { pronouns: pronounsRef.current } : {}),
         }),
         signal: controller.signal,
       });
@@ -182,10 +184,11 @@ export function useSSEChat() {
   // Called when "Start Adventure" is clicked.
   // If narration is provided (from /api/narrate Bedrock call), use it directly.
   // Otherwise fall back to a separate /api/chat call.
-  const startAdventure = useCallback(async (narration?: NarrateResult & { usage?: { totalCostUsd?: number } }, characterClass?: CharacterClass) => {
+  const startAdventure = useCallback(async (narration?: NarrateResult & { usage?: { totalCostUsd?: number } }, characterClass?: CharacterClass, pronouns?: string) => {
     if (characterClass) {
       characterClassRef.current = characterClass;
     }
+    pronounsRef.current = pronouns ?? null;
     if (narration) {
       conversationId.current = narration.conversationId;
       if (narration.usage?.totalCostUsd) {
@@ -221,6 +224,7 @@ export function useSSEChat() {
     setSessionCost(0);
     conversationId.current = null;
     characterClassRef.current = null;
+    pronounsRef.current = null;
   }, []);
 
   return { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, sessionCost };

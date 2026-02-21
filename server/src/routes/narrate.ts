@@ -6,11 +6,14 @@ import { getOrCreate, appendMessage } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage, recordTtsUsage } from "../services/usageTracker.js";
 
-function buildOpeningPrompt(characterClass?: string): string {
+function buildOpeningPrompt(characterClass?: string, pronouns?: string): string {
   const classContext = characterClass
     ? ` The player is a ${characterClass}.`
     : "";
-  return `Begin the adventure.${classContext} The player has just pushed open the door of the Shattered Crown Tavern. Set the opening scene — describe the tavern atmosphere, mention Gorm behind the bar, and hint that something feels wrong in this town. End with "What do you do?"`;
+  const pronounContext = pronouns
+    ? ` Use ${pronouns} pronouns when referring to the player's character.`
+    : "";
+  return `Begin the adventure.${classContext}${pronounContext} The player has just pushed open the door of the Shattered Crown Tavern. Set the opening scene — describe the tavern atmosphere, mention Gorm behind the bar, and hint that something feels wrong in this town. End with "What do you do?"`;
 }
 
 const router = Router();
@@ -21,6 +24,7 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
   const textInput = typeof req.body?.text === "string" ? req.body.text.trim() : "";
   const bodyConversationId = typeof req.body?.conversationId === "string" ? req.body.conversationId : null;
   const characterClass = typeof req.body?.characterClass === "string" ? req.body.characterClass.trim() : undefined;
+  const pronouns = typeof req.body?.pronouns === "string" ? req.body.pronouns.trim() : undefined;
   const hasText = textInput.length > 0;
   logEvent("info", "narrate.request_received", {
     requestId,
@@ -61,12 +65,12 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
   }
 
   // No text — generate opening monologue from Bedrock, TTS it, return JSON
-  const messages: ChatMessage[] = [{ role: "user", content: buildOpeningPrompt(characterClass) }];
+  const messages: ChatMessage[] = [{ role: "user", content: buildOpeningPrompt(characterClass, pronouns) }];
   let text = "";
   let bedrockCostUsd = 0;
 
   try {
-    const result = await streamBedrockResponse(messages, () => {}, { characterClass });
+    const result = await streamBedrockResponse(messages, () => {}, { characterClass, pronouns });
     text = result.text;
     bedrockCostUsd = recordBedrockUsage(null, "narrate-opening", result.inputTokens, result.outputTokens);
   } catch (err) {
@@ -86,7 +90,7 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
   }
 
   // Create conversation and store the assistant opening (stripped of TTS tags)
-  const conversation = getOrCreate(undefined, characterClass);
+  const conversation = getOrCreate(undefined, characterClass, pronouns);
   const cleanText = stripTTSTags(text);
   appendMessage(conversation.id, { role: "assistant", content: cleanText });
 

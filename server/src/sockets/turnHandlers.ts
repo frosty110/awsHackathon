@@ -3,6 +3,7 @@ import type { ClientToServerEvents, ServerToClientEvents, SocketData } from "./t
 import {
   getRoom,
   submitAction,
+  unsubmitAction,
   allActionsSubmitted,
   resetActions,
 } from "../services/roomStore.js";
@@ -15,6 +16,7 @@ import {
   streamBedrockResponse,
   buildMultiplayerSystemPrompt,
 } from "../services/bedrock.js";
+import { generateMultiVoiceTTS } from "../services/tts.js";
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -35,10 +37,18 @@ export function registerTurnHandlers(io: IO, socket: TypedSocket): void {
       return;
     }
 
+    // Check if the countdown timer needs to start (first submission this turn)
+    const timerNotStarted = room.timerStartedAt === null;
+
     submitAction(roomCode, socket.id, action);
 
     // Notify all players that this player has submitted (action text hidden)
     io.to(roomCode).emit("turn:player-submitted", { socketId: socket.id });
+
+    // Start the 30s countdown on the first submission
+    if (timerNotStarted) {
+      startCountdownTimer(io, roomCode);
+    }
 
     if (allActionsSubmitted(roomCode)) {
       // All players submitted early — clear the timer and go to DM immediately
@@ -49,21 +59,48 @@ export function registerTurnHandlers(io: IO, socket: TypedSocket): void {
       triggerDMResponse(io, roomCode);
     }
   });
+
+  // ─── turn:unsubmit-action (edit) ───────────────────────────────────────────
+  socket.on("turn:unsubmit-action", () => {
+    const roomCode = socket.data.roomCode;
+    if (!roomCode) return;
+
+    const room = getRoom(roomCode);
+    if (!room || room.phase !== "collecting-actions") return;
+
+    unsubmitAction(roomCode, socket.id);
+    io.to(roomCode).emit("turn:player-unsubmitted", { socketId: socket.id });
+  });
 }
 
 /**
- * Start the 60-second turn timer for the given room.
- * Auto-fills any missing actions when the timer expires, then triggers the DM.
+ * Begin the action-collection phase for a new turn.
+ * Resets all actions and notifies clients to start typing — but does NOT start
+ * the countdown timer. The timer starts when the first player submits.
  */
-export function startTurnTimer(io: IO, roomCode: string, durationMs = 60_000): void {
+export function startCollectingActions(io: IO, roomCode: string): void {
   const room = getRoom(roomCode);
   if (!room) return;
 
   room.phase = "collecting-actions";
-  room.timerStartedAt = Date.now();
+  room.timerStartedAt = null;
+  room.timerHandle = null;
 
   // Reset all submitted actions at the start of a new turn
   resetActions(roomCode);
+
+  io.to(roomCode).emit("turn:collecting-start");
+}
+
+/**
+ * Start the 30-second countdown timer. Called when the first player submits.
+ * Auto-fills any missing actions when the timer expires, then triggers the DM.
+ */
+export function startCountdownTimer(io: IO, roomCode: string, durationMs = 30_000): void {
+  const room = getRoom(roomCode);
+  if (!room) return;
+
+  room.timerStartedAt = Date.now();
 
   io.to(roomCode).emit("turn:timer-start", {
     durationMs,
@@ -137,9 +174,20 @@ export async function triggerDMOpening(io: IO, roomCode: string): Promise<void> 
     room.currentDmText = "";
     room.phase = "playing";
 
+    // Async TTS — don't block game flow
+    generateMultiVoiceTTS(result.text, { model: "speech-2.8-hd" })
+      .then(({ audioBuffer }) => {
+        io.to(roomCode).emit("dm:tts-ready", {
+          audio: audioBuffer.toString("base64"),
+        });
+      })
+      .catch((err) => {
+        console.error("[turnHandlers] DM opening TTS failed:", err);
+      });
+
     // 3-second pause after DM narration before the first turn timer starts
     setTimeout(() => {
-      startTurnTimer(io, roomCode);
+      startCollectingActions(io, roomCode);
     }, 3_000);
   } catch (err) {
     console.error("[turnHandlers] DM opening failed:", err);
@@ -149,7 +197,7 @@ export async function triggerDMOpening(io: IO, roomCode: string): Promise<void> 
     room.phase = "playing";
     // Still start the timer so the game keeps moving
     setTimeout(() => {
-      startTurnTimer(io, roomCode);
+      startCollectingActions(io, roomCode);
     }, 3_000);
   }
 }
@@ -206,12 +254,23 @@ export async function triggerDMResponse(io: IO, roomCode: string): Promise<void>
     io.to(roomCode).emit("dm:stream-end", { fullText: result.text });
     room.currentDmText = "";
 
+    // Async TTS — don't block game flow
+    generateMultiVoiceTTS(result.text, { model: "speech-2.8-turbo" })
+      .then(({ audioBuffer }) => {
+        io.to(roomCode).emit("dm:tts-ready", {
+          audio: audioBuffer.toString("base64"),
+        });
+      })
+      .catch((err) => {
+        console.error("[turnHandlers] DM turn TTS failed:", err);
+      });
+
     resetActions(roomCode);
     room.phase = "playing";
 
     // 3-second pause after DM narration before the next turn timer
     setTimeout(() => {
-      startTurnTimer(io, roomCode);
+      startCollectingActions(io, roomCode);
     }, 3_000);
   } catch (err) {
     console.error("[turnHandlers] DM response failed:", err);
@@ -222,7 +281,7 @@ export async function triggerDMResponse(io: IO, roomCode: string): Promise<void>
     room.phase = "playing";
     // Keep the game moving even on error
     setTimeout(() => {
-      startTurnTimer(io, roomCode);
+      startCollectingActions(io, roomCode);
     }, 3_000);
   }
 }

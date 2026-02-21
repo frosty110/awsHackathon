@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { socket } from '../services/socket';
+import { playAudio, stopAudio as stopGlobalAudio } from '../services/audioController';
 import type {
   RoomPhase,
   MultiplayerPlayer,
@@ -7,6 +8,15 @@ import type {
   CharacterClassId,
   RoomState,
 } from '../types/multiplayer';
+
+function stripTTSTags(text: string): string {
+  return text
+    .replace(/^\{\{mood:\w+\}\}\s*/, "")
+    .replace(/\{\{voice:\w+\}\}/g, "")
+    .replace(/\{\{\/voice\}\}/g, "")
+    .replace(/\[(excited|whisper|angry|fearful|sad|shouting)\]\s*/g, "")
+    .trim();
+}
 
 export interface DmMessage {
   id: string;
@@ -34,6 +44,7 @@ export interface UseMultiplayerRoomReturn {
   diceRolls: DiceRollEntry[];
   error: string | null;
   submitAction: (action: string) => void;
+  unsubmitAction: () => void;
   sendChat: (text: string) => void;
   sendReaction: (messageId: string, emoji: string) => void;
   rollDice: (result: number) => void;
@@ -99,16 +110,31 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       setError(payload.message);
     }
 
-    function onTurnTimerStart(payload: { endsAt: number }) {
-      setTimerEndsAt(payload.endsAt);
+    function onTurnCollectingStart() {
+      setTimerEndsAt(null);
       setHasSubmitted(false);
       setPhase('collecting-actions');
+      // Reset all players' submitted status for the new turn
+      setPlayers(prev => prev.map(p => ({ ...p, submittedAction: false })));
+    }
+
+    function onTurnTimerStart(payload: { endsAt: number }) {
+      setTimerEndsAt(payload.endsAt);
+      // Don't reset hasSubmitted — the player who submitted first triggered this
     }
 
     function onTurnPlayerSubmitted(payload: { socketId: string }) {
       setPlayers(prev =>
         prev.map(p =>
           p.socketId === payload.socketId ? { ...p, submittedAction: true } : p
+        )
+      );
+    }
+
+    function onTurnPlayerUnsubmitted(payload: { socketId: string }) {
+      setPlayers(prev =>
+        prev.map(p =>
+          p.socketId === payload.socketId ? { ...p, submittedAction: false } : p
         )
       );
     }
@@ -123,12 +149,12 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
 
     function onDmChunk(payload: { text: string }) {
       streamTextRef.current += payload.text;
-      setCurrentStreamText(streamTextRef.current);
+      setCurrentStreamText(stripTTSTags(streamTextRef.current));
     }
 
     function onDmStreamEnd() {
       const msgId = streamMessageIdRef.current ?? `dm-${Date.now()}`;
-      const completedText = streamTextRef.current;
+      const completedText = stripTTSTags(streamTextRef.current);
       setDmMessages(prev => [
         ...prev,
         { id: msgId, role: 'dm', content: completedText, isStreaming: false },
@@ -136,9 +162,24 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       setCurrentStreamText('');
       streamTextRef.current = '';
       streamMessageIdRef.current = null;
-      // Phase transitions back via subsequent server events (turn:timer-start or room:state)
-      // Default: return to 'playing'
       setPhase('playing');
+    }
+
+    function onDmTtsReady(payload: { audio: string }) {
+      try {
+        const binaryString = atob(payload.audio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+        playAudio(audio);
+      } catch (err) {
+        console.error('[useMultiplayerRoom] failed to play TTS audio', err);
+      }
     }
 
     function onDmError(payload: { message: string }) {
@@ -187,11 +228,14 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
     socket.on('room:player-reconnected', onPlayerReconnected);
     socket.on('room:started', onRoomStarted);
     socket.on('room:error', onRoomError);
+    socket.on('turn:collecting-start', onTurnCollectingStart);
     socket.on('turn:timer-start', onTurnTimerStart);
     socket.on('turn:player-submitted', onTurnPlayerSubmitted);
+    socket.on('turn:player-unsubmitted', onTurnPlayerUnsubmitted);
     socket.on('dm:stream-start', onDmStreamStart);
     socket.on('dm:chunk', onDmChunk);
     socket.on('dm:stream-end', onDmStreamEnd);
+    socket.on('dm:tts-ready', onDmTtsReady);
     socket.on('dm:error', onDmError);
     socket.on('chat:message', onChatMessage);
     socket.on('chat:reaction', onChatReaction);
@@ -204,11 +248,14 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       socket.off('room:player-reconnected', onPlayerReconnected);
       socket.off('room:started', onRoomStarted);
       socket.off('room:error', onRoomError);
+      socket.off('turn:collecting-start', onTurnCollectingStart);
       socket.off('turn:timer-start', onTurnTimerStart);
       socket.off('turn:player-submitted', onTurnPlayerSubmitted);
+      socket.off('turn:player-unsubmitted', onTurnPlayerUnsubmitted);
       socket.off('dm:stream-start', onDmStreamStart);
       socket.off('dm:chunk', onDmChunk);
       socket.off('dm:stream-end', onDmStreamEnd);
+      socket.off('dm:tts-ready', onDmTtsReady);
       socket.off('dm:error', onDmError);
       socket.off('chat:message', onChatMessage);
       socket.off('chat:reaction', onChatReaction);
@@ -221,6 +268,11 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
     setHasSubmitted(true);
   }, []);
 
+  const unsubmitAction = useCallback(() => {
+    socket.emit('turn:unsubmit-action');
+    setHasSubmitted(false);
+  }, []);
+
   const sendChat = useCallback((text: string) => {
     socket.emit('chat:send', { text });
     // Optimistic: add own message locally (server uses socket.to() which excludes sender)
@@ -228,7 +280,7 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       fromSocketId: socket.id ?? 'local',
       fromName: 'You',
-      fromClass: 'warrior' as CharacterClassId, // Will be overridden by server broadcast to others
+      fromClass: 'fighter' as CharacterClassId, // Will be overridden by server broadcast to others
       text,
       timestamp: Date.now(),
     };
@@ -256,6 +308,7 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
     diceRolls,
     error,
     submitAction,
+    unsubmitAction,
     sendChat,
     sendReaction,
     rollDice,

@@ -17,6 +17,7 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@datadog/datadog-api-client": "^1.52.0",
     "@types/express": "latest",
     "@types/node": "latest",
     "tsx": "latest",

@@ -9,7 +9,8 @@
     "dev": "concurrently --names CLIENT,SERVER --prefix-colors cyan,yellow \"npm run dev -w client\" \"npm run dev -w server\"",
     "build": "npm run build -w client && npm run build -w server",
     "seed": "npx tsx data/seed.ts",
-    "generate-audio": "tsx scripts/generate-opening-audio.ts"
+    "generate-audio": "tsx scripts/generate-opening-audio.ts",
+    "create-dashboard": "npx tsx scripts/create-dashboard.ts"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

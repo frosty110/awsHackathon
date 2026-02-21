@@ -205,14 +205,15 @@ Plans:
 
 **Goal:** Harden the codebase for production readiness and future iteration by adding security middleware, rate limiting, Bedrock concurrency control, store interfaces for Redis readiness, service extraction for architectural consistency, and test scaffolding
 **Depends on:** Phase 10
-**Plans:** 5 plans
+**Plans:** 6 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Security middleware (helmet + CORS) and per-route rate limiting on /api/chat, /api/narrate, /api/music
-- [ ] 11-02-PLAN.md — Bedrock concurrency cap via p-queue and promptBuilder.ts extraction from bedrock.ts
-- [ ] 11-03-PLAN.md — IConversationStore and IRoomStore interfaces for Redis readiness, usageTracker rolling eviction
-- [ ] 11-04-PLAN.md — Extract musicService.ts from routes/music.ts for architectural consistency
-- [ ] 11-05-PLAN.md — Vitest scaffolding and unit tests for promptBuilder, conversationStore, usageTracker
+- [x] 11-01-PLAN.md — Security middleware (helmet + CORS) and per-route rate limiting on /api/chat, /api/narrate, /api/music
+- [x] 11-02-PLAN.md — Bedrock concurrency cap via p-queue and promptBuilder.ts extraction from bedrock.ts
+- [x] 11-03-PLAN.md — IConversationStore and IRoomStore interfaces for Redis readiness, usageTracker rolling eviction
+- [x] 11-04-PLAN.md — Extract musicService.ts from routes/music.ts for architectural consistency
+- [x] 11-05-PLAN.md — Vitest scaffolding and unit tests for promptBuilder, conversationStore, usageTracker
+- [ ] 11-06-PLAN.md — Gap closure: remove dead chatLimiter and narrateLimiter from rateLimits.ts (orphaned by Phase 09 Redis-backed limiters)
 
 ---
 

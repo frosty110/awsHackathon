@@ -10,6 +10,7 @@ import { registerRoomHandlers, handleReconnection } from "./roomHandlers.js";
 import { registerChatHandlers } from "./chatHandlers.js";
 import { registerTurnHandlers } from "./turnHandlers.js";
 import { redisClient, isRedisAvailable } from "../services/redis.js";
+import { ALLOWED_ORIGINS } from "../middleware/security.js";
 
 export type { ClientToServerEvents, ServerToClientEvents, SocketData };
 
@@ -34,9 +35,9 @@ export async function initSocketIO(
     httpServer,
     {
       cors: {
-        // Dev: Vite proxy forwards /socket.io traffic, so client origin is the Vite dev server.
-        // Production: client is served from same origin, no CORS needed (but allow as fallback).
-        origin: "http://localhost:5173",
+        // Reuse Express ALLOWED_ORIGINS so Socket.IO and REST API use the same allowlist.
+        // Dev default: ["http://localhost:5173"] — set ALLOWED_ORIGINS env var for production.
+        origin: ALLOWED_ORIGINS,
         methods: ["GET", "POST"],
       },
       connectionStateRecovery: {

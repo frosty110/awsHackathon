@@ -5,12 +5,14 @@ const DEFAULT_VOLUME = 0.12;
 const POLL_INTERVAL_MS = 4000;
 const RETRY_INTERVAL_MS = 10000;
 const MAX_RETRIES = 5;
+const MAX_POLLS = 30; // stop polling after ~2 minutes of 202s
 
 let audio: HTMLAudioElement | null = null;
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
 let currentVolume = DEFAULT_VOLUME;
 let paused = false;
 let retryCount = 0;
+let pollCount = 0;
 
 type Listener = () => void;
 const listeners = new Set<Listener>();

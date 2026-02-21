@@ -142,6 +142,19 @@ export function submitAction(code: string, socketId: string, action: string): bo
 }
 
 /**
+ * Clear a player's submitted action (unsubmit / edit). Returns true if successful.
+ */
+export function unsubmitAction(code: string, socketId: string): boolean {
+  const room = rooms.get(code);
+  const player = room?.players.get(socketId);
+  if (!player) {
+    return false;
+  }
+  player.submittedAction = null;
+  return true;
+}
+
+/**
  * Returns true if every currently-connected player has submitted an action.
  */
 export function allActionsSubmitted(code: string): boolean {
@@ -214,4 +227,11 @@ export function getAllReadyCount(code: string): number {
     if (player.ready) count++;
   }
   return count;
+}
+
+/**
+ * Return up to `limit` active room codes (for debug logging).
+ */
+export function getActiveRoomCodes(limit = 5): string[] {
+  return Array.from(rooms.keys()).slice(0, limit);
 }

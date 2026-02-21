@@ -43,11 +43,13 @@ export interface UseMultiplayerRoomReturn {
   chatReactions: Map<string, Array<{ emoji: string; fromName: string }>>;
   diceRolls: DiceRollEntry[];
   error: string | null;
+  localPlayer: MultiplayerPlayer | undefined;
   submitAction: (action: string) => void;
   unsubmitAction: () => void;
   sendChat: (text: string) => void;
   sendReaction: (messageId: string, emoji: string) => void;
   rollDice: (result: number) => void;
+  addLocalActionMessage: (actionText: string) => void;
 }
 
 export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
@@ -68,6 +70,14 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
   // Track stream message ID across events
   const streamMessageIdRef = useRef<string | null>(null);
   const streamTextRef = useRef<string>('');
+
+  // Track local player info via ref to avoid stale closures in callbacks
+  const playersRef = useRef<MultiplayerPlayer[]>([]);
+
+  // Keep playersRef in sync for use in callbacks
+  useEffect(() => {
+    playersRef.current = players;
+  }, [players]);
 
   useEffect(() => {
     function onRoomState(payload: RoomState) {
@@ -276,11 +286,12 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
   const sendChat = useCallback((text: string) => {
     socket.emit('chat:send', { text });
     // Optimistic: add own message locally (server uses socket.to() which excludes sender)
+    const me = playersRef.current.find(p => p.socketId === socket.id);
     const localMsg: ChatMessage = {
       id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       fromSocketId: socket.id ?? 'local',
       fromName: 'You',
-      fromClass: 'fighter' as CharacterClassId, // Will be overridden by server broadcast to others
+      fromClass: (me?.characterClass ?? 'fighter') as CharacterClassId,
       text,
       timestamp: Date.now(),
     };
@@ -295,6 +306,22 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
     socket.emit('dice:roll', { result });
   }, []);
 
+  const addLocalActionMessage = useCallback((actionText: string) => {
+    const me = playersRef.current.find(p => p.socketId === socket.id);
+    const actionMsg: ChatMessage = {
+      id: `action-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      fromSocketId: socket.id ?? 'local',
+      fromName: me?.displayName ?? 'You',
+      fromClass: (me?.characterClass ?? 'fighter') as CharacterClassId,
+      text: actionText,
+      timestamp: Date.now(),
+      type: 'action',
+    };
+    setChatMessages(prev => [...prev, actionMsg]);
+  }, []);
+
+  const localPlayer = players.find(p => p.socketId === socket.id);
+
   return {
     roomCode,
     phase,
@@ -307,10 +334,12 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
     chatReactions,
     diceRolls,
     error,
+    localPlayer,
     submitAction,
     unsubmitAction,
     sendChat,
     sendReaction,
     rollDice,
+    addLocalActionMessage,
   };
 }

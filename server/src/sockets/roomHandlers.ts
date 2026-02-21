@@ -14,6 +14,7 @@ import {
   submitAction,
   allActionsSubmitted,
   generateUniqueRoomCode,
+  getActiveRoomCodes,
 } from "../services/roomStore.js";
 import { getOrCreate } from "../services/conversationStore.js";
 
@@ -49,6 +50,7 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
 
     void socket.join(code);
 
+    console.log(`[room:create] code="${code}" socket=${socket.id}`);
     socket.emit("room:created", { code });
 
     const statePayload = getRoomStatePayload(code);
@@ -61,8 +63,11 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
   socket.on("room:join", ({ code, displayName, characterClass }) => {
     const normalizedCode = code.toUpperCase();
     const room = getRoom(normalizedCode);
+    console.log(`[room:join] code="${normalizedCode}" socket=${socket.id} found=${!!room}`);
 
     if (!room) {
+      const active = getActiveRoomCodes(5);
+      console.log(`[room:join] FAILED — no room "${normalizedCode}". Active rooms (${active.length}): [${active.join(", ")}]`);
       socket.emit("room:error", { message: "Room not found" });
       return;
     }
@@ -164,6 +169,7 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
     if (room && room.phase === "collecting-actions") {
       const player = room.players.get(socket.id);
       if (player && player.submittedAction === null) {
+        const timerNotStarted = room.timerStartedAt === null;
         const displayName = socket.data.displayName ?? "The player";
         submitAction(roomCode, socket.id, `${displayName} hesitates, unsure of what to do.`);
 
@@ -179,6 +185,15 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
             })
             .catch((err: unknown) => {
               console.error("[roomHandlers] Failed to trigger DM response after disconnect:", err);
+            });
+        } else if (timerNotStarted) {
+          // Auto-fill was the first submission — start countdown for remaining players
+          import("./turnHandlers.js")
+            .then(({ startCountdownTimer }) => {
+              startCountdownTimer(io, roomCode);
+            })
+            .catch((err: unknown) => {
+              console.error("[roomHandlers] Failed to start countdown after disconnect:", err);
             });
         }
       }

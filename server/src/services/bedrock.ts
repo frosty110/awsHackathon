@@ -162,7 +162,7 @@ export function buildMultiplayerSystemPrompt(
 export async function streamBedrockResponse(
   messages: ChatMessage[],
   onChunk: (text: string) => void,
-  options?: { characterClass?: string; multiplayerPrompt?: string }
+  options?: { characterClass?: string; multiplayerPrompt?: string; loreContext?: string }
 ): Promise<BedrockResult> {
   return tracer.llmobs.trace(
     {
@@ -179,9 +179,17 @@ export async function streamBedrockResponse(
           ? `${DM_SYSTEM_PROMPT}\n\n## Player Character\nThe player is a ${options.characterClass}. Reference their class naturally in narration (e.g. their fighting style, spells, abilities, or background). Tailor combat descriptions and skill checks to their class.`
           : DM_SYSTEM_PROMPT;
 
+      // Build system content blocks — base prompt + optional lore context
+      const systemBlocks: Array<{ text: string }> = [{ text: systemPrompt }];
+      if (options?.loreContext) {
+        systemBlocks.push({
+          text: `## Lore Context (from knowledge graph)\nUse the following retrieved lore to ground your response. Reference these details naturally — do not repeat them verbatim.\n\n${options.loreContext}`,
+        });
+      }
+
       const command = new ConverseStreamCommand({
         modelId: MODEL_ID,
-        system: [{ text: systemPrompt }],
+        system: systemBlocks,
         messages: messages.map((m) => ({
           role: m.role,
           content: [{ text: m.content }],

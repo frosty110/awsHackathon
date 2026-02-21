@@ -11,6 +11,7 @@ import neo4j from "neo4j-driver";
 import { createApp } from "./app.js";
 import { config, warnOnBlankConfig } from "./services/config.js";
 import { initSocketIO } from "./sockets/index.js";
+import { initRag } from "./services/rag.js";
 
 async function main(): Promise<void> {
   warnOnBlankConfig(
@@ -57,6 +58,9 @@ async function main(): Promise<void> {
       }
     }
   }
+
+  // Initialize RAG pipeline with Neo4j driver (graceful no-op if null)
+  initRag(driver);
 
   const app = createApp({ driver });
   const server = createServer(app);

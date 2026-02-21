@@ -9,6 +9,7 @@ import {
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage } from "../services/usageTracker.js";
 import { stripTTSTags } from "../services/tts.js";
+import { buildLoreContext } from "../services/rag.js";
 
 const router = Router();
 
@@ -71,10 +72,12 @@ router.post("/api/chat", async (req, res) => {
   let outputTokens = 0;
 
   try {
+    // RAG: extract entities from user message and retrieve matching lore
+    const loreContext = await buildLoreContext(message);
     const resolvedClass = characterClass || getCharacterClass(conversation.id);
     const result = await streamBedrockResponse(bedrockMessages, (chunk) => {
       res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
-    }, { characterClass: resolvedClass });
+    }, { characterClass: resolvedClass, loreContext });
     fullText = result.text;
     inputTokens = result.inputTokens;
     outputTokens = result.outputTokens;

@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 8 multiplayer mode — 08-04 complete (useMultiplayerRoom hook, MultiplayerGame, PlayerStatusBar, PlayerChat)
+**Current focus:** Phase 8 multiplayer mode — 08-05 Tasks 1+2 complete (App.tsx mode routing wired), awaiting human-verify checkpoint
 
 ## Current Position
 
 Phase: 8 of 8 (Multiplayer Mode) — IN PROGRESS
-Plan: 4/5 complete (08-01 Socket.IO infra, 08-02 client socket + lobby UI, 08-03 server turn orchestration, 08-04 game UI components)
-Status: 08-04 executed — useMultiplayerRoom hook, MultiplayerGame, PlayerStatusBar, PlayerChat with 60s timer and emoji reactions
-Last activity: 2026-02-21 — Completed 08-04: game UI — DM streaming view, countdown timer, player status bar, private party chat
+Plan: 5/5 executing (08-01 Socket.IO infra, 08-02 client socket + lobby UI, 08-03 server turn orchestration, 08-04 game UI, 08-05 wiring + mode routing)
+Status: 08-05 Tasks 1+2 complete — Socket.IO wiring confirmed, App.tsx routes modeSelect->single-player/multiplayer; CHECKPOINT reached (Task 3: human-verify)
+Last activity: 2026-02-21 — Completed 08-05 Tasks 1+2: App.tsx mode routing, AppState extended with modeSelect/multiplayerLobby/multiplayerGame
 
 Progress: [████████░░] 70%
 
@@ -50,6 +50,7 @@ Progress: [████████░░] 70%
 | Phase 08-multiplayer P02 | 3 | 2 tasks | 5 files |
 | Phase 08-multiplayer P04 | 2 | 2 tasks | 4 files |
 | Phase 08-multiplayer P03 | 3 | 2 tasks | 6 files |
+| Phase 08-multiplayer P05 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,8 @@ Recent decisions affecting current work:
 - [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
 - [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
 - [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
 
 ### Roadmap Evolution
 
@@ -134,5 +137,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 08-04 — useMultiplayerRoom hook, MultiplayerGame, PlayerStatusBar, PlayerChat (commits e1f02db, 278f18b)
-Resume file: `.planning/phases/08-multiplayer-mode-multiple-users-play-d-d-together-in-real-time/08-04-SUMMARY.md`
+Stopped at: Checkpoint 08-05 Task 3 (human-verify) — App.tsx mode routing complete (e3abbe3), awaiting two-tab end-to-end multiplayer verification
+Resume file: `.planning/phases/08-multiplayer-mode-multiple-users-play-d-d-together-in-real-time/08-05-SUMMARY.md`

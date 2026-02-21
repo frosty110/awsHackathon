@@ -22,6 +22,8 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
   const [step, setStep] = useState<LobbyStep>('choose');
   const [displayName, setDisplayName] = useState(randomDisplayName);
   const [characterClass, setCharacterClass] = useState<CharacterClassId | null>(randomCharacterClass);
+  const [pronouns, setPronouns] = useState<string>('They/Them');
+  const [customPronouns, setCustomPronouns] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -116,10 +118,13 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
       socket.connect();
     }
 
+    const resolvedPronouns = pronouns === 'Custom' ? customPronouns.trim() || 'They/Them' : pronouns;
+
     if (step === 'create') {
       socket.emit('room:create', {
         displayName: displayName.trim(),
         characterClass,
+        pronouns: resolvedPronouns,
       });
     } else if (step === 'join') {
       if (joinCode.length !== 6) {
@@ -130,6 +135,7 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
         code: joinCode,
         displayName: displayName.trim(),
         characterClass,
+        pronouns: resolvedPronouns,
       });
     }
   }
@@ -270,6 +276,45 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
               ))}
             </div>
           </div>
+
+          {/* Pronoun picker */}
+          <div>
+            <label className="font-cinzel text-xs text-parchment/60 tracking-widest uppercase block mb-2">
+              Pronouns
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {(['He/Him', 'She/Her', 'They/Them', 'Custom'] as const).map(preset => (
+                <button
+                  key={preset}
+                  onClick={() => setPronouns(preset)}
+                  className={`
+                    px-4 py-2 border rounded font-cinzel text-xs tracking-wide
+                    transition-all duration-150 cursor-pointer
+                    ${pronouns === preset
+                      ? 'border-dm-gold bg-dm-gold/10 text-dm-gold'
+                      : 'border-blood/30 bg-surface text-parchment hover:border-blood-light'
+                    }
+                  `}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+            {pronouns === 'Custom' && (
+              <input
+                type="text"
+                value={customPronouns}
+                onChange={e => setCustomPronouns(e.target.value.slice(0, 20))}
+                placeholder="e.g. Ze/Zir"
+                maxLength={20}
+                className="
+                  mt-2 w-full bg-surface border border-blood/30 rounded px-3 py-2
+                  font-fell text-parchment placeholder:text-parchment/30
+                  focus:outline-none focus:border-dm-gold/50
+                "
+              />
+            )}
+          </div>
         </div>
 
         <button
@@ -351,6 +396,7 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
                   </p>
                   <p className={`font-fell text-xs ${getClassColor(player.characterClass)}`}>
                     {CHARACTER_CLASSES.find(c => c.id === player.characterClass)?.name ?? player.characterClass}
+                    {player.pronouns ? ` (${player.pronouns})` : ''}
                   </p>
                 </div>
               </div>

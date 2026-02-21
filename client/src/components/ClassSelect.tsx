@@ -61,15 +61,19 @@ const CLASSES: CharacterClass[] = [
 ];
 
 interface ClassSelectProps {
-  onSelect: (characterClass: CharacterClass) => void;
+  onSelect: (characterClass: CharacterClass, pronouns: string) => void;
 }
+
+const PRONOUN_PRESETS = ['He/Him', 'She/Her', 'They/Them', 'Custom'] as const;
 
 export function ClassSelect({ onSelect }: ClassSelectProps) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [pronouns, setPronouns] = useState<string>('They/Them');
+  const [customPronouns, setCustomPronouns] = useState('');
 
   function handleConfirm() {
     const cls = CLASSES.find(c => c.id === selected);
-    if (cls) onSelect(cls);
+    if (cls) onSelect(cls, pronouns === 'Custom' ? customPronouns.trim() || 'They/Them' : pronouns);
   }
 
   return (
@@ -136,6 +140,47 @@ export function ClassSelect({ onSelect }: ClassSelectProps) {
               </>
             );
           })()}
+        </div>
+      )}
+
+      {/* Pronoun picker */}
+      {selected && (
+        <div className="w-full max-w-xl mb-6">
+          <label className="font-cinzel text-xs text-parchment/60 tracking-widest uppercase block mb-2">
+            Pronouns
+          </label>
+          <div className="flex gap-2 flex-wrap">
+            {PRONOUN_PRESETS.map(preset => (
+              <button
+                key={preset}
+                onClick={() => setPronouns(preset)}
+                className={`
+                  px-4 py-2 border rounded font-cinzel text-sm tracking-wide
+                  transition-all duration-150 cursor-pointer
+                  ${pronouns === preset
+                    ? 'border-dm-gold bg-dm-gold/10 text-dm-gold'
+                    : 'border-blood/30 bg-surface text-parchment hover:border-blood-light'
+                  }
+                `}
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+          {pronouns === 'Custom' && (
+            <input
+              type="text"
+              value={customPronouns}
+              onChange={e => setCustomPronouns(e.target.value.slice(0, 20))}
+              placeholder="e.g. Ze/Zir"
+              maxLength={20}
+              className="
+                mt-2 w-full bg-surface border border-blood/30 rounded px-3 py-2
+                font-fell text-parchment placeholder:text-parchment/30
+                focus:outline-none focus:border-dm-gold/50
+              "
+            />
+          )}
         </div>
       )}
 

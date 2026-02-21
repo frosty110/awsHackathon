@@ -12,16 +12,19 @@ export interface CharacterClassDef {
   name: string;
   icon: string;         // emoji
   color: string;        // Tailwind text color class
+  description: string;
+  hitDie: string;       // e.g. 'd10'
+  primaryAbility: string;
 }
 
 // 6 playable classes with class-based identity colors
 export const CHARACTER_CLASSES: CharacterClassDef[] = [
-  { id: 'fighter', name: 'Fighter', icon: '⚔️',  color: 'text-red-400'    },
-  { id: 'wizard',  name: 'Wizard',  icon: '🔮',  color: 'text-blue-400'   },
-  { id: 'rogue',   name: 'Rogue',   icon: '🗡️',  color: 'text-purple-400' },
-  { id: 'cleric',  name: 'Cleric',  icon: '✝️',  color: 'text-yellow-300' },
-  { id: 'ranger',  name: 'Ranger',  icon: '🏹',  color: 'text-green-400'  },
-  { id: 'paladin', name: 'Paladin', icon: '🛡️',  color: 'text-pink-400'   },
+  { id: 'fighter', name: 'Fighter', icon: '⚔️',  color: 'text-red-400',    description: 'A master of martial combat', hitDie: 'd10', primaryAbility: 'Strength' },
+  { id: 'wizard',  name: 'Wizard',  icon: '🔮',  color: 'text-blue-400',   description: 'A scholarly magic-user',     hitDie: 'd6',  primaryAbility: 'Intelligence' },
+  { id: 'rogue',   name: 'Rogue',   icon: '🗡️',  color: 'text-purple-400', description: 'A scoundrel with stealth',   hitDie: 'd8',  primaryAbility: 'Dexterity' },
+  { id: 'cleric',  name: 'Cleric',  icon: '✝️',  color: 'text-yellow-300', description: 'A priestly champion',        hitDie: 'd8',  primaryAbility: 'Wisdom' },
+  { id: 'ranger',  name: 'Ranger',  icon: '🏹',  color: 'text-green-400',  description: 'A warrior of the wilderness', hitDie: 'd10', primaryAbility: 'Dexterity' },
+  { id: 'paladin', name: 'Paladin', icon: '🛡️',  color: 'text-pink-400',   description: 'A holy warrior',             hitDie: 'd10', primaryAbility: 'Charisma' },
 ];
 
 // Room lifecycle phases — mirrors server-side RoomPhase
@@ -32,9 +35,11 @@ export interface MultiplayerPlayer {
   socketId: string;
   displayName: string;
   characterClass: CharacterClassId;
+  pronouns?: string;
   connected: boolean;
   ready: boolean;
   submittedAction: boolean;
+  idle: boolean;
 }
 
 // Full snapshot of a room sent by the server
@@ -108,6 +113,13 @@ export function getClassBorderColor(classId: CharacterClassId): string {
     paladin: 'border-pink-400',
   };
   return map[classId] ?? 'border-parchment/40';
+}
+
+// Helper: return the numeric max HP for a class (max of hit die)
+export function getClassMaxHp(classId: CharacterClassId): number {
+  const def = CHARACTER_CLASSES.find(c => c.id === classId);
+  if (!def) return 8;
+  return parseInt(def.hitDie.slice(1), 10); // 'd10' -> 10
 }
 
 // Helper: return a subtle Tailwind bg class for a given character class

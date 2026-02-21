@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { ChatMessage } from '../types/multiplayer';
+import type { ChatMessage, MultiplayerPlayer } from '../types/multiplayer';
 import { getClassColor } from '../types/multiplayer';
 
 // Emoji reactions palette (6 options matching chatHandlers emoji IDs)
@@ -18,6 +18,7 @@ interface PlayerChatProps {
   onSend: (text: string) => void;
   onReact: (messageId: string, emoji: string) => void;
   localSocketId: string;
+  localPlayer?: MultiplayerPlayer;
 }
 
 function formatTime(timestamp: number): string {
@@ -36,6 +37,7 @@ export function PlayerChat({
   onSend,
   onReact,
   localSocketId,
+  localPlayer,
 }: PlayerChatProps) {
   const [text, setText] = useState('');
   const [selectedMsgId, setSelectedMsgId] = useState<string | null>(null);

@@ -22,9 +22,11 @@ export function MultiplayerGame({ roomCode, onLeave }: MultiplayerGameProps) {
     chatReactions,
     diceRolls,
     error,
+    localPlayer,
     submitAction,
     sendChat,
     sendReaction,
+    addLocalActionMessage,
   } = useMultiplayerRoom();
 
   const [actionText, setActionText] = useState('');
@@ -58,8 +60,9 @@ export function MultiplayerGame({ roomCode, onLeave }: MultiplayerGameProps) {
     const trimmed = actionText.trim();
     if (!trimmed || hasSubmitted || phase !== 'collecting-actions') return;
     submitAction(trimmed);
+    addLocalActionMessage(trimmed);
     setActionText('');
-  }, [actionText, hasSubmitted, phase, submitAction]);
+  }, [actionText, hasSubmitted, phase, submitAction, addLocalActionMessage]);
 
   function handleActionKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') handleSubmitAction();
@@ -200,6 +203,7 @@ export function MultiplayerGame({ roomCode, onLeave }: MultiplayerGameProps) {
           onSend={sendChat}
           onReact={sendReaction}
           localSocketId={localSocketId}
+          localPlayer={localPlayer}
         />
       </div>
 

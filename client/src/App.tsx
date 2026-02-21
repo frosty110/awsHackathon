@@ -23,8 +23,8 @@ export default function App() {
     setAppState('idle');
   }
 
-  function handleRollDice(value: number) {
-    sendMessage(`🎲 ${value}`);
+  function handleRollDice(result: number) {
+    sendMessage(`\u{1F3B2} I roll the dice... ${result}!`, result);
   }
 
   return (

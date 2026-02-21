@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ChatMessage, MultiplayerPlayer } from '../types/multiplayer';
-import { getClassColor } from '../types/multiplayer';
+import { getClassColor, getClassBorderColor, getClassBgColor, getClassIcon } from '../types/multiplayer';
 
 // Emoji reactions palette (6 options matching chatHandlers emoji IDs)
 const REACTION_EMOJIS = [
@@ -102,7 +102,12 @@ export function PlayerChat({
 
         {chatMessages.map(msg => {
           const isLocal = msg.fromSocketId === localSocketId;
-          const colorClass = getClassColor(msg.fromClass);
+          const effectiveClass = isLocal && localPlayer
+            ? localPlayer.characterClass
+            : msg.fromClass;
+          const colorClass = getClassColor(effectiveClass);
+          const borderClass = getClassBorderColor(effectiveClass);
+          const bgClass = getClassBgColor(effectiveClass);
           const reactions = chatReactions.get(msg.id) ?? [];
           const isPickerOpen = selectedMsgId === msg.id;
 
@@ -114,6 +119,18 @@ export function PlayerChat({
             },
             {}
           );
+
+          // Action messages: centered, italic, no bubble
+          if (msg.type === 'action') {
+            const icon = getClassIcon(effectiveClass);
+            return (
+              <div key={msg.id} className="w-full text-center py-0.5">
+                <span className={`text-xs font-fell italic ${colorClass} opacity-70`}>
+                  {icon} {msg.fromName}: {msg.text}
+                </span>
+              </div>
+            );
+          }
 
           return (
             <div
@@ -129,12 +146,7 @@ export function PlayerChat({
 
               {/* Message bubble + reaction picker trigger */}
               <button
-                className={[
-                  'max-w-[200px] px-3 py-2 rounded text-sm text-left leading-snug font-fell',
-                  isLocal
-                    ? 'bg-blood/30 text-parchment border border-blood/40'
-                    : 'bg-dm-bubble/60 text-parchment border border-blood/20',
-                ].join(' ')}
+                className={`max-w-[200px] px-3 py-2 rounded text-sm text-left leading-snug font-fell border ${borderClass} ${bgClass} text-parchment`}
                 onClick={() =>
                   setSelectedMsgId(isPickerOpen ? null : msg.id)
                 }

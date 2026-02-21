@@ -144,3 +144,14 @@ export function getGlobalUsage(): UsageSummary {
 export function getConversationUsage(conversationId: string): UsageSummary {
   return summarize(entries.filter((e) => e.conversationId === conversationId));
 }
+
+/**
+ * Test internals — exposes module-level state for unit tests only.
+ * Never call from production code.
+ */
+export const _testInternals = {
+  entries,
+  reset() {
+    entries.splice(0, entries.length);
+  },
+};

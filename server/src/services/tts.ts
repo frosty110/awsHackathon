@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import tracer from "dd-trace";
 import { config } from "./config.js";
+import { logEvent } from "./logger.js";
 
 export type TTSModel = "speech-2.8-hd" | "speech-2.8-turbo";
 
@@ -33,6 +35,42 @@ const MOOD_PROSODY: Record<SceneMood, { speed: number; pitch: number }> = {
   dramatic: { speed: 0.95, pitch: 1 },
   danger:   { speed: 1.05, pitch: 3 },
 };
+
+// ── TTS audio cache ──────────────────────────────────────────────────────────
+// Key = hash of (text + voice + mood + model). Avoids duplicate MiniMax calls.
+
+interface TTSCacheEntry {
+  result: TTSResult;
+  createdAt: number;
+}
+
+const ttsCache = new Map<string, TTSCacheEntry>();
+const TTS_CACHE_MAX_SIZE = 200;
+const TTS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+let ttsCacheHits = 0;
+let ttsCacheMisses = 0;
+
+function buildTTSCacheKey(text: string, voice: CharacterVoice, mood: SceneMood | undefined, model: TTSModel): string {
+  return `${model}|${voice}|${mood ?? "none"}|${text}`;
+}
+
+function hashKey(preHashKey: string): string {
+  return createHash("sha256").update(preHashKey).digest("hex").slice(0, 16);
+}
+
+function evictStaleTTSEntries(): void {
+  const now = Date.now();
+  for (const [key, entry] of ttsCache) {
+    if (now - entry.createdAt > TTS_CACHE_TTL_MS) {
+      ttsCache.delete(key);
+    }
+  }
+}
+
+export function getTTSCacheStats() {
+  return { hits: ttsCacheHits, misses: ttsCacheMisses, size: ttsCache.size };
+}
 
 /** Extract and strip {{mood:TAG}} from start of text. Returns [mood, cleanText]. */
 export function extractMood(text: string): [SceneMood | null, string] {
@@ -88,6 +126,42 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
   const voice = options.voice ?? "narrator";
   const prosody = options.mood ? MOOD_PROSODY[options.mood] : { speed: 1, pitch: 0 };
 
+  // ── Cache lookup ──────────────────────────────────────────────────────
+  const preHashKey = buildTTSCacheKey(text, voice, options.mood, model);
+  const cacheKey = hashKey(preHashKey);
+  const cached = ttsCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.createdAt < TTS_CACHE_TTL_MS) {
+    ttsCacheHits++;
+    logEvent("info", "tts.cache_hit", {
+      cacheKey,
+      preHashKey: preHashKey.slice(0, 120),
+      textLength: text.length,
+      voice,
+      mood: options.mood ?? "none",
+      model,
+      cacheHits: ttsCacheHits,
+      cacheMisses: ttsCacheMisses,
+      cacheSize: ttsCache.size,
+    });
+    return cached.result;
+  }
+
+  ttsCacheMisses++;
+  logEvent("info", "tts.cache_miss", {
+    cacheKey,
+    preHashKey: preHashKey.slice(0, 120),
+    textLength: text.length,
+    voice,
+    mood: options.mood ?? "none",
+    model,
+    cacheHits: ttsCacheHits,
+    cacheMisses: ttsCacheMisses,
+    cacheSize: ttsCache.size,
+    reason: cached ? "expired" : "not_found",
+  });
+
+  // ── API call (cache miss) ─────────────────────────────────────────────
   return tracer.llmobs.trace(
     { kind: "tool", name: "minimax.tts" },
     async (span) => {
@@ -154,6 +228,25 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
           mood: options.mood ?? "neutral",
         }),
         tags: { "tts.provider": "minimax", "tts.model": model, "tts.voice": voice },
+      });
+
+      // ── Store in cache ──────────────────────────────────────────────────
+      evictStaleTTSEntries();
+      if (ttsCache.size >= TTS_CACHE_MAX_SIZE) {
+        // Evict oldest entry
+        const oldestKey = ttsCache.keys().next().value;
+        if (oldestKey) ttsCache.delete(oldestKey);
+      }
+      ttsCache.set(cacheKey, { result, createdAt: Date.now() });
+
+      logEvent("info", "tts.api_call_completed", {
+        cacheKey,
+        preHashKey: preHashKey.slice(0, 120),
+        textLength: text.length,
+        voice,
+        model,
+        byteLength: audioBuffer.byteLength,
+        cacheSize: ttsCache.size,
       });
 
       return result;

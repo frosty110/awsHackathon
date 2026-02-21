@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 Phase: 8 of 8 (Multiplayer Mode) — IN PROGRESS
 Plan: 5/5 executing (08-01 Socket.IO infra, 08-02 client socket + lobby UI, 08-03 server turn orchestration, 08-04 game UI, 08-05 wiring + mode routing)
 Status: 08-05 Tasks 1+2 complete — Socket.IO wiring confirmed, App.tsx routes modeSelect->single-player/multiplayer; CHECKPOINT reached (Task 3: human-verify)
-Last activity: 2026-02-21 — Completed quick task 2: Style multiplayer chat boxes with speaker outlines, player action colors, and class-colored backgrounds
+Last activity: 2026-02-21 — Completed quick task 3: Add pronoun picker to character creation with DM system prompt injection
 
 Progress: [████████░░] 70%
 
@@ -134,9 +134,10 @@ Recent decisions affecting current work:
 |---|-------------|------|--------|-----------|
 | 1 | Optimize MiniMax TTS: emotion tags, turbo model, mood-based prosody, streaming audio, multi-character voices | 2026-02-21 | 1244c86 | [1-optimize-minimax-tts-emotion-tags-turbo-](./quick/1-optimize-minimax-tts-emotion-tags-turbo-/) |
 | 2 | Style multiplayer chat bubbles with class-colored borders/backgrounds and inline action messages | 2026-02-21 | 71b869e | [2-style-multiplayer-chat-boxes-with-speake](./quick/2-style-multiplayer-chat-boxes-with-speake/) |
+| 3 | Add pronoun picker to character creation with DM system prompt injection | 2026-02-21 | 5638a89 | [3-add-pronoun-picker-to-character-creation](./quick/3-add-pronoun-picker-to-character-creation/) |
 
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed quick-2 (style multiplayer chat boxes)
-Resume file: `.planning/quick/2-style-multiplayer-chat-boxes-with-speake/2-SUMMARY.md`
+Stopped at: Completed quick-3 (add pronoun picker to character creation)
+Resume file: `.planning/quick/3-add-pronoun-picker-to-character-creation/3-SUMMARY.md`

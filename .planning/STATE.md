@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 Phase: 7 of 7 (Voice Demo Polish) — IN PROGRESS
 Plan: 2/3 complete (07-01 TTS + /narrate, 07-02 AudioPlayer component)
 Status: 07-02 executed — AudioPlayer component, App.tsx wired with TTS fetch and graceful degradation
-Last activity: 2026-02-21 — Completed 04-01 retroactive SUMMARY (Bedrock chat pipeline)
+Last activity: 2026-02-21 — Completed quick task 1: Optimize MiniMax TTS (emotion tags, turbo model, mood prosody, multi-voice)
 
 Progress: [███████░░░] 64%
 
@@ -104,6 +104,12 @@ Recent decisions affecting current work:
 - **Pre-hackathon blocker**: MiniMax `MINIMAX_GROUP_ID` location in console not confirmed — locate and save before hackathon day.
 - **Pre-hackathon blocker**: Verify Bedrock inference profile IDs vs. model IDs in target region (`aws bedrock list-foundation-models`).
 - **Phase 6 risk**: Datadog dashboard must be built after generating real trace data, not before. Validate all 5 LLM Observability env vars with a smoke-test request.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | Optimize MiniMax TTS: emotion tags, turbo model, mood-based prosody, streaming audio, multi-character voices | 2026-02-21 | 1244c86 | [1-optimize-minimax-tts-emotion-tags-turbo-](./quick/1-optimize-minimax-tts-emotion-tags-turbo-/) |
 
 ## Session Continuity
 

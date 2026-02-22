@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 14 (Parallel TTS Processing) COMPLETE — Plan 01 done. All 48 tests pass.
+**Current focus:** Phase 16 (Generation Observability & Log Hygiene) COMPLETE — All plans done (01/01). All 48 tests pass.
 
 ## Current Position
 
-Phase: Phase 14 (Parallel TTS Processing) — ALL plans complete (01). Verified.
-Plan: Phase 14 Plan 01 complete.
-Status: generateMultiVoiceTTS refactored to Promise.allSettled fan-out. Per-segment fallback preserved inside concurrent closures. Timing log added. All 48 server tests pass (41 existing + 7 new TTS tests). TypeScript compiles clean.
-Last activity: 2026-02-21 — Phase 14 Plan 01 complete.
+Phase: Phase 16 (Generation Observability & Log Hygiene) — ALL plans complete (01). Verified.
+Plan: Phase 16 Plan 01 complete.
+Status: Poll-loop progress logging added to videoGenerator.ts (video.poll_progress) and musicService.ts (music.generation_progress with clearInterval). Dev-mode Redis/JWT config warnings suppressed. Redis console.warn replaced with structured logEvent. All 48 server tests pass. TypeScript compiles clean.
+Last activity: 2026-02-22 — Phase 16 Plan 01 complete.
 
 Progress: [██████████] 100%
 
@@ -35,6 +35,7 @@ Progress: [██████████] 100%
 | 06-datadog-observability | 2/2 | ✅ Complete |
 | 07-voice-demo-polish | 3/3 | ✅ Complete |
 | 08-multiplayer-mode | 5/5 | ✅ Complete |
+| 15-client-polling-optimization | 1/1 | ✅ Complete |
 
 **Quick Tasks:** 4/4 complete (TTS optimization, chat styling, pronouns, gender)
 
@@ -212,5 +213,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 14-01-PLAN.md (generateMultiVoiceTTS parallelized via Promise.allSettled)
-Resume context: Phase 14 Plan 01 complete. generateMultiVoiceTTS now uses Promise.allSettled fan-out — each voice segment generates concurrently, per-segment fallback preserved inside closures, narrator failure is terminal. Timing log added (tts.multi_voice_completed). 7 new TTS unit tests added. All 48 server tests pass. TypeScript compiles clean.
+Stopped at: Completed 15-01-PLAN.md (client polling optimization: exponential backoff replacing fixed intervals)
+Resume context: Phase 15 Plan 01 complete. backgroundMusic.ts uses 10s initial delay + exponential backoff (2s base, 30s cap). sceneVideo.ts uses 15s initial delay + exponential backoff. Server 202 responses for music and video routes now include startedAt timestamps. TypeScript compiles clean in both client and server.

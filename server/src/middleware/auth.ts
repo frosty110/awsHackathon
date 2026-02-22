@@ -2,6 +2,8 @@ import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
 import { config } from "../services/config.js";
 
+const DEV_SECRET = "dev-secret-do-not-use-in-production";
+
 export interface AuthenticatedRequest extends Request {
   userId?: string;
   username?: string;
@@ -25,7 +27,7 @@ export function requireAuth(
 
   const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, config.JWT_SECRET) as {
+    const payload = jwt.verify(token, config.JWT_SECRET || DEV_SECRET) as {
       userId: string;
       username: string;
     };
@@ -54,7 +56,7 @@ export function optionalAuth(
 
   const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, config.JWT_SECRET) as {
+    const payload = jwt.verify(token, config.JWT_SECRET || DEV_SECRET) as {
       userId: string;
       username: string;
     };

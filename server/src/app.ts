@@ -10,7 +10,7 @@ import usageRouter from "./routes/usage.js";
 import authRouter from "./routes/auth.js";
 import { buildRequestId, logEvent } from "./services/logger.js";
 import { optionalAuth } from "./middleware/auth.js";
-import { chatRateLimiter, narrateRateLimiter } from "./middleware/rateLimiter.js";
+import { chatRateLimiter, narrateRateLimiter, registerLimiter, loginLimiter } from "./middleware/rateLimiter.js";
 import { helmetMiddleware, corsMiddleware } from "./middleware/security.js";
 import { musicLimiter } from "./middleware/rateLimits.js";
 
@@ -34,24 +34,28 @@ export function createApp(_deps: AppDeps): Express {
   // 4. Health check — no auth, no rate limit
   app.use(healthRouter);
 
-  // 5. Auth routes — no rate limit (login/register must always be accessible)
+  // 5. Auth route rate limiting — IP-keyed to prevent spam/stuffing
+  app.use("/api/auth/register", registerLimiter);
+  app.use("/api/auth/login", loginLimiter);
+
+  // 6. Auth routes
   app.use(authRouter);
 
-  // 6. Rate limiters applied before their respective route handlers
+  // 7. Rate limiters applied before their respective route handlers
   app.use("/api/chat", chatRateLimiter);
   app.use("/api/narrate", narrateRateLimiter);
   app.use("/narrate", narrateRateLimiter);
   app.use("/api/music", musicLimiter);
   app.use("/music", musicLimiter);
 
-  // 7. Route handlers
+  // 8. Route handlers
   app.use(chatRouter);
   app.use(narrateRouter);
   app.use(musicRouter);
   app.use(sceneVideoRouter);
   app.use(usageRouter);
 
-  // 8. Global error handler
+  // 9. Global error handler
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     const requestId = buildRequestId(req.get("x-request-id"));
     res.setHeader("x-request-id", requestId);

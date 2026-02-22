@@ -7,7 +7,9 @@ const DUCK_VOLUME = 0.03;
 const CROSSFADE_MS = 800;
 const DUCK_DOWN_MS = 200;
 const DUCK_UP_MS = 500;
-const POLL_INTERVAL_MS = 4000;
+const INITIAL_POLL_DELAY_MS = 10_000;
+const BACKOFF_BASE_MS = 2_000;
+const BACKOFF_CAP_MS = 30_000;
 const RETRY_INTERVAL_MS = 10000;
 const MAX_RETRIES = 5;
 const MAX_POLLS = 30;
@@ -72,6 +74,10 @@ function animateVolume(
   return requestAnimationFrame(step);
 }
 
+function getPollDelay(pollCount: number): number {
+  return Math.min(BACKOFF_BASE_MS * Math.pow(2, pollCount), BACKOFF_CAP_MS);
+}
+
 // --- Fetch mood audio ---
 async function fetchMoodAudio(mood: SceneMood): Promise<string | null> {
   if (moodBlobUrls.has(mood)) return moodBlobUrls.get(mood)!;
@@ -91,12 +97,16 @@ async function fetchMoodAudio(mood: SceneMood): Promise<string | null> {
         fetchingMoods.delete(mood);
         return null;
       }
-      // Poll again after delay
+
+      // Initial delay on first 202 (skip the guaranteed-not-ready window),
+      // then exponential backoff on subsequent polls
+      const delay = polls === 0 ? INITIAL_POLL_DELAY_MS : getPollDelay(polls);
+
       return new Promise((resolve) => {
         setTimeout(async () => {
           fetchingMoods.delete(mood);
           resolve(await fetchMoodAudio(mood));
-        }, POLL_INTERVAL_MS);
+        }, delay);
       });
     }
 
@@ -206,6 +216,26 @@ function crossfadeTo(blobUrl: string, mood: SceneMood) {
 }
 
 // --- Public API ---
+
+/**
+ * Fetch a random track from S3 cache and start playing immediately.
+ * Used for landing page music before any mood is selected.
+ * Requires a user gesture (click) to satisfy browser autoplay policy.
+ */
+export async function startRandomMusic() {
+  if (currentTrack) return; // already playing
+
+  try {
+    const res = await fetch("/api/music/random");
+    if (!res.ok) return; // no cached music yet — silently skip
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    crossfadeTo(url, "tavern"); // label as tavern so mood changes can crossfade from it
+  } catch {
+    // Landing music is best-effort — don't break the app
+  }
+}
 
 export async function changeMood(mood: string | undefined) {
   if (!mood) return;

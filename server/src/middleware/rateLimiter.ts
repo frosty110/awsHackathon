@@ -48,3 +48,33 @@ export const narrateRateLimiter = rateLimit({
   store: createStore("rl:narrate:"),
   message: { error: "Too many narrate requests, slow down" },
 });
+
+/**
+ * registerLimiter — 3 requests per minute per IP.
+ * Prevents registration spam and account farming.
+ * Auth endpoints are IP-keyed (not userId-keyed) because auth hasn't happened yet.
+ */
+export const registerLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 3,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip ?? "unknown",
+  store: createStore("rl:register:"),
+  message: { error: "Too many registration attempts, slow down" },
+});
+
+/**
+ * loginLimiter — 10 requests per minute per IP.
+ * Prevents credential stuffing attacks on the login endpoint.
+ * Auth endpoints are IP-keyed (not userId-keyed) because auth hasn't happened yet.
+ */
+export const loginLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip ?? "unknown",
+  store: createStore("rl:login:"),
+  message: { error: "Too many login attempts, slow down" },
+});

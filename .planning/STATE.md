@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 13 (Dead Code Cleanup) COMPLETE — All plans done. Verification passed 4/4.
+**Current focus:** Phase 14 (Parallel TTS Processing) COMPLETE — Plan 01 done. All 48 tests pass.
 
 ## Current Position
 
-Phase: Phase 13 (Dead Code Cleanup) — ALL plans complete (01). Verified.
-Plan: Phase 13 complete.
-Status: Dead DI architecture scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) deleted. stripTTSTags consolidated to @ai-dm/shared-types import. All 41 server tests pass. TypeScript compiles clean.
-Last activity: 2026-02-21 — Phase 13 verified and complete.
+Phase: Phase 14 (Parallel TTS Processing) — ALL plans complete (01). Verified.
+Plan: Phase 14 Plan 01 complete.
+Status: generateMultiVoiceTTS refactored to Promise.allSettled fan-out. Per-segment fallback preserved inside concurrent closures. Timing log added. All 48 server tests pass (41 existing + 7 new TTS tests). TypeScript compiles clean.
+Last activity: 2026-02-21 — Phase 14 Plan 01 complete.
 
 Progress: [██████████] 100%
 
@@ -66,6 +66,9 @@ Progress: [██████████] 100%
 | Phase 12-production-hardening P02 | 3 | 1 tasks | 1 files |
 | Phase 12-production-hardening P01 | 4 | 2 tasks | 3 files |
 | Phase 13-dead-code-cleanup P01 | 2 | 2 tasks | 1 files |
+| Phase 14-parallel-tts-processing P01 | 8 | 2 tasks | 2 files |
+| Phase 16 P01 | 7 | 2 tasks | 4 files |
+| Phase 15 P01 | 217 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -159,6 +162,13 @@ Recent decisions affecting current work:
 - [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
 - [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
 - [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
 
 ### Roadmap Evolution
 
@@ -201,6 +211,6 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 
 ## Session Continuity
 
-Last session: 2026-02-22
-Stopped at: Completed 13-01-PLAN.md (dead DI scaffolding deleted, stripTTSTags consolidated)
-Resume context: Phase 13 Plan 01 complete. Deleted 5 dead server paths (container.ts, tokens.ts, transport/, domain/, adapters/) — 2,237 lines of untracked DI scaffold removed from disk. useMultiplayerRoom.ts now imports stripTTSTags from @ai-dm/shared-types (bug fix: scene tag stripping). All 41 server tests pass. TypeScript compiles clean.
+Last session: 2026-02-21
+Stopped at: Completed 14-01-PLAN.md (generateMultiVoiceTTS parallelized via Promise.allSettled)
+Resume context: Phase 14 Plan 01 complete. generateMultiVoiceTTS now uses Promise.allSettled fan-out — each voice segment generates concurrently, per-segment fallback preserved inside closures, narrator failure is terminal. Timing log added (tts.multi_voice_completed). 7 new TTS unit tests added. All 48 server tests pass. TypeScript compiles clean.

@@ -21,8 +21,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Voice + Demo Polish** - MiniMax TTS opening monologue and adventure scenario validation
 - [x] **Phase 8: Multiplayer Mode** - Multiple users play D&D together in real-time
 - [x] **Phase 9: Scale & Auth** — Redis session store, user authentication, per-user rate limiting
-- [ ] **Phase 10: S3 Audio Cache Infrastructure**
+- [x] **Phase 10: S3 Audio Cache Infrastructure**
 - [x] **Phase 11: System Architecture Review**
+- [ ] **Phase 12: Production Hardening** — Auth rate limiting, Redis resilience, JWT secret alignment
+- [ ] **Phase 13: Dead Code Cleanup** — Remove dead DI scaffolding, deduplicate stripTTSTags
 
 ## Phase Details
 
@@ -215,6 +217,31 @@ Plans:
 - [x] 11-05-PLAN.md — Vitest scaffolding and unit tests for promptBuilder, conversationStore, usageTracker
 - [x] 11-06-PLAN.md — Gap closure: remove dead chatLimiter and narrateLimiter from rateLimits.ts (orphaned by Phase 09 Redis-backed limiters)
 
+### Phase 12: Production Hardening
+
+**Goal:** Close resilience and security gaps identified by milestone audit for production readiness at 1000 users
+**Depends on:** Phase 11
+**Requirements:** Strengthens SCALE-02 (auth), SCALE-03 (rate limiting)
+**Gap Closure:** Closes tech debt from v1.0-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+  1. `/api/auth/register` rate-limited to 3 requests/minute per IP (prevents registration spam)
+  2. `/api/auth/login` rate-limited to 10 requests/minute per IP (prevents credential stuffing)
+  3. `conversationStore` Redis calls wrapped in try/catch — mid-run Redis failure falls back to in-memory instead of 500 errors
+  4. JWT verify uses same dev-secret fallback as JWT sign — auth works in development without explicit JWT_SECRET
+
+---
+
+### Phase 13: Dead Code Cleanup
+
+**Goal:** Remove dead DI architecture scaffolding and duplicate code to reduce maintenance burden and codebase confusion
+**Depends on:** Phase 11
+**Gap Closure:** Closes tech debt from v1.0-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+  1. `server/src/container.ts`, `server/src/tokens.ts`, `server/src/transport/`, `server/src/domain/`, `server/src/adapters/` are deleted
+  2. No TypeScript compilation errors after deletion (`npx tsc --noEmit`)
+  3. All 41 existing server tests still pass
+  4. `useMultiplayerRoom.ts` imports `stripTTSTags` from `@ai-dm/shared-types` instead of defining a local copy
+
 ---
 
 ## Progress
@@ -237,3 +264,5 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 9. Scale & Auth | 3/3 | ✅ Complete | 2026-02-21 |
 | 10. S3 Audio Cache | 1/1 | ✅ Complete | 2026-02-21 |
 | 11. Architecture Audit | 6/6 | ✅ Complete | 2026-02-21 |
+| 12. Production Hardening | 0/? | ⬜ Not started | — |
+| 13. Dead Code Cleanup | 0/? | ⬜ Not started | — |

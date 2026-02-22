@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 12 (Production Hardening) COMPLETE — All 2 plans done. Verification passed 7/7.
+**Current focus:** Phase 13 (Dead Code Cleanup) Plan 01 COMPLETE — 2,237 lines of dead DI scaffolding deleted, stripTTSTags consolidated.
 
 ## Current Position
 
-Phase: Phase 12 (Production Hardening) — ALL plans complete (01, 02). Verified.
-Plan: Phase 12 complete.
-Status: Auth rate limiting (register 3/min, login 10/min per IP), JWT verify dev-secret fallback, and Redis resilience all in place.
-Last activity: 2026-02-21 — Phase 12 verified and complete.
+Phase: Phase 13 (Dead Code Cleanup) — Plan 01 complete.
+Plan: Phase 13 Plan 01 complete.
+Status: Dead DI architecture scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) deleted from disk. useMultiplayerRoom.ts now imports stripTTSTags from @ai-dm/shared-types (scene tag stripping bug fixed). All 41 server tests pass.
+Last activity: 2026-02-22 — Phase 13 Plan 01 complete.
 
-Progress: [██████████] 98%
+Progress: [██████████] 99%
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [██████████] 98%
 | Phase 11 P06 | 3 | 1 tasks | 1 file |
 | Phase 12-production-hardening P02 | 3 | 1 tasks | 1 files |
 | Phase 12-production-hardening P01 | 4 | 2 tasks | 3 files |
+| Phase 13-dead-code-cleanup P01 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -156,6 +157,8 @@ Recent decisions affecting current work:
 - [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
 - [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
 - [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
 
 ### Roadmap Evolution
 
@@ -196,5 +199,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 12-01-PLAN.md (auth rate limiting and JWT verify fix)
-Resume context: Phase 12 Plans 01 and 02 both complete. Plan 01: registerLimiter (3/min/IP) and loginLimiter (10/min/IP) added to rateLimiter.ts, wired in app.ts before authRouter, DEV_SECRET fallback added to auth.ts jwt.verify calls. Plan 02: try/catch in all 5 public methods of InMemoryConversationStore for Redis resilience. All 41 server unit tests pass. TypeScript compiles clean. Both Phase 12 plans done.
+Stopped at: Completed 13-01-PLAN.md (dead DI scaffolding deleted, stripTTSTags consolidated)
+Resume context: Phase 13 Plan 01 complete. Deleted 5 dead server paths (container.ts, tokens.ts, transport/, domain/, adapters/) — 2,237 lines of untracked DI scaffold removed from disk. useMultiplayerRoom.ts now imports stripTTSTags from @ai-dm/shared-types (bug fix: scene tag stripping). All 41 server tests pass. TypeScript compiles clean.

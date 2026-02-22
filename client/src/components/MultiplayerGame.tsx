@@ -120,7 +120,7 @@ export function MultiplayerGame({ roomCode, onLeave }: MultiplayerGameProps) {
           {/* DM message scroll area */}
           <div ref={dmScrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {dmMessages.length === 0 && !currentStreamText && (
-              <div className="text-parchment/40 text-center font-fell italic mt-8">
+              <div className="text-parchment/60 text-center font-fell italic mt-8">
                 The adventure is about to begin...
               </div>
             )}
@@ -166,7 +166,7 @@ export function MultiplayerGame({ roomCode, onLeave }: MultiplayerGameProps) {
                 ✓ Your action has been sent to the DM
               </div>
             ) : isDmResponding ? (
-              <div className="text-center text-parchment/50 text-sm font-fell italic py-2">
+              <div className="text-center text-parchment/60 text-sm font-fell italic py-2">
                 Await the DM's response...
               </div>
             ) : (
@@ -182,7 +182,7 @@ export function MultiplayerGame({ roomCode, onLeave }: MultiplayerGameProps) {
                       ? 'Describe your action...'
                       : 'Waiting for next turn...'
                   }
-                  className="flex-1 px-3 py-2 rounded bg-surface text-parchment font-sans text-base border border-blood/30 placeholder:text-parchment/40 focus:outline-none focus:border-blood/60 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-1 px-3 py-2 rounded bg-surface text-parchment font-sans text-base border border-blood/30 placeholder:text-parchment/50 focus:border-blood/60 disabled:opacity-40 disabled:cursor-not-allowed"
                 />
                 <button
                   onClick={handleSubmitAction}
@@ -209,12 +209,12 @@ export function MultiplayerGame({ roomCode, onLeave }: MultiplayerGameProps) {
 
       {/* Footer: room code + leave button */}
       <div className="flex items-center justify-between px-4 py-1.5 border-t border-blood/20 bg-surface/40">
-        <span className="text-parchment/30 text-xs font-mono">
+        <span className="text-parchment/50 text-xs font-mono">
           Room: {roomCode}
         </span>
         <button
           onClick={onLeave}
-          className="text-parchment/40 text-xs font-cinzel hover:text-parchment/70 transition-colors"
+          className="text-parchment/60 text-xs font-cinzel hover:text-parchment transition-colors"
         >
           Leave Room
         </button>

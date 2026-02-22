@@ -181,7 +181,7 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
 
         <button
           onClick={onBack}
-          className="font-cinzel text-sm text-parchment/50 hover:text-parchment transition-colors"
+          className="font-cinzel text-sm text-parchment/60 hover:text-parchment transition-colors"
         >
           &larr; Back
         </button>
@@ -226,8 +226,8 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
               maxLength={20}
               className="
                 w-full bg-surface border border-blood/30 rounded px-3 py-2
-                font-fell text-parchment placeholder:text-parchment/30
-                focus:outline-none focus:border-dm-gold/50
+                font-fell text-parchment placeholder:text-parchment/50
+                focus:border-dm-gold/50
               "
             />
           </div>
@@ -246,8 +246,8 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
                 maxLength={6}
                 className="
                   w-full bg-surface border border-blood/30 rounded px-3 py-2
-                  font-cinzel text-dm-gold tracking-widest placeholder:text-parchment/30
-                  focus:outline-none focus:border-dm-gold/50 uppercase
+                  font-cinzel text-dm-gold tracking-widest placeholder:text-parchment/50
+                  focus:border-dm-gold/50 uppercase
                 "
               />
             </div>
@@ -347,8 +347,8 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
                 maxLength={20}
                 className="
                   mt-2 w-full bg-surface border border-blood/30 rounded px-3 py-2
-                  font-fell text-parchment placeholder:text-parchment/30
-                  focus:outline-none focus:border-dm-gold/50
+                  font-fell text-parchment placeholder:text-parchment/50
+                  focus:border-dm-gold/50
                 "
               />
             )}
@@ -365,7 +365,7 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
 
         <button
           onClick={() => { setError(null); setStep('choose'); }}
-          className="font-cinzel text-sm text-parchment/50 hover:text-parchment transition-colors"
+          className="font-cinzel text-sm text-parchment/60 hover:text-parchment transition-colors"
         >
           &larr; Back
         </button>
@@ -399,7 +399,7 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
           >
             {roomState.code}
           </p>
-          <p className="font-fell text-parchment/40 text-xs mt-1">
+          <p className="font-fell text-parchment/60 text-xs mt-1">
             Share this code with your party
           </p>
         </div>
@@ -448,7 +448,7 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
                   Ready ✓
                 </span>
               ) : (
-                <span className="font-cinzel text-xs text-parchment/30 tracking-wide">
+                <span className="font-cinzel text-xs text-parchment/50 tracking-wide">
                   Waiting...
                 </span>
               )}

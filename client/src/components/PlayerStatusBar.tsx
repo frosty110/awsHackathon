@@ -46,7 +46,7 @@ export function PlayerStatusBar({ players, localSocketId }: PlayerStatusBarProps
               <span className="font-cinzel text-[10px] text-parchment/60">
                 {classDef?.name ?? player.characterClass}
               </span>
-              <span className="text-[10px] text-parchment/40">
+              <span className="text-[10px] text-parchment/60">
                 {classDef?.hitDie ?? '?'}
               </span>
             </div>
@@ -54,8 +54,8 @@ export function PlayerStatusBar({ players, localSocketId }: PlayerStatusBarProps
             {/* Row 3: HP + primary ability */}
             <div className="flex items-center gap-1 text-[10px]">
               <span className="text-dm-gold font-semibold">HP: {maxHp}/{maxHp}</span>
-              <span className="text-parchment/30">|</span>
-              <span className="text-parchment/50">{abilityAbbr}</span>
+              <span className="text-parchment/50">|</span>
+              <span className="text-parchment/60">{abilityAbbr}</span>
             </div>
 
             {/* Row 4: Connection + submission status */}
@@ -76,7 +76,7 @@ export function PlayerStatusBar({ players, localSocketId }: PlayerStatusBarProps
                   ✓
                 </span>
               ) : (
-                <span className="text-parchment/30 text-xs" title="Waiting for action">
+                <span className="text-parchment/50 text-xs" title="Waiting for action">
                   —
                 </span>
               )}

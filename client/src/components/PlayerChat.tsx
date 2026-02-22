@@ -73,7 +73,7 @@ export function PlayerChat({
       {/* Header */}
       <div className="px-3 py-2 border-b border-blood/30">
         <h3 className="font-cinzel text-sm text-dm-gold tracking-wide">Party Chat</h3>
-        <p className="text-parchment/40 text-xs font-fell italic">Private — DM cannot see this</p>
+        <p className="text-parchment/60 text-xs font-fell italic">Private — DM cannot see this</p>
       </div>
 
       {/* Quick emoji reactions for last message */}
@@ -95,7 +95,7 @@ export function PlayerChat({
       {/* Message list */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
         {chatMessages.length === 0 && (
-          <p className="text-parchment/30 text-xs text-center font-fell italic mt-4">
+          <p className="text-parchment/50 text-xs text-center font-fell italic mt-4">
             No messages yet. Your party awaits...
           </p>
         )}
@@ -156,7 +156,7 @@ export function PlayerChat({
               </button>
 
               {/* Timestamp */}
-              <span className="text-parchment/30 text-xs mt-0.5">
+              <span className="text-parchment/50 text-xs mt-0.5">
                 {formatTime(msg.timestamp)}
               </span>
 
@@ -203,7 +203,7 @@ export function PlayerChat({
           onChange={e => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Whisper to party..."
-          className="flex-1 px-2 py-1.5 rounded bg-surface text-parchment font-fell text-sm border border-blood/30 placeholder:text-parchment/40 focus:outline-none focus:border-blood/60"
+          className="flex-1 px-2 py-1.5 rounded bg-surface text-parchment font-fell text-sm border border-blood/30 placeholder:text-parchment/50 focus:border-blood/60"
         />
         <button
           onClick={handleSend}

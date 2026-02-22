@@ -51,7 +51,17 @@
   }
 }
 
-/* 4. Markdown prose inside DM bubbles */
+/* 4. Global focus-visible indicator for keyboard navigation (WCAG 2.4.7) */
+:where(button, [role="button"], a, summary):focus-visible {
+  outline: 2px solid var(--color-dm-gold);
+  outline-offset: 2px;
+}
+:where(input, textarea, select):focus-visible {
+  outline: 2px solid var(--color-dm-gold);
+  outline-offset: -1px;
+}
+
+/* 5. Markdown prose inside DM bubbles */
 .dm-prose p { margin: 0.4em 0; }
 .dm-prose p:first-child { margin-top: 0; }
 .dm-prose p:last-child { margin-bottom: 0; }
@@ -61,7 +71,7 @@
 .dm-prose li { margin: 0.15em 0; }
 .dm-prose li::marker { color: var(--color-dm-gold); }
 
-/* 5. Volume slider styling */
+/* 6. Volume slider styling */
 .volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 12px;
@@ -81,7 +91,7 @@
   box-shadow: 0 0 4px oklch(0.75 0.15 55 / 0.5);
 }
 
-/* 6. Full-screen dark background — fallback gradient ensures UI works without tavern-bg.jpg */
+/* 7. Full-screen dark background — fallback gradient ensures UI works without tavern-bg.jpg */
 /* TODO: Add royalty-free dark tavern/forest image from Unsplash to client/public/tavern-bg.jpg */
 body {
   background-color: oklch(0.07 0.01 260);

@@ -15,7 +15,7 @@ export function ModeSelect({ onSinglePlayer, onMultiplayer }: ModeSelectProps) {
       >
         Choose Your Path
       </h2>
-      <p className="font-fell text-parchment/60 text-sm mb-10">
+      <p className="font-fell text-parchment/60 text-2xl mb-10">
         How will you face the darkness?
       </p>
 
@@ -35,7 +35,7 @@ export function ModeSelect({ onSinglePlayer, onMultiplayer }: ModeSelectProps) {
             <p className="font-cinzel font-bold text-xl text-parchment tracking-wide mb-1">
               Solo Adventure
             </p>
-            <p className="font-fell text-parchment/50 text-sm">
+            <p className="font-fell text-parchment/60 text-lg">
               Face the darkness alone
             </p>
           </div>
@@ -56,7 +56,7 @@ export function ModeSelect({ onSinglePlayer, onMultiplayer }: ModeSelectProps) {
             <p className="font-cinzel font-bold text-xl text-parchment tracking-wide mb-1">
               Multiplayer Party
             </p>
-            <p className="font-fell text-parchment/50 text-sm">
+            <p className="font-fell text-parchment/60 text-lg">
               Join forces with fellow adventurers
             </p>
           </div>

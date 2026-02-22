@@ -87,7 +87,7 @@ export function ClassSelect({ onSelect }: ClassSelectProps) {
       >
         Choose Your Class
       </h2>
-      <p className="font-fell text-parchment/60 text-sm mb-8">
+      <p className="font-fell text-parchment/60 text-2xl mb-8">
         Who are you, adventurer?
       </p>
 
@@ -133,7 +133,7 @@ export function ClassSelect({ onSelect }: ClassSelectProps) {
                 <p className="font-fell text-parchment/80 text-base mb-3">
                   {cls.description}
                 </p>
-                <div className="flex gap-6 text-sm text-parchment/50 font-cinzel">
+                <div className="flex gap-6 text-sm text-parchment/60 font-cinzel">
                   <span>Hit Die: <span className="text-blood-light">{cls.hitDie}</span></span>
                   <span>Primary: <span className="text-blood-light">{cls.primaryAbility}</span></span>
                 </div>
@@ -176,8 +176,8 @@ export function ClassSelect({ onSelect }: ClassSelectProps) {
               maxLength={20}
               className="
                 mt-2 w-full bg-surface border border-blood/30 rounded px-3 py-2
-                font-fell text-parchment placeholder:text-parchment/30
-                focus:outline-none focus:border-dm-gold/50
+                font-fell text-parchment placeholder:text-parchment/50
+                focus:border-dm-gold/50
               "
             />
           )}

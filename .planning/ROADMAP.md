@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Multiplayer Mode** - Multiple users play D&D together in real-time
 - [x] **Phase 9: Scale & Auth** — Redis session store, user authentication, per-user rate limiting
 - [ ] **Phase 10: S3 Audio Cache Infrastructure**
-- [ ] **Phase 11: System Architecture Review**
+- [x] **Phase 11: System Architecture Review**
 
 ## Phase Details
 
@@ -213,7 +213,7 @@ Plans:
 - [x] 11-03-PLAN.md — IConversationStore and IRoomStore interfaces for Redis readiness, usageTracker rolling eviction
 - [x] 11-04-PLAN.md — Extract musicService.ts from routes/music.ts for architectural consistency
 - [x] 11-05-PLAN.md — Vitest scaffolding and unit tests for promptBuilder, conversationStore, usageTracker
-- [ ] 11-06-PLAN.md — Gap closure: remove dead chatLimiter and narrateLimiter from rateLimits.ts (orphaned by Phase 09 Redis-backed limiters)
+- [x] 11-06-PLAN.md — Gap closure: remove dead chatLimiter and narrateLimiter from rateLimits.ts (orphaned by Phase 09 Redis-backed limiters)
 
 ---
 
@@ -236,3 +236,4 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 8. Multiplayer Mode | 5/5 | ✅ Complete | 2026-02-21 |
 | 9. Scale & Auth | 3/3 | ✅ Complete | 2026-02-21 |
 | 10. S3 Audio Cache | 1/1 | ✅ Complete | 2026-02-21 |
+| 11. Architecture Audit | 6/6 | ✅ Complete | 2026-02-21 |

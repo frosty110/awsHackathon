@@ -266,6 +266,18 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
 
     // Clean up completely abandoned rooms
     if (getConnectedPlayerCount(roomCode) === 0) {
+      const abandonedRoom = getRoom(roomCode);
+      if (abandonedRoom) {
+        // Clear the action collection timer if still running
+        if (abandonedRoom.timerHandle !== null) {
+          clearTimeout(abandonedRoom.timerHandle);
+          abandonedRoom.timerHandle = null;
+        }
+        // If DM is mid-stream, emit error to any remaining sockets (should be none, but defensive)
+        if (abandonedRoom.phase === "dm-responding") {
+          io.to(roomCode).emit("dm:error", { message: "All players disconnected." });
+        }
+      }
       deleteRoom(roomCode);
     }
   });

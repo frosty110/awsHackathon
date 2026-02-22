@@ -29,7 +29,8 @@ export async function queryLore(
          RETURN n.name AS name, n.description AS description,
                 type(r) AS relationship, related.name AS relatedName
          LIMIT 10`,
-        { entities }
+        { entities },
+        { transactionConfig: { timeout: 5000 } }
       );
 
       const results: LoreRecord[] = records.map((record) => ({

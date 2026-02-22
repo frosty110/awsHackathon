@@ -24,5 +24,5 @@ export async function queueBedrockCall<T>(fn: () => Promise<T>): Promise<T> {
  * when this threshold is exceeded.
  */
 export function isBedrockQueueOverloaded(): boolean {
-  return bedrockQueue.pending > 100;
+  return bedrockQueue.pending > 50; // 2.5x concurrency — code review recommended 40-60
 }

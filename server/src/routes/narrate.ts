@@ -6,6 +6,7 @@ import { getOrCreate, appendMessage } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage, recordTtsUsage } from "../services/usageTracker.js";
 import { queueBedrockCall } from "../services/bedrockQueue.js";
+import { sanitizeUserInput } from "../services/inputSanitizer.js";
 import { PHRASE_BANK } from "@ai-dm/shared-types";
 
 const OPENING_PHRASES = PHRASE_BANK.filter((p) => p.id.startsWith("opening_"));
@@ -25,8 +26,13 @@ const router = Router();
 router.post(["/narrate", "/api/narrate"], async (req, res) => {
   const requestId = buildRequestId(req.get("x-request-id"));
   res.setHeader("x-request-id", requestId);
-  const textInput = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+  const textInput = sanitizeUserInput(typeof req.body?.text === "string" ? req.body.text : "", 5000);
   const bodyConversationId = typeof req.body?.conversationId === "string" ? req.body.conversationId : null;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (bodyConversationId && !UUID_RE.test(bodyConversationId)) {
+    res.status(400).json({ error: "Invalid conversationId format" });
+    return;
+  }
   const characterClass = typeof req.body?.characterClass === "string" ? req.body.characterClass.trim() : undefined;
   const pronouns = typeof req.body?.pronouns === "string" ? req.body.pronouns.trim() : undefined;
   const hasText = textInput.length > 0;

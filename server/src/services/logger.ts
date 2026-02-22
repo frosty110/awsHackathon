@@ -68,7 +68,9 @@ export function logEvent(
   console.log(line);
 }
 
+const REQUEST_ID_RE = /^[a-zA-Z0-9\-_]{1,128}$/;
+
 export function buildRequestId(headerValue: string | undefined): string {
   const trimmed = headerValue?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : crypto.randomUUID();
+  return trimmed && REQUEST_ID_RE.test(trimmed) ? trimmed : crypto.randomUUID();
 }

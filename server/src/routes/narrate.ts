@@ -6,6 +6,9 @@ import { getOrCreate, appendMessage } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage, recordTtsUsage } from "../services/usageTracker.js";
 import { queueBedrockCall } from "../services/bedrockQueue.js";
+import { PHRASE_BANK } from "@ai-dm/shared-types";
+
+const OPENING_PHRASES = PHRASE_BANK.filter((p) => p.id.startsWith("opening_"));
 
 function buildOpeningPrompt(characterClass?: string, pronouns?: string): string {
   const classContext = characterClass
@@ -65,7 +68,54 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
     return;
   }
 
-  // No text — generate opening monologue from Bedrock, TTS it, return JSON
+  // No text — try pre-cached opening phrase first, Bedrock as fallback
+  const openingPhrase = OPENING_PHRASES.length > 0
+    ? OPENING_PHRASES[Math.floor(Math.random() * OPENING_PHRASES.length)]
+    : null;
+
+  if (openingPhrase) {
+    // Fast path: use pre-written opening (TTS should be a cache hit from prewarm)
+    try {
+      const model = openingPhrase.models[0] ?? "speech-2.8-hd";
+      const { audioBuffer } = await generateMultiVoiceTTS(openingPhrase.text, { model, mood: "tavern" });
+      const conversation = await getOrCreate(undefined, characterClass, pronouns);
+      await appendMessage(conversation.id, { role: "assistant", content: openingPhrase.display });
+      const ttsCostUsd = recordTtsUsage(conversation.id, openingPhrase.text.length);
+
+      res.json({
+        audio: audioBuffer.toString("base64"),
+        text: openingPhrase.display,
+        conversationId: conversation.id,
+        usage: {
+          bedrockInputTokens: 0,
+          bedrockOutputTokens: 0,
+          bedrockCostUsd: 0,
+          ttsCharacters: openingPhrase.text.length,
+          ttsCostUsd,
+          totalCostUsd: ttsCostUsd,
+        },
+      });
+      logEvent("info", "narrate.opening_phrase_completed", {
+        requestId,
+        route: "/api/narrate",
+        conversationId: conversation.id,
+        phraseId: openingPhrase.id,
+        textLength: openingPhrase.display.length,
+        byteLength: audioBuffer.length,
+      });
+      return;
+    } catch (err) {
+      // Pre-cached opening TTS failed — fall through to Bedrock path
+      logEvent("warn", "narrate.opening_phrase_tts_failed", {
+        requestId,
+        route: "/api/narrate",
+        phraseId: openingPhrase.id,
+        error: String(err),
+      });
+    }
+  }
+
+  // Fallback: generate opening monologue from Bedrock, TTS it, return JSON
   const messages: ChatMessage[] = [{ role: "user", content: buildOpeningPrompt(characterClass, pronouns) }];
   let text = "";
   let bedrockCostUsd = 0;

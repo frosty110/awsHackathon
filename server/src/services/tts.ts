@@ -11,12 +11,15 @@ import {
   VALID_MOODS,
   extractMood,
   extractScene,
+  extractEmotion,
   splitVoiceSegments,
   stripTTSTags,
+  sanitizeForTTS,
+  expandPhrases,
 } from "@ai-dm/shared-types";
 
 export type { SceneMood, SceneId, CharacterVoice };
-export { extractMood, extractScene, splitVoiceSegments, stripTTSTags };
+export { extractMood, extractScene, splitVoiceSegments, stripTTSTags, sanitizeForTTS, expandPhrases };
 
 export type TTSModel = "speech-2.8-hd" | "speech-2.8-turbo";
 
@@ -40,11 +43,12 @@ const VOICE_MAP: Record<CharacterVoice, string> = {
 };
 
 const MOOD_PROSODY: Record<SceneMood, { speed: number; pitch: number }> = {
-  combat:   { speed: 1.15, pitch: 2 },
-  tavern:   { speed: 0.9,  pitch: -1 },
-  mystery:  { speed: 0.85, pitch: -2 },
-  dramatic: { speed: 0.95, pitch: 1 },
-  danger:   { speed: 1.05, pitch: 3 },
+  combat:      { speed: 1.15, pitch: 2 },
+  exploration: { speed: 0.85, pitch: -2 },
+  tavern:      { speed: 0.9,  pitch: -1 },
+  mystery:     { speed: 0.80, pitch: -3 },
+  dramatic:    { speed: 1.0,  pitch: 1 },
+  danger:      { speed: 1.05, pitch: 0 },
 };
 
 // ── TTS audio cache ──────────────────────────────────────────────────────────
@@ -62,8 +66,8 @@ const TTS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 let ttsCacheHits = 0;
 let ttsCacheMisses = 0;
 
-function buildTTSCacheKey(text: string, voice: CharacterVoice, mood: SceneMood | undefined, model: TTSModel): string {
-  return `${model}|${voice}|${mood ?? "none"}|${text}`;
+function buildTTSCacheKey(text: string, voice: CharacterVoice, mood: SceneMood | undefined, model: TTSModel, emotion?: string): string {
+  return `${model}|${voice}|${mood ?? "none"}|${emotion ?? "auto"}|${text}`;
 }
 
 function hashKey(preHashKey: string): string {
@@ -84,14 +88,18 @@ export function getTTSCacheStats() {
 }
 
 export async function generateTTS(text: string, options: TTSOptions = {}): Promise<TTSResult> {
+  // Extract {{emotion:TAG}} — passed directly to MiniMax voice_setting.emotion
+  const [emotion, textWithoutEmotion] = extractEmotion(text);
+  // Strip markdown so MiniMax doesn't read formatting aloud
+  const cleanText = sanitizeForTTS(textWithoutEmotion);
   const model = options.model ?? "speech-2.8-hd";
   const voice = options.voice ?? "narrator";
   const prosody = options.mood ? MOOD_PROSODY[options.mood] : { speed: 1, pitch: 0 };
 
-  // ── Cache lookup ──────────────────────────────────────────────────────
-  const preHashKey = buildTTSCacheKey(text, voice, options.mood, model);
+  // ── Cache lookup (keyed on cleaned text) ───────────────────────────────
+  const preHashKey = buildTTSCacheKey(cleanText, voice, options.mood, model, emotion ?? undefined);
   const cacheKey = hashKey(preHashKey);
-  const s3Key = buildKey("tts/v1", `${model}|${voice}|${options.mood ?? "none"}|${text}`, "mp3");
+  const s3Key = buildKey("tts/v1", `${model}|${voice}|${options.mood ?? "none"}|${emotion ?? "auto"}|${cleanText}`, "mp3");
 
   // L1: in-memory Map (zero latency for recently generated audio)
   const l1Cached = ttsCache.get(cacheKey);
@@ -103,7 +111,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
       s3Key,
       source: "memory",
       preHashKey: preHashKey.slice(0, 120),
-      textLength: text.length,
+      textLength: cleanText.length,
       voice,
       mood: options.mood ?? "none",
       model,
@@ -134,7 +142,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
       s3Key,
       source: "s3",
       preHashKey: preHashKey.slice(0, 120),
-      textLength: text.length,
+      textLength: cleanText.length,
       voice,
       mood: options.mood ?? "none",
       model,
@@ -151,7 +159,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
     cacheKey,
     s3Key,
     preHashKey: preHashKey.slice(0, 120),
-    textLength: text.length,
+    textLength: cleanText.length,
     voice,
     mood: options.mood ?? "none",
     model,
@@ -175,7 +183,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
         },
         body: JSON.stringify({
           model,
-          text,
+          text: cleanText,
           stream: false,
           output_format: "hex",
           voice_setting: {
@@ -183,6 +191,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
             speed: prosody.speed,
             vol: 1,
             pitch: prosody.pitch,
+            ...(emotion && { emotion: emotion }),
           },
           audio_setting: {
             sample_rate: 32000,
@@ -220,7 +229,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
 
       // Annotate BEFORE callback returns — span finishes on return
       tracer.llmobs.annotate(span, {
-        inputData: text.slice(0, 200),
+        inputData: cleanText.slice(0, 200),
         outputData: JSON.stringify({
           byteLength: audioBuffer.byteLength,
           model,
@@ -252,7 +261,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
       logEvent("info", "tts.api_call_completed", {
         cacheKey,
         preHashKey: preHashKey.slice(0, 120),
-        textLength: text.length,
+        textLength: cleanText.length,
         voice,
         model,
         byteLength: audioBuffer.byteLength,
@@ -272,7 +281,8 @@ export async function generateMultiVoiceTTS(
   text: string,
   options: Omit<TTSOptions, "voice"> = {}
 ): Promise<TTSResult> {
-  const [mood, cleanText] = extractMood(text);
+  const expandedText = expandPhrases(text);
+  const [mood, cleanText] = extractMood(expandedText);
   const segments = splitVoiceSegments(cleanText);
   const effectiveMood = options.mood ?? mood ?? undefined;
 

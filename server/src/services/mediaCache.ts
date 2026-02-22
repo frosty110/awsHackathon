@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, PutObjectCommand, NoSuchKey } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand, ListObjectsV2Command, NoSuchKey } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
 import tracer from "dd-trace";
 import { config } from "./config.js";
@@ -53,6 +53,33 @@ export async function get(key: string): Promise<Buffer | null> {
       throw err;
     }
   });
+}
+
+/**
+ * List all object keys under a given S3 prefix.
+ * Returns an empty array if the bucket is unconfigured.
+ */
+export async function listKeys(prefix: string): Promise<string[]> {
+  if (!bucket) return [];
+
+  const keys: string[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const response = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      })
+    );
+    for (const obj of response.Contents ?? []) {
+      if (obj.Key) keys.push(obj.Key);
+    }
+    continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  return keys;
 }
 
 /**

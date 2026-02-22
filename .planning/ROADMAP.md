@@ -228,6 +228,11 @@ Plans:
   2. `/api/auth/login` rate-limited to 10 requests/minute per IP (prevents credential stuffing)
   3. `conversationStore` Redis calls wrapped in try/catch — mid-run Redis failure falls back to in-memory instead of 500 errors
   4. JWT verify uses same dev-secret fallback as JWT sign — auth works in development without explicit JWT_SECRET
+**Plans:** 2 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Auth rate limiters (register 3/min, login 10/min per IP) in rateLimiter.ts, wired in app.ts; JWT verify dev-secret fallback in auth.ts
+- [ ] 12-02-PLAN.md — Redis resilience: wrap all 5 conversationStore public methods' Redis branches in try/catch with in-memory fallback
 
 ---
 
@@ -264,5 +269,5 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 9. Scale & Auth | 3/3 | ✅ Complete | 2026-02-21 |
 | 10. S3 Audio Cache | 1/1 | ✅ Complete | 2026-02-21 |
 | 11. Architecture Audit | 6/6 | ✅ Complete | 2026-02-21 |
-| 12. Production Hardening | 0/? | ⬜ Not started | — |
+| 12. Production Hardening | 0/2 | ⬜ Not started | — |
 | 13. Dead Code Cleanup | 0/? | ⬜ Not started | — |

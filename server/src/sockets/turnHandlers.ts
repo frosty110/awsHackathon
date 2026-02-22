@@ -19,6 +19,7 @@ import {
 import { generateMultiVoiceTTS, extractMood } from "../services/tts.js";
 import { buildLoreContext } from "../services/rag.js";
 import { queueBedrockCall } from "../services/bedrockQueue.js";
+import { createMoodStreamDetector } from "../services/moodStreamDetector.js";
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -160,14 +161,18 @@ export async function triggerDMOpening(io: IO, roomCode: string): Promise<void> 
 
   try {
     const history = await getWindowedHistory(room.conversationId);
+    const openingDetector = createMoodStreamDetector(
+      (mood) => io.to(roomCode).emit("dm:mood-change", { mood }),
+      (text) => {
+        dmText += text;
+        room.currentDmText = dmText;
+        io.to(roomCode).emit("dm:chunk", { text });
+      },
+    );
     const result = await queueBedrockCall(() =>
       streamBedrockResponse(
         history,
-        (text: string) => {
-          dmText += text;
-          room.currentDmText = dmText;
-          io.to(roomCode).emit("dm:chunk", { text });
-        },
+        (chunk: string) => openingDetector(chunk),
         { multiplayerPrompt, loreContext }
       )
     );
@@ -247,14 +252,18 @@ export async function triggerDMResponse(io: IO, roomCode: string): Promise<void>
 
   try {
     const history = await getWindowedHistory(room.conversationId);
+    const turnDetector = createMoodStreamDetector(
+      (mood) => io.to(roomCode).emit("dm:mood-change", { mood }),
+      (text) => {
+        dmText += text;
+        room.currentDmText = dmText;
+        io.to(roomCode).emit("dm:chunk", { text });
+      },
+    );
     const result = await queueBedrockCall(() =>
       streamBedrockResponse(
         history,
-        (text: string) => {
-          dmText += text;
-          room.currentDmText = dmText;
-          io.to(roomCode).emit("dm:chunk", { text });
-        },
+        (chunk: string) => turnDetector(chunk),
         { multiplayerPrompt, loreContext }
       )
     );

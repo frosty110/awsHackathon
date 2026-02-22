@@ -9,9 +9,10 @@ import {
 } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage } from "../services/usageTracker.js";
-import { stripTTSTags, extractMood, extractScene } from "../services/tts.js";
+import { stripTTSTags, extractMood, extractScene, expandPhrases } from "../services/tts.js";
 import { buildLoreContext } from "../services/rag.js";
 import { queueBedrockCall, isBedrockQueueOverloaded } from "../services/bedrockQueue.js";
+import { createMoodStreamDetector } from "../services/moodStreamDetector.js";
 
 const router = Router();
 
@@ -90,12 +91,14 @@ router.post("/api/chat", async (req, res) => {
     const loreContext = await buildLoreContext(message);
     const resolvedClass = characterClass || (await getCharacterClass(conversation.id));
     const resolvedPronouns = pronouns || (await getPronouns(conversation.id));
+    const detector = createMoodStreamDetector(
+      (mood) => res.write(`data: ${JSON.stringify({ moodChange: mood })}\n\n`),
+      (text) => res.write(`data: ${JSON.stringify({ text })}\n\n`),
+    );
     const result = await queueBedrockCall(() =>
       streamBedrockResponse(
         bedrockMessages,
-        (chunk) => {
-          res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
-        },
+        (chunk) => detector(chunk),
         { characterClass: resolvedClass, pronouns: resolvedPronouns, loreContext }
       )
     );
@@ -154,7 +157,7 @@ router.post("/api/chat", async (req, res) => {
 
   // Persist assistant response after stream completes (stripped of TTS tags)
   if (fullText) {
-    await appendMessage(conversation.id, { role: "assistant", content: stripTTSTags(fullText) });
+    await appendMessage(conversation.id, { role: "assistant", content: stripTTSTags(expandPhrases(fullText)) });
     logEvent("info", "chat.stream_completed", {
       requestId,
       route: "/api/chat",

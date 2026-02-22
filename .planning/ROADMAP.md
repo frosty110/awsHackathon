@@ -24,7 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 10: S3 Audio Cache Infrastructure**
 - [x] **Phase 11: System Architecture Review**
 - [x] **Phase 12: Production Hardening** — Auth rate limiting, Redis resilience, JWT secret alignment
-- [ ] **Phase 13: Dead Code Cleanup** — Remove dead DI scaffolding, deduplicate stripTTSTags
+- [x] **Phase 13: Dead Code Cleanup** — Remove dead DI scaffolding, deduplicate stripTTSTags
 
 ## Phase Details
 
@@ -249,7 +249,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 13-01-PLAN.md — Delete dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/), replace local stripTTSTags in useMultiplayerRoom.ts with @ai-dm/shared-types import
+- [x] 13-01-PLAN.md — Delete dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/), replace local stripTTSTags in useMultiplayerRoom.ts with @ai-dm/shared-types import
 
 ---
 
@@ -274,4 +274,4 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 10. S3 Audio Cache | 1/1 | ✅ Complete | 2026-02-21 |
 | 11. Architecture Audit | 6/6 | ✅ Complete | 2026-02-21 |
 | 12. Production Hardening | 2/2 | ✅ Complete | 2026-02-21 |
-| 13. Dead Code Cleanup | 0/1 | ⬜ Not started | — |
+| 13. Dead Code Cleanup | 1/1 | ✅ Complete | 2026-02-21 |

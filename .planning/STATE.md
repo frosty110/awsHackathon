@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 13 (Dead Code Cleanup) Plan 01 COMPLETE — 2,237 lines of dead DI scaffolding deleted, stripTTSTags consolidated.
+**Current focus:** Phase 13 (Dead Code Cleanup) COMPLETE — All plans done. Verification passed 4/4.
 
 ## Current Position
 
-Phase: Phase 13 (Dead Code Cleanup) — Plan 01 complete.
-Plan: Phase 13 Plan 01 complete.
-Status: Dead DI architecture scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) deleted from disk. useMultiplayerRoom.ts now imports stripTTSTags from @ai-dm/shared-types (scene tag stripping bug fixed). All 41 server tests pass.
-Last activity: 2026-02-22 — Phase 13 Plan 01 complete.
+Phase: Phase 13 (Dead Code Cleanup) — ALL plans complete (01). Verified.
+Plan: Phase 13 complete.
+Status: Dead DI architecture scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) deleted. stripTTSTags consolidated to @ai-dm/shared-types import. All 41 server tests pass. TypeScript compiles clean.
+Last activity: 2026-02-21 — Phase 13 verified and complete.
 
-Progress: [██████████] 99%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 

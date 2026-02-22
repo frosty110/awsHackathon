@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 12 (Production Hardening) — Plan 02 complete.
+**Current focus:** Phase 12 (Production Hardening) COMPLETE — All 2 plans done. Verification passed 7/7.
 
 ## Current Position
 
-Phase: Phase 12 (Production Hardening) — Plan 02 complete.
-Plan: Phase 12 Plan 02 complete (Redis resilience in conversationStore — try/catch fallback on all 5 public methods).
-Status: conversationStore is fully Redis-resilient; mid-run Redis failures degrade to in-memory instead of 500 errors.
-Last activity: 2026-02-22 — Phase 12 Plan 02 complete (try/catch in all 5 public methods of InMemoryConversationStore).
+Phase: Phase 12 (Production Hardening) — ALL plans complete (01, 02). Verified.
+Plan: Phase 12 complete.
+Status: Auth rate limiting (register 3/min, login 10/min per IP), JWT verify dev-secret fallback, and Redis resilience all in place.
+Last activity: 2026-02-21 — Phase 12 verified and complete.
 
 Progress: [██████████] 98%
 

@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9: Scale & Auth** — Redis session store, user authentication, per-user rate limiting
 - [x] **Phase 10: S3 Audio Cache Infrastructure**
 - [x] **Phase 11: System Architecture Review**
-- [ ] **Phase 12: Production Hardening** — Auth rate limiting, Redis resilience, JWT secret alignment
+- [x] **Phase 12: Production Hardening** — Auth rate limiting, Redis resilience, JWT secret alignment
 - [ ] **Phase 13: Dead Code Cleanup** — Remove dead DI scaffolding, deduplicate stripTTSTags
 
 ## Phase Details
@@ -231,8 +231,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Auth rate limiters (register 3/min, login 10/min per IP) in rateLimiter.ts, wired in app.ts; JWT verify dev-secret fallback in auth.ts
-- [ ] 12-02-PLAN.md — Redis resilience: wrap all 5 conversationStore public methods' Redis branches in try/catch with in-memory fallback
+- [x] 12-01-PLAN.md — Auth rate limiters (register 3/min, login 10/min per IP) in rateLimiter.ts, wired in app.ts; JWT verify dev-secret fallback in auth.ts
+- [x] 12-02-PLAN.md — Redis resilience: wrap all 5 conversationStore public methods' Redis branches in try/catch with in-memory fallback
 
 ---
 
@@ -273,5 +273,5 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 9. Scale & Auth | 3/3 | ✅ Complete | 2026-02-21 |
 | 10. S3 Audio Cache | 1/1 | ✅ Complete | 2026-02-21 |
 | 11. Architecture Audit | 6/6 | ✅ Complete | 2026-02-21 |
-| 12. Production Hardening | 0/2 | ⬜ Not started | — |
+| 12. Production Hardening | 2/2 | ✅ Complete | 2026-02-21 |
 | 13. Dead Code Cleanup | 0/1 | ⬜ Not started | — |

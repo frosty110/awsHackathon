@@ -2,73 +2,29 @@ import { rateLimit } from "express-rate-limit";
 import { logEvent } from "../services/logger.js";
 
 /**
- * rateLimits.ts — per-route rate limiters for the AI DM server.
+ * rateLimits.ts — MemoryStore rate limiter for the music endpoint.
  *
- * Key generation strategy (CLAUDE.md: per-user, not just per-IP):
- *   1. req.body.conversationId — stable per-session identifier available before auth
- *   2. req.ip — fallback for unauthenticated requests without a conversationId
- *   3. "unknown" — last resort to avoid undefined key
+ * Rate limiting architecture in this codebase:
  *
- * Uses MemoryStore (built into express-rate-limit).
- * For Redis-backed persistence across restarts/instances, use rateLimiter.ts which
- * conditionally wires RedisStore when Redis is available.
+ *   rateLimits.ts  (this file)
+ *     - musicLimiter: 20/min, keyed by conversationId or IP
+ *     - Uses MemoryStore (built into express-rate-limit)
+ *     - Music has no auth requirement, so conversationId is the natural key
+ *
+ *   rateLimiter.ts  (Phase 09, Redis-backed)
+ *     - chatRateLimiter:   20/min, keyed by authenticated userId or IP
+ *     - narrateRateLimiter: 10/min, keyed by authenticated userId or IP
+ *     - Conditionally wires RedisStore for persistence across restarts/instances
+ *     - Chat and narrate require authentication, enabling userId-keyed limits
+ *
+ * The two files are intentionally separate: music is unauthenticated (conversationId key,
+ * MemoryStore acceptable); chat/narrate are authenticated (userId key, Redis-backed for
+ * cross-instance consistency at 1000-user scale).
  */
-
-/**
- * chatLimiter — 60 requests per minute per conversation (or IP).
- * Applied to /api/chat.
- */
-export const chatLimiter = rateLimit({
-  windowMs: 60_000,
-  max: 60,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  keyGenerator: (req) =>
-    (req.body as Record<string, unknown>)?.conversationId as string | undefined ??
-    req.ip ??
-    "unknown",
-  handler: (req, res) => {
-    logEvent("warn", "rate_limit.exceeded", {
-      route: req.originalUrl,
-      key:
-        (req.body as Record<string, unknown>)?.conversationId ??
-        req.ip ??
-        "unknown",
-      limiter: "chat",
-    });
-    res.status(429).json({ error: "Rate limit exceeded. Slow down, adventurer." });
-  },
-});
-
-/**
- * narrateLimiter — 10 requests per minute per conversation (or IP).
- * Applied to /api/narrate and /narrate. TTS is expensive — stricter limit.
- */
-export const narrateLimiter = rateLimit({
-  windowMs: 60_000,
-  max: 10,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  keyGenerator: (req) =>
-    (req.body as Record<string, unknown>)?.conversationId as string | undefined ??
-    req.ip ??
-    "unknown",
-  handler: (req, res) => {
-    logEvent("warn", "rate_limit.exceeded", {
-      route: req.originalUrl,
-      key:
-        (req.body as Record<string, unknown>)?.conversationId ??
-        req.ip ??
-        "unknown",
-      limiter: "narrate",
-    });
-    res.status(429).json({ error: "Rate limit exceeded. Slow down, adventurer." });
-  },
-});
 
 /**
  * musicLimiter — 20 requests per minute per conversation (or IP).
- * Applied to /api/music. Music generation is moderately expensive.
+ * Applied to /api/music and /music. Music generation is moderately expensive.
  */
 export const musicLimiter = rateLimit({
   windowMs: 60_000,

@@ -246,6 +246,10 @@ Plans:
   2. No TypeScript compilation errors after deletion (`npx tsc --noEmit`)
   3. All 41 existing server tests still pass
   4. `useMultiplayerRoom.ts` imports `stripTTSTags` from `@ai-dm/shared-types` instead of defining a local copy
+**Plans:** 1 plan
+
+Plans:
+- [ ] 13-01-PLAN.md — Delete dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/), replace local stripTTSTags in useMultiplayerRoom.ts with @ai-dm/shared-types import
 
 ---
 
@@ -270,4 +274,4 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 10. S3 Audio Cache | 1/1 | ✅ Complete | 2026-02-21 |
 | 11. Architecture Audit | 6/6 | ✅ Complete | 2026-02-21 |
 | 12. Production Hardening | 0/2 | ⬜ Not started | — |
-| 13. Dead Code Cleanup | 0/? | ⬜ Not started | — |
+| 13. Dead Code Cleanup | 0/1 | ⬜ Not started | — |

@@ -25,6 +25,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 11: System Architecture Review**
 - [x] **Phase 12: Production Hardening** — Auth rate limiting, Redis resilience, JWT secret alignment
 - [x] **Phase 13: Dead Code Cleanup** — Remove dead DI scaffolding, deduplicate stripTTSTags
+- [ ] **Phase 14: Parallel TTS Processing** — Parallelize multi-voice TTS segment generation for ~5x narration latency reduction
+- [ ] **Phase 15: Client Polling Optimization** — Exponential backoff and initial delays for music/video polling to reduce wasted requests by ~70%
+- [ ] **Phase 16: Generation Observability & Log Hygiene** — Progress logging for long-running generation tasks, dev-mode log noise reduction
 
 ## Phase Details
 
@@ -251,6 +254,56 @@ Plans:
 Plans:
 - [x] 13-01-PLAN.md — Delete dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/), replace local stripTTSTags in useMultiplayerRoom.ts with @ai-dm/shared-types import
 
+### Phase 14: Parallel TTS Processing
+
+**Goal:** Parallelize multi-voice TTS segment generation for ~5x narration latency reduction (from ~15s sequential to ~3s parallel)
+**Depends on:** Phase 13
+**Success Criteria** (what must be TRUE):
+  1. TTS segments are generated concurrently via `Promise.allSettled()` instead of sequential `for`/`await` loop
+  2. Per-segment fallback-to-narrator logic preserved — if a non-narrator voice fails, that segment retries with narrator voice
+  3. Narrator voice failure remains terminal (entire TTS call fails gracefully)
+  4. Total narration generation time for 7 segments drops from ~15s to ~3-4s (bounded by slowest single segment)
+  5. Existing L1/L2 cache behavior unchanged — cached segments still skip API calls
+**Context:** Currently in `server/src/services/tts.ts`, the `generateMultiVoiceTTS` function processes voice segments in a sequential for loop (line ~282). Each segment takes 1-3s for the MiniMax API call, and with 7 segments that's ~15s total. These calls are independent and can be parallelized. The fallback logic (non-narrator failure retries as narrator) must be preserved per-segment within the parallel execution.
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 14 to break down)
+
+### Phase 15: Client Polling Optimization
+
+**Goal:** Replace aggressive fixed-interval polling with exponential backoff, initial delays, and server-side progress signals to reduce wasted requests by ~70%
+**Depends on:** Phase 13
+**Success Criteria** (what must be TRUE):
+  1. Music polling (`/api/music`) uses exponential backoff: 2s -> 4s -> 8s -> 16s -> 30s cap (instead of fixed 4s interval)
+  2. Video polling (`/api/scene-video`) uses exponential backoff: 2s -> 4s -> 8s -> 16s -> 30s cap (instead of fixed 5s interval)
+  3. Initial polling delay added -- music waits 10s before first poll, video waits 15s (matching typical minimum generation times)
+  4. Server 202 responses include `startedAt` timestamp so clients can estimate wait time
+  5. Total polling requests for a typical music generation (~55s) reduced from ~14 to ~6-7
+  6. Total polling requests for a typical video generation (~180s) reduced proportionally
+  7. Existing `MAX_POLLS` and `MAX_RETRIES` safety limits preserved as upper bounds
+**Context:** The client polls `/api/music` every 4s (`client/src/services/backgroundMusic.ts`, `POLL_INTERVAL_MS = 4000`) and `/api/scene-video` every 5s (`client/src/services/sceneVideo.ts`, `POLL_INTERVAL_MS = 5000`) with no backoff. Music generation takes ~55s, producing 14 wasted 202 responses. Video generation takes up to 180s. The server routes (`server/src/routes/music.ts` and `server/src/routes/sceneVideo.ts`) return plain `{ status: "generating" }` with no progress info. The server-side music service (`server/src/services/musicService.ts`) and video generator (`server/src/services/videoGenerator.ts`) track generation start time internally.
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 15 to break down)
+
+### Phase 16: Generation Observability & Log Hygiene
+
+**Goal:** Add progress logging for long-running generation tasks and reduce dev-mode log noise for clearer debugging
+**Depends on:** Phase 13
+**Success Criteria** (what must be TRUE):
+  1. Video generation internal polling logs progress every poll attempt (e.g., "video poll attempt 3/18, status: processing, elapsed: 30s")
+  2. Music generation logs periodic progress during the MiniMax API call (start, 30s mark, completion)
+  3. Config warnings for missing optional services (Redis, JWT) downgraded to debug level or logged only once per startup (not on every request)
+  4. Log output during a typical cold-start + first request is reduced by at least 50% of noise lines
+  5. All new log entries follow existing structured JSON logging format with event/timestamp/level fields
+**Context:** Video generation submits a task to MiniMax (`server/src/services/videoGenerator.ts`) then polls internally every 10 seconds for up to 180 seconds, but logs nothing between task submission and completion/failure. Music generation (`server/src/services/musicService.ts`) similarly has a ~55s API call with no intermediate logging. Config warnings in `server/src/services/config.ts` fire for Redis and JWT on every startup even in dev mode where these are intentionally absent. The `SKIP_NEO4J_CONNECTIVITY_CHECK=1` pattern already exists as a model for optional-service handling.
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 16 to break down)
+
 ---
 
 ## Progress
@@ -275,3 +328,6 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 11. Architecture Audit | 6/6 | ✅ Complete | 2026-02-21 |
 | 12. Production Hardening | 2/2 | ✅ Complete | 2026-02-21 |
 | 13. Dead Code Cleanup | 1/1 | ✅ Complete | 2026-02-21 |
+| 14. Parallel TTS Processing | 0/0 | Not started | - |
+| 15. Client Polling Optimization | 0/0 | Not started | - |
+| 16. Generation Observability & Log Hygiene | 0/0 | Not started | - |

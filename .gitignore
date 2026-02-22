@@ -2,3 +2,8 @@
 .env.local
 node_modules/
 dist/
+
+# Ephemeral/generated artifacts
+*.log
+.playwright-mcp/
+audit-*.png

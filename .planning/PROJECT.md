@@ -12,20 +12,24 @@ A production-quality AI Dungeon Master that serves ~1000 concurrent players with
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] Chat UI with dark fantasy theme where players send messages and receive DM narration
+- [x] AWS Bedrock integration calling Claude with D&D system prompt and full conversation history
+- [x] Dice rolling mechanic (d20) triggered by player action, narrated by the AI
+- [x] Datadog LLM Observability logging every Bedrock call (prompts, responses, tokens, latency)
+- [x] Datadog dashboard showing request latency, token usage, prompt/response traces, error rate
+- [x] Neo4j AuraDB seeded with demo lore (locations, NPCs, items, quests, relationships)
+- [x] RAG pipeline: extract entities from player messages, query Neo4j, inject lore context into prompts
+- [x] Neo4j retrieval traced as custom span in Datadog (full pipeline visibility)
+- [x] MiniMax TTS for DM opening monologue (audio plays on "Start Adventure")
+- [x] 3-turn demo scenario works reliably: tavern scene → barkeep quest → goblin combat + dice roll
+- [x] Multiplayer mode: 2-4 players in shared rooms with turn-based DM narration
+- [x] Multi-voice TTS with per-NPC voice profiles (narrator, barkeep, goblin)
+- [x] Character creation with class selection, pronoun picker, and gender selection
 
 ### Active
 
-- [ ] Chat UI with dark fantasy theme where players send messages and receive DM narration
-- [ ] AWS Bedrock integration calling Claude with D&D system prompt and full conversation history
-- [ ] Dice rolling mechanic (d20) triggered by player action, narrated by the AI
-- [ ] Datadog LLM Observability logging every Bedrock call (prompts, responses, tokens, latency)
-- [ ] Datadog dashboard showing request latency, token usage, prompt/response traces, error rate
-- [ ] Neo4j AuraDB seeded with demo lore (locations, NPCs, items, quests, relationships)
-- [ ] RAG pipeline: extract entities from player messages, query Neo4j, inject lore context into prompts
-- [ ] Neo4j retrieval traced as custom span in Datadog (full pipeline visibility)
-- [ ] MiniMax TTS for DM opening monologue (audio plays on "Start Adventure")
-- [ ] 3-turn demo scenario works reliably: tavern scene → barkeep quest → goblin combat + dice roll
+- [ ] Mood-aware background music with crossfade and TTS ducking (in progress, uncommitted)
+- [ ] RAG lore context wired into multiplayer turn handlers (in progress, uncommitted)
 
 ### Out of Scope
 
@@ -57,14 +61,16 @@ A production-quality AI Dungeon Master that serves ~1000 concurrent players with
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Node.js + Express for backend | Team familiarity, proven at scale | — Pending |
-| React for frontend | Rich UI capabilities, team strength | — Pending |
-| Neo4j AuraDB | Graph-powered lore retrieval, scalable managed service | — Pending |
-| MiniMax TTS | Voice narration for immersive gameplay | — Pending |
-| Single repo for full project | Team coordination, shared configs | — Pending |
-| Dark fantasy theme (parchment gold, blood red) | Fits D&D atmosphere, strong brand identity | — Pending |
-| Redis for session/conversation state | Required for multi-instance deployment at 1000 users | — Pending |
-| User authentication | Required for persistent sessions and per-user rate limiting | — Pending |
+| Node.js + Express for backend | Team familiarity, proven at scale | ✅ Adopted |
+| React for frontend | Rich UI capabilities, team strength | ✅ Adopted |
+| Neo4j AuraDB | Graph-powered lore retrieval, scalable managed service | ✅ Adopted |
+| MiniMax TTS | Voice narration for immersive gameplay | ✅ Adopted — multi-voice with emotion tags |
+| Single repo for full project | Team coordination, shared configs | ✅ Adopted — monorepo with workspaces |
+| Dark fantasy theme (parchment gold, blood red) | Fits D&D atmosphere, strong brand identity | ✅ Adopted — Tailwind v4 CSS-only @theme |
+| `@aws-sdk/client-bedrock-runtime` (not anthropic SDK) | Only SDK dd-trace auto-instruments | ✅ Adopted |
+| Socket.IO for multiplayer | Real-time bidirectional events, connection recovery | ✅ Adopted |
+| Redis for session/conversation state | Required for multi-instance deployment at 1000 users | Deferred to Phase 9 |
+| User authentication | Required for persistent sessions and per-user rate limiting | Deferred to Phase 9 |
 
 ---
-*Last updated: 2026-02-20 after initialization*
+*Last updated: 2026-02-21 — synced with implementation status (phases 1-8 complete, 4 quick tasks shipped)*

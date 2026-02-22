@@ -165,6 +165,9 @@ Recent decisions affecting current work:
 - Phase 8 added: Multiplayer Mode — multiple users play D&D together in real-time
 - Phase 10 added: S3 Audio Cache Infrastructure — Install @aws-sdk/client-s3, config, audioCache.ts service with S3 get/put/key-generation and Datadog tracing
 - Phase 11 added: Investigate system architecture to determine improvements for a more ideal state for future iterations
+- Phase 14 added: Parallel TTS Processing — Parallelize multi-voice TTS segment generation for ~5x narration latency reduction (from ~15s sequential to ~3s parallel)
+- Phase 15 added: Client Polling Optimization — Exponential backoff and initial delays for music/video polling to reduce wasted requests by ~70%
+- Phase 16 added: Generation Observability & Log Hygiene — Progress logging for long-running generation tasks, dev-mode log noise reduction
 
 ### Pending Todos
 

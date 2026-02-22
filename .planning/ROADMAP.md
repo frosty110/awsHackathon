@@ -299,10 +299,10 @@ Plans:
   4. Log output during a typical cold-start + first request is reduced by at least 50% of noise lines
   5. All new log entries follow existing structured JSON logging format with event/timestamp/level fields
 **Context:** Video generation submits a task to MiniMax (`server/src/services/videoGenerator.ts`) then polls internally every 10 seconds for up to 180 seconds, but logs nothing between task submission and completion/failure. Music generation (`server/src/services/musicService.ts`) similarly has a ~55s API call with no intermediate logging. Config warnings in `server/src/services/config.ts` fire for Redis and JWT on every startup even in dev mode where these are intentionally absent. The `SKIP_NEO4J_CONNECTIVITY_CHECK=1` pattern already exists as a model for optional-service handling.
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 16 to break down)
+- [ ] 16-01-PLAN.md — Video/music generation progress logging + dev-mode config warning suppression for Redis/JWT
 
 ---
 
@@ -330,4 +330,4 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 13. Dead Code Cleanup | 1/1 | ✅ Complete | 2026-02-21 |
 | 14. Parallel TTS Processing | 0/1 | Not started | - |
 | 15. Client Polling Optimization | 0/1 | Not started | - |
-| 16. Generation Observability & Log Hygiene | 0/0 | Not started | - |
+| 16. Generation Observability & Log Hygiene | 0/1 | Not started | - |

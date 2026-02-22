@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { socket } from '../services/socket';
 import { playAudio, stopAudio as stopGlobalAudio } from '../services/audioController';
+import { changeMood } from '../services/backgroundMusic';
 import type {
   RoomPhase,
   MultiplayerPlayer,
@@ -9,15 +10,7 @@ import type {
   GenderId,
   RoomState,
 } from '../types/multiplayer';
-
-function stripTTSTags(text: string): string {
-  return text
-    .replace(/^\{\{mood:\w+\}\}\s*/, "")
-    .replace(/\{\{voice:\w+\}\}/g, "")
-    .replace(/\{\{\/voice\}\}/g, "")
-    .replace(/\[(excited|whisper|angry|fearful|sad|shouting)\]\s*/g, "")
-    .trim();
-}
+import { stripTTSTags } from '@ai-dm/shared-types';
 
 export interface DmMessage {
   id: string;
@@ -163,7 +156,7 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       setCurrentStreamText(stripTTSTags(streamTextRef.current));
     }
 
-    function onDmStreamEnd() {
+    function onDmStreamEnd(payload: { fullText: string; mood?: string }) {
       const msgId = streamMessageIdRef.current ?? `dm-${Date.now()}`;
       const completedText = stripTTSTags(streamTextRef.current);
       setDmMessages(prev => [
@@ -174,6 +167,7 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       streamTextRef.current = '';
       streamMessageIdRef.current = null;
       setPhase('playing');
+      if (payload.mood) void changeMood(payload.mood);
     }
 
     function onDmTtsReady(payload: { audio: string }) {

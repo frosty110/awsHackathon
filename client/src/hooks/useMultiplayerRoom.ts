@@ -10,7 +10,7 @@ import type {
   GenderId,
   RoomState,
 } from '../types/multiplayer';
-import { stripTTSTags } from '@ai-dm/shared-types';
+import { stripTTSTags, expandPhrasesForDisplay } from '@ai-dm/shared-types';
 
 export interface DmMessage {
   id: string;
@@ -153,12 +153,16 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
 
     function onDmChunk(payload: { text: string }) {
       streamTextRef.current += payload.text;
-      setCurrentStreamText(stripTTSTags(streamTextRef.current));
+      setCurrentStreamText(stripTTSTags(expandPhrasesForDisplay(streamTextRef.current)));
+    }
+
+    function onDmMoodChange(payload: { mood: string }) {
+      void changeMood(payload.mood);
     }
 
     function onDmStreamEnd(payload: { fullText: string; mood?: string }) {
       const msgId = streamMessageIdRef.current ?? `dm-${Date.now()}`;
-      const completedText = stripTTSTags(streamTextRef.current);
+      const completedText = stripTTSTags(expandPhrasesForDisplay(streamTextRef.current));
       setDmMessages(prev => [
         ...prev,
         { id: msgId, role: 'dm', content: completedText, isStreaming: false },
@@ -255,6 +259,7 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
     socket.on('turn:player-unsubmitted', onTurnPlayerUnsubmitted);
     socket.on('dm:stream-start', onDmStreamStart);
     socket.on('dm:chunk', onDmChunk);
+    socket.on('dm:mood-change', onDmMoodChange);
     socket.on('dm:stream-end', onDmStreamEnd);
     socket.on('dm:tts-ready', onDmTtsReady);
     socket.on('dm:error', onDmError);
@@ -277,6 +282,7 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       socket.off('turn:player-unsubmitted', onTurnPlayerUnsubmitted);
       socket.off('dm:stream-start', onDmStreamStart);
       socket.off('dm:chunk', onDmChunk);
+      socket.off('dm:mood-change', onDmMoodChange);
       socket.off('dm:stream-end', onDmStreamEnd);
       socket.off('dm:tts-ready', onDmTtsReady);
       socket.off('dm:error', onDmError);

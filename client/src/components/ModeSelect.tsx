@@ -1,11 +1,23 @@
+import { useRef } from 'react';
+
 interface ModeSelectProps {
   onSinglePlayer: () => void;
   onMultiplayer: () => void;
+  onFirstInteraction?: () => void;
 }
 
-export function ModeSelect({ onSinglePlayer, onMultiplayer }: ModeSelectProps) {
+export function ModeSelect({ onSinglePlayer, onMultiplayer, onFirstInteraction }: ModeSelectProps) {
+  const fired = useRef(false);
+
+  function handleClick() {
+    if (!fired.current && onFirstInteraction) {
+      fired.current = true;
+      onFirstInteraction();
+    }
+  }
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
+    <div className="flex-1 flex flex-col items-center justify-center px-6 py-8" onClick={handleClick}>
       <h2
         className="font-cinzel font-bold text-3xl tracking-widest mb-2"
         style={{

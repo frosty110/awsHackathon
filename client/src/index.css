@@ -17,11 +17,11 @@
   --color-player-message: #D4B896;
 
   /* Bubble backgrounds — semi-transparent so background bleeds through */
-  --color-dm-bubble: oklch(0.15 0.02 260 / 0.88);
-  --color-player-bubble: oklch(0.20 0.06 28 / 0.88);
+  --color-dm-bubble: oklch(0.15 0.02 260 / 0.60);
+  --color-player-bubble: oklch(0.20 0.06 28 / 0.60);
 
   /* Page surface overlay (sides of centered container) */
-  --color-surface: oklch(0.08 0.01 260 / 0.95);
+  --color-surface: oklch(0.08 0.01 260 / 0.50);
 
   /* Typography */
   --font-cinzel: "Cinzel", serif;

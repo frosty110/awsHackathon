@@ -5,7 +5,8 @@ import type { CharacterClass } from '../components/ClassSelect';
 import { playAudio, stopAudio as stopGlobalAudio } from '../services/audioController';
 import { changeMood } from '../services/backgroundMusic';
 import { changeScene, resetScenes } from '../services/sceneVideo';
-import { MINIMAX_TTS_PER_CHAR, stripTTSTags } from '@ai-dm/shared-types';
+import { pushError } from '../services/errorStore';
+import { MINIMAX_TTS_PER_CHAR, stripTTSTags, expandPhrasesForDisplay } from '@ai-dm/shared-types';
 
 export interface UsageBreakdown {
   bedrockInputTokens: number;
@@ -49,7 +50,7 @@ export function useSSEChat() {
     if (!msg?.audioUrl) return;
     stopGlobalAudio();
     const audio = new Audio(msg.audioUrl);
-    playAudio(audio);
+    playAudio(audio, messageId);
   }, [messages]);
 
   const skip = useCallback(() => {
@@ -132,6 +133,7 @@ export function useSSEChat() {
             text?: string;
             ttsText?: string;
             mood?: string;
+            moodChange?: string;
             scene?: string;
             error?: string;
             requestId?: string;
@@ -162,6 +164,8 @@ export function useSSEChat() {
             }));
           }
 
+          if (data.moodChange) void changeMood(data.moodChange);
+
           if (data.ttsText) ttsText = data.ttsText;
           if (data.mood) mood = data.mood;
           if (data.scene) scene = data.scene;
@@ -191,7 +195,7 @@ export function useSSEChat() {
 
     // Aborted mid-stream: show whatever arrived (if anything), no TTS
     if (wasAborted) {
-      if (fullContent) setMessages(prev => [...prev, { id: dmId, role: 'dm', content: stripTTSTags(fullContent) }]);
+      if (fullContent) setMessages(prev => [...prev, { id: dmId, role: 'dm', content: stripTTSTags(expandPhrasesForDisplay(fullContent)) }]);
       if (generation === generationRef.current) setIsLoading(false);
       return;
     }
@@ -234,18 +238,20 @@ export function useSSEChat() {
         const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
         const audioUrl = URL.createObjectURL(blob);
         audioUrlsRef.current.push(audioUrl);
-        setMessages(prev => [...prev, { id: dmId, role: 'dm', content: stripTTSTags(fullContent), audioUrl }]);
+        setMessages(prev => [...prev, { id: dmId, role: 'dm', content: stripTTSTags(expandPhrasesForDisplay(fullContent)), audioUrl }]);
         if (generation === generationRef.current) setIsLoading(false);
         const audio = new Audio(audioUrl);
-        playAudio(audio);
+        playAudio(audio, dmId);
         return;
+      } else if (!ttsRes.ok) {
+        pushError("Voice", `Narration failed (HTTP ${ttsRes.status})`);
       }
     } catch {
-      // TTS failed — fall through to show text without audio
+      pushError("Voice", "Network error during narration");
     }
 
     // TTS unavailable: reveal text without audio
-    setMessages(prev => [...prev, { id: dmId, role: 'dm', content: stripTTSTags(fullContent) }]);
+    setMessages(prev => [...prev, { id: dmId, role: 'dm', content: stripTTSTags(expandPhrasesForDisplay(fullContent)) }]);
     if (generation === generationRef.current) setIsLoading(false);
   }, []);
 

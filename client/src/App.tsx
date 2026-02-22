@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useSSEChat } from './hooks/useSSEChat';
-import { startBackgroundMusic } from './services/backgroundMusic';
+import { startBackgroundMusic, startRandomMusic, stopBackgroundMusic } from './services/backgroundMusic';
 import { SceneBackground } from './components/SceneBackground';
 import { AudioControls } from './components/AudioControls';
 import { AudioPlayer, type NarrateResult } from './components/AudioPlayer';
@@ -9,6 +9,7 @@ import { MessageInput } from './components/MessageInput';
 import { DiceRoller } from './components/DiceRoller';
 import { ClassSelect, type CharacterClass } from './components/ClassSelect';
 import { CostTooltip } from './components/CostTooltip';
+import { ErrorNotification } from './components/ErrorNotification';
 import { ModeSelect } from './components/ModeSelect';
 import { MultiplayerLobby } from './components/MultiplayerLobby';
 import { MultiplayerGame } from './components/MultiplayerGame';
@@ -26,7 +27,6 @@ export default function App() {
   // ----- Single-player handlers -----
 
   function handleSinglePlayer() {
-    startBackgroundMusic("tavern");
     setAppState('idle');
   }
 
@@ -44,6 +44,7 @@ export default function App() {
 
   function handleReset() {
     reset();
+    stopBackgroundMusic();
     selectedClass.current = null;
     selectedPronouns.current = 'They/Them';
     setMultiplayerRoomCode(null);
@@ -57,7 +58,6 @@ export default function App() {
   // ----- Multiplayer handlers -----
 
   function handleMultiplayer() {
-    startBackgroundMusic("tavern");
     setAppState('multiplayerLobby');
   }
 
@@ -74,6 +74,7 @@ export default function App() {
 
   function handleMultiplayerLeave() {
     socket.disconnect();
+    stopBackgroundMusic();
     setMultiplayerRoomCode(null);
     setAppState('modeSelect');
   }
@@ -87,8 +88,8 @@ export default function App() {
       {/* Dynamic scene video background — crossfades on scene changes */}
       <SceneBackground />
 
-      {/* Dark overlay for readability */}
-      <div className="absolute inset-0 bg-black/60" />
+      {/* Subtle overlay for text readability */}
+      <div className="absolute inset-0 bg-black/20" />
 
       {/* App container */}
       <div className="relative w-full max-w-3xl h-screen flex flex-col bg-surface border-x border-blood/30">
@@ -106,6 +107,7 @@ export default function App() {
           </span>
           <div className="flex items-center gap-4">
             <AudioControls />
+            <ErrorNotification />
             {appState === 'adventure' && sessionCost > 0 && (
               <CostTooltip breakdown={usageBreakdown} />
             )}
@@ -126,7 +128,7 @@ export default function App() {
         {/* Main area */}
         <main className="flex-1 flex flex-col overflow-hidden">
           {appState === 'modeSelect' ? (
-            <ModeSelect onSinglePlayer={handleSinglePlayer} onMultiplayer={handleMultiplayer} />
+            <ModeSelect onSinglePlayer={handleSinglePlayer} onMultiplayer={handleMultiplayer} onFirstInteraction={startRandomMusic} />
           ) : appState === 'idle' ? (
             <ClassSelect onSelect={handleClassSelected} />
           ) : appState === 'classSelect' ? (

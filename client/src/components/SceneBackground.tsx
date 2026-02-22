@@ -1,7 +1,56 @@
-import { useState, useRef, useCallback, useSyncExternalStore } from 'react';
+import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from 'react';
 import { subscribe, getCurrentVideoUrl } from '../services/sceneVideo';
 
 const CROSSFADE_MS = 600;
+
+/**
+ * Ping-pong loop: plays the video forward natively, then on `ended`
+ * reverses via requestAnimationFrame seeking at 1× speed.
+ * When currentTime reaches 0 it calls play() again — seamless infinite loop.
+ */
+function usePingPong(
+  videoRef: React.RefObject<HTMLVideoElement | null>,
+  dep: unknown,
+) {
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let rafId = 0;
+    let lastTs = 0;
+
+    const stepBackward = (ts: number) => {
+      const v = videoRef.current;
+      if (!v) return;
+
+      if (lastTs > 0) {
+        const dt = (ts - lastTs) / 1000;
+        const next = v.currentTime - dt;
+        if (next <= 0) {
+          v.currentTime = 0;
+          void v.play();
+          return;
+        }
+        v.currentTime = next;
+      }
+
+      lastTs = ts;
+      rafId = requestAnimationFrame(stepBackward);
+    };
+
+    const onEnded = () => {
+      lastTs = 0;
+      rafId = requestAnimationFrame(stepBackward);
+    };
+
+    video.addEventListener('ended', onEnded);
+
+    return () => {
+      video.removeEventListener('ended', onEnded);
+      cancelAnimationFrame(rafId);
+    };
+  }, [videoRef, dep]);
+}
 
 export function SceneBackground() {
   const videoUrl = useSyncExternalStore(subscribe, getCurrentVideoUrl);
@@ -21,6 +70,10 @@ export function SceneBackground() {
     }
   }
 
+  // Ping-pong loop for both active and incoming videos
+  usePingPong(activeRef, activeUrl);
+  usePingPong(incomingRef, incomingUrl);
+
   const handleIncomingCanPlay = useCallback(() => {
     setIncomingReady(true);
     // After crossfade duration, promote incoming to active
@@ -38,7 +91,6 @@ export function SceneBackground() {
         ref={activeRef}
         key={activeUrl}
         autoPlay
-        loop
         muted
         playsInline
         aria-hidden="true"
@@ -57,7 +109,6 @@ export function SceneBackground() {
           ref={incomingRef}
           key={incomingUrl}
           autoPlay
-          loop
           muted
           playsInline
           aria-hidden="true"

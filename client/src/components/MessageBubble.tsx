@@ -1,14 +1,8 @@
+import { useSyncExternalStore } from 'react';
 import Markdown from 'react-markdown';
 import type { Message } from '../types/chat';
-
-function stripTTSTags(text: string): string {
-  return text
-    .replace(/^\{\{mood:\w+\}\}\s*/, "")
-    .replace(/\{\{voice:\w+\}\}/g, "")
-    .replace(/\{\{\/voice\}\}/g, "")
-    .replace(/\[(excited|whisper|angry|fearful|sad|shouting)\]\s*/g, "")
-    .trim();
-}
+import { getPlayingMessageId, subscribe } from '../services/audioController';
+import { stripTTSTags, expandPhrasesForDisplay } from '@ai-dm/shared-types';
 
 interface MessageBubbleProps {
   message: Message;
@@ -26,38 +20,44 @@ function getOutcomeBracket(value: number) {
 
 export function MessageBubble({ message, onStopAudio, onReplayAudio }: MessageBubbleProps) {
   const { role, content } = message;
+  const playingId = useSyncExternalStore(subscribe, getPlayingMessageId);
+  const isPlaying = playingId === message.id;
 
   if (role === 'dm') {
-    const cleanContent = stripTTSTags(content);
+    const cleanContent = stripTTSTags(expandPhrasesForDisplay(content));
     return (
       <div className="flex justify-start mb-3 group">
         <div className="dm-prose text-lg relative max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble font-fell leading-[1.8] text-[color:var(--color-dm-message)] text-[1.05rem]">
           <Markdown>{cleanContent}</Markdown>
-          <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {message.audioUrl && (
-              <button
-                onClick={() => onReplayAudio(message.id)}
-                title="Replay audio"
-                className="w-5 h-5 rounded-full bg-dm-gold/80 text-surface hover:bg-dm-gold flex items-center justify-center text-[10px]"
-              >
-                ▶
-              </button>
-            )}
-            <button
-              onClick={onStopAudio}
-              title="Stop audio"
-              className="w-5 h-5 rounded-full bg-blood/80 text-parchment/70 hover:text-parchment hover:bg-blood flex items-center justify-center text-[10px]"
-            >
-              ■
-            </button>
-          </div>
+          {message.audioUrl && (
+            <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              {isPlaying ? (
+                <button
+                  onClick={onStopAudio}
+                  title="Stop audio"
+                  className="w-5 h-5 rounded-full bg-blood/80 text-parchment/70 hover:text-parchment hover:bg-blood flex items-center justify-center text-[10px]"
+                >
+                  ■
+                </button>
+              ) : (
+                <button
+                  onClick={() => onReplayAudio(message.id)}
+                  title="Play audio"
+                  className="w-5 h-5 rounded-full bg-dm-gold/80 text-surface hover:bg-dm-gold flex items-center justify-center text-[10px]"
+                >
+                  ▶
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
   if (role === 'dice') {
-    const value = parseInt(content.replace('🎲', '').trim(), 10) || 0;
+    const numMatch = content.match(/(\d+)/);
+    const value = numMatch ? parseInt(numMatch[1], 10) : 0;
     const bracket = getOutcomeBracket(value);
 
     return (

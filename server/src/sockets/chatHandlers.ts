@@ -5,8 +5,9 @@ import { sanitizeUserInput } from "../services/inputSanitizer.js";
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 
-// Allowed emoji reaction identifiers (D&D-themed set)
-const ALLOWED_EMOJIS = new Set(["thumbs_up", "skull", "fire", "swords", "sparkles", "laugh"]);
+// Allowed emoji reaction characters — must match values sent by client/src/components/PlayerChat.tsx
+// "⚔️" is U+2694 + U+FE0F (crossed swords + variation selector-16)
+const ALLOWED_EMOJIS = new Set(["👍", "💀", "🔥", "\u2694\uFE0F", "✨", "😂"]);
 
 /**
  * Register player-to-player chat and dice roll socket event handlers.
@@ -59,6 +60,7 @@ export function registerChatHandlers(io: IO, socket: TypedSocket): void {
 
   // ─── dice:roll ────────────────────────────────────────────────────────────
   socket.on("dice:roll", ({ result }) => {
+    if (typeof result !== "number" || !Number.isInteger(result) || result < 1 || result > 20) return;
     const roomCode = socket.data.roomCode;
     if (!roomCode) return;
 

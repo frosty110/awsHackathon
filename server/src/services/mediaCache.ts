@@ -40,7 +40,11 @@ export async function get(key: string): Promise<Buffer | null> {
       const response = await s3.send(
         new GetObjectCommand({ Bucket: bucket, Key: key })
       );
-      const bytes = await response.Body!.transformToByteArray();
+      if (!response.Body) {
+        span?.setTag("cache.result", "miss");
+        return null;
+      }
+      const bytes = await response.Body.transformToByteArray();
       span?.setTag("cache.result", "hit");
       span?.setTag("cache.bytes", bytes.byteLength);
       return Buffer.from(bytes);

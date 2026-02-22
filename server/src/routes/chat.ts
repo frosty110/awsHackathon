@@ -175,7 +175,11 @@ router.post("/api/chat", async (req, res) => {
 
   // Persist assistant response after stream completes (stripped of TTS tags)
   if (fullText) {
-    await appendMessage(conversation.id, { role: "assistant", content: stripTTSTags(expandPhrases(fullText)) });
+    try {
+      await appendMessage(conversation.id, { role: "assistant", content: stripTTSTags(expandPhrases(fullText)) });
+    } catch (err) {
+      logEvent("error", "chat.persist_assistant_failed", { conversationId: conversation.id }, err);
+    }
     logEvent("info", "chat.stream_completed", {
       requestId,
       route: "/api/chat",

@@ -266,7 +266,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
 
 /**
  * Generate TTS for text that may contain multiple character voice segments.
- * Generates audio for each segment sequentially and concatenates the buffers.
+ * Generates audio for each segment concurrently via Promise.allSettled.
  */
 export async function generateMultiVoiceTTS(
   text: string,
@@ -276,38 +276,53 @@ export async function generateMultiVoiceTTS(
   const segments = splitVoiceSegments(cleanText);
   const effectiveMood = options.mood ?? mood ?? undefined;
 
+  const startMs = Date.now();
+
+  // Fan-out: each segment runs concurrently with self-contained fallback
+  const settled = await Promise.allSettled(
+    segments.map(async (segment) => {
+      try {
+        return await generateTTS(segment.text, {
+          ...options,
+          mood: effectiveMood,
+          voice: segment.voice,
+        });
+      } catch (err) {
+        if (segment.voice !== "narrator") {
+          logEvent("warn", "tts.voice_fallback", {
+            failedVoice: segment.voice,
+            voiceId: VOICE_MAP[segment.voice],
+            error: String(err),
+          });
+          return await generateTTS(segment.text, {
+            ...options,
+            mood: effectiveMood,
+            voice: "narrator",
+          });
+        }
+        throw err; // narrator failure propagates to allSettled as rejected
+      }
+    })
+  );
+
+  // Collect results in original segment order; rethrow first narrator failure
   const buffers: Buffer[] = [];
   let totalDuration = 0;
 
-  for (const segment of segments) {
-    try {
-      const result = await generateTTS(segment.text, {
-        ...options,
-        mood: effectiveMood,
-        voice: segment.voice,
-      });
-      buffers.push(result.audioBuffer);
-      totalDuration += result.durationMs;
-    } catch (err) {
-      // If a non-narrator voice fails, retry with narrator as fallback
-      if (segment.voice !== "narrator") {
-        logEvent("warn", "tts.voice_fallback", {
-          failedVoice: segment.voice,
-          voiceId: VOICE_MAP[segment.voice],
-          error: String(err),
-        });
-        const fallback = await generateTTS(segment.text, {
-          ...options,
-          mood: effectiveMood,
-          voice: "narrator",
-        });
-        buffers.push(fallback.audioBuffer);
-        totalDuration += fallback.durationMs;
-      } else {
-        throw err; // narrator voice failing is unrecoverable
-      }
+  for (const result of settled) {
+    if (result.status === "rejected") {
+      throw result.reason;
     }
+    buffers.push(result.value.audioBuffer);
+    totalDuration += result.value.durationMs;
   }
+
+  logEvent("info", "tts.multi_voice_completed", {
+    segmentCount: segments.length,
+    durationMs: Date.now() - startMs,
+    totalAudioDurationMs: totalDuration,
+    parallelism: true,
+  });
 
   return {
     audioBuffer: Buffer.concat(buffers),

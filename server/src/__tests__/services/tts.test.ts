@@ -131,29 +131,26 @@ describe('generateMultiVoiceTTS', () => {
   });
 
   it('falls back to narrator when non-narrator voice fails', async () => {
-    const text = '{{voice:barkeep}}Hey there{{/voice}} end text';
+    // Single barkeep segment — clean isolation: only one concurrent fetch at a time here
+    const text = '{{voice:barkeep}}Hey there{{/voice}}';
 
     // First call (barkeep voice): reject
-    // Second call (narrator fallback for barkeep segment): succeed
-    // Third call (narrator for "end text" segment): succeed
+    // Second call (narrator fallback): succeed
     const mockFetch = vi.fn()
       .mockRejectedValueOnce(new Error('barkeep voice unavailable'))
-      .mockResolvedValueOnce(makeMiniMaxResponse(segmentHex('barkeep-fallback'), 1000))
-      .mockResolvedValueOnce(makeMiniMaxResponse(segmentHex('narrator-end'), 800));
+      .mockResolvedValueOnce(makeMiniMaxResponse(segmentHex('barkeep-fallback'), 1000));
 
     vi.stubGlobal('fetch', mockFetch);
 
     const result = await generateMultiVoiceTTS(text);
 
-    // 2 segments, 1 failed (barkeep) + 1 fallback retry = 3 total calls
-    expect(mockFetch).toHaveBeenCalledTimes(3);
+    // 1 segment: 1 failed attempt + 1 fallback = 2 total calls
+    expect(mockFetch).toHaveBeenCalledTimes(2);
 
-    // Result still has both audio buffers
-    const expectedBuffer = Buffer.concat([
-      Buffer.from(segmentHex('barkeep-fallback'), 'hex'),
-      Buffer.from(segmentHex('narrator-end'), 'hex'),
-    ]);
+    // Result contains the fallback audio buffer
+    const expectedBuffer = Buffer.from(segmentHex('barkeep-fallback'), 'hex');
     expect(result.audioBuffer).toEqual(expectedBuffer);
+    expect(result.durationMs).toBe(1000);
   });
 
   it('throws when narrator voice fails', async () => {

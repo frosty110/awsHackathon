@@ -1,5 +1,5 @@
 /** Scene mood tags embedded in DM responses for music selection. */
-export type SceneMood = "combat" | "tavern" | "mystery" | "dramatic" | "danger";
+export type SceneMood = "combat" | "exploration" | "tavern" | "mystery" | "dramatic" | "danger";
 
 /** Scene video identifiers for background video selection. */
 export type SceneId =
@@ -21,7 +21,16 @@ export const VALID_SCENES: SceneId[] = [
 ];
 
 /** All valid scene moods. */
-export const VALID_MOODS: SceneMood[] = ["combat", "tavern", "mystery", "dramatic", "danger"];
+export const VALID_MOODS: SceneMood[] = ["combat", "exploration", "tavern", "mystery", "dramatic", "danger"];
 
 /** Character voice identifiers for multi-voice TTS. */
 export type CharacterVoice = "narrator" | "barkeep" | "goblin";
+
+/**
+ * MiniMax voice_setting.emotion values.
+ * Bedrock outputs these directly via {{emotion:TAG}} — no mapping needed.
+ * speech-2.8 models support all except "whisper".
+ */
+export type MiniMaxEmotion = "happy" | "sad" | "angry" | "fearful" | "surprised" | "calm";
+
+export const VALID_EMOTIONS: MiniMaxEmotion[] = ["happy", "sad", "angry", "fearful", "surprised", "calm"];

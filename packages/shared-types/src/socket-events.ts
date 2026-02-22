@@ -18,6 +18,7 @@ export interface ServerToClientEvents {
   "dm:stream-start": () => void;
   "dm:chunk": (data: { text: string }) => void;
   "dm:stream-end": (data: { fullText: string; mood?: string }) => void;
+  "dm:mood-change": (data: { mood: string }) => void;
   "dm:tts-ready": (data: { audio: string }) => void;
   "dm:error": (data: { message: string }) => void;
   "chat:message": (data: ChatMessagePayload) => void;

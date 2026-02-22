@@ -13,8 +13,12 @@ export type {
 export type { CharacterClassId, GenderId } from "./player.js";
 
 // TTS & scene types
-export type { SceneMood, SceneId, CharacterVoice } from "./tts.js";
-export { VALID_SCENES, VALID_MOODS } from "./tts.js";
+export type { SceneMood, SceneId, CharacterVoice, MiniMaxEmotion } from "./tts.js";
+export { VALID_SCENES, VALID_MOODS, VALID_EMOTIONS } from "./tts.js";
+
+// Phrase bank types & data
+export type { Phrase, TTSModel } from "./phrases.js";
+export { PHRASE_BANK, PHRASE_MAP } from "./phrases.js";
 
 // Socket event interfaces
 export type {
@@ -37,6 +41,10 @@ export {
 export {
   extractMood,
   extractScene,
+  extractEmotion,
   splitVoiceSegments,
   stripTTSTags,
+  sanitizeForTTS,
+  expandPhrases,
+  expandPhrasesForDisplay,
 } from "./text-utils.js";

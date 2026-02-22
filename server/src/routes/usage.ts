@@ -3,6 +3,7 @@ import { getGlobalUsage, getConversationUsage } from "../services/usageTracker.j
 import { getTTSCacheStats } from "../services/tts.js";
 import { getLoreCacheStats } from "../services/rag.js";
 import { getMusicCacheStats } from "../routes/music.js";
+import { getSceneVideoStats } from "../services/videoGenerator.js";
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.get("/api/usage", (req, res) => {
     tts: getTTSCacheStats(),
     lore: getLoreCacheStats(),
     music: getMusicCacheStats(),
+    video: getSceneVideoStats(),
   };
   res.json({ global, conversation, caches });
 });

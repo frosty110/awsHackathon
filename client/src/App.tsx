@@ -1,12 +1,14 @@
 import { useState, useRef } from 'react';
 import { useSSEChat } from './hooks/useSSEChat';
 import { startBackgroundMusic } from './services/backgroundMusic';
+import { SceneBackground } from './components/SceneBackground';
 import { AudioControls } from './components/AudioControls';
 import { AudioPlayer, type NarrateResult } from './components/AudioPlayer';
 import { ChatWindow } from './components/ChatWindow';
 import { MessageInput } from './components/MessageInput';
 import { DiceRoller } from './components/DiceRoller';
 import { ClassSelect, type CharacterClass } from './components/ClassSelect';
+import { CostTooltip } from './components/CostTooltip';
 import { ModeSelect } from './components/ModeSelect';
 import { MultiplayerLobby } from './components/MultiplayerLobby';
 import { MultiplayerGame } from './components/MultiplayerGame';
@@ -19,11 +21,12 @@ export default function App() {
   const [multiplayerRoomCode, setMultiplayerRoomCode] = useState<string | null>(null);
   const selectedClass = useRef<CharacterClass | null>(null);
   const selectedPronouns = useRef<string>('They/Them');
-  const { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, sessionCost } = useSSEChat();
+  const { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, replayMessageAudio, sessionCost, usageBreakdown } = useSSEChat();
 
   // ----- Single-player handlers -----
 
   function handleSinglePlayer() {
+    startBackgroundMusic("tavern");
     setAppState('idle');
   }
 
@@ -36,7 +39,7 @@ export default function App() {
   function handleStart(narration?: NarrateResult) {
     setAppState('adventure');
     void startAdventure(narration, selectedClass.current ?? undefined, selectedPronouns.current);
-    startBackgroundMusic();
+    startBackgroundMusic("tavern");
   }
 
   function handleReset() {
@@ -54,12 +57,14 @@ export default function App() {
   // ----- Multiplayer handlers -----
 
   function handleMultiplayer() {
+    startBackgroundMusic("tavern");
     setAppState('multiplayerLobby');
   }
 
   function handleMultiplayerGameStart(roomState: RoomState) {
     setMultiplayerRoomCode(roomState.code);
     setAppState('multiplayerGame');
+    startBackgroundMusic("tavern");
   }
 
   function handleMultiplayerBack() {
@@ -79,16 +84,8 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center">
-      {/* Looping video background — persists across all states */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-      >
-        <source src="/hero-bg.webm" type="video/webm" />
-      </video>
+      {/* Dynamic scene video background — crossfades on scene changes */}
+      <SceneBackground />
 
       {/* Dark overlay for readability */}
       <div className="absolute inset-0 bg-black/60" />
@@ -110,11 +107,9 @@ export default function App() {
           <div className="flex items-center gap-4">
             <AudioControls />
             {appState === 'adventure' && sessionCost > 0 && (
-              <span className="font-mono text-sm text-dm-gold/70">
-                ${sessionCost.toFixed(4)}
-              </span>
+              <CostTooltip breakdown={usageBreakdown} />
             )}
-            <span className="font-sans text-sm text-parchment/50">
+            <span className="font-sans text-sm text-parchment/60">
               Powered by AWS Bedrock
             </span>
             {showReset && (
@@ -136,21 +131,21 @@ export default function App() {
             <ClassSelect onSelect={handleClassSelected} />
           ) : appState === 'classSelect' ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
-              <p className="font-fell text-parchment/60 text-sm">
+              <p className="font-fell text-parchment/60 text-xl">
                 Playing as <span className="text-dm-gold font-cinzel font-semibold">{selectedClass.current?.icon} {selectedClass.current?.name}</span>
-                <span className="text-parchment/40"> ({selectedPronouns.current})</span>
+                <span className="text-parchment/60"> ({selectedPronouns.current})</span>
               </p>
               <AudioPlayer onAdventureStart={handleStart} characterClass={selectedClass.current?.name} pronouns={selectedPronouns.current} />
             </div>
           ) : appState === 'adventure' ? (
             <>
-              <ChatWindow messages={messages} isLoading={isLoading} onStopAudio={stopAudio} />
+              <ChatWindow messages={messages} isLoading={isLoading} onStopAudio={stopAudio} onReplayAudio={replayMessageAudio} />
               <div className="border-t border-blood/30">
                 {isLoading && (
                   <div className="flex justify-center pt-2">
                     <button
                       onClick={skip}
-                      className="font-cinzel text-xs text-parchment/50 hover:text-parchment border border-parchment/20 hover:border-parchment/50 px-4 py-1 rounded transition-colors"
+                      className="font-cinzel text-xs text-parchment/60 hover:text-parchment border border-parchment/30 hover:border-parchment/60 px-4 py-1 rounded transition-colors"
                     >
                       Skip ▶▶
                     </button>

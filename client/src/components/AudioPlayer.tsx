@@ -4,6 +4,7 @@ import { playAudio } from '../services/audioController';
 export interface NarrateResult {
   text: string;
   conversationId: string;
+  audioUrl?: string;
 }
 
 interface AudioPlayerProps {
@@ -13,10 +14,12 @@ interface AudioPlayerProps {
 }
 
 export function AudioPlayer({ onAdventureStart, characterClass, pronouns }: AudioPlayerProps) {
-  const [status, setStatus] = useState<'idle' | 'loading' | 'playing'>('idle');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'playing' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
 
   async function handleStartAdventure() {
-    if (status !== 'idle') return;
+    if (status === 'loading' || status === 'playing') return;
+    setErrorMsg('');
 
     setStatus('loading');
 
@@ -74,14 +77,19 @@ export function AudioPlayer({ onAdventureStart, characterClass, pronouns }: Audi
       const blob = new Blob([bytes], { type: 'audio/mpeg' });
       const objectUrl = URL.createObjectURL(blob);
       const audio = new Audio(objectUrl);
-      audio.addEventListener('ended', () => URL.revokeObjectURL(objectUrl));
 
       setStatus('playing');
-      onAdventureStart({ text: data.text, conversationId: data.conversationId });
+      onAdventureStart({ text: data.text, conversationId: data.conversationId, audioUrl: objectUrl });
 
       playAudio(audio);
     } catch (error) {
       console.error('[AudioPlayer] narrate fetch failed:', error);
+      if (error instanceof TypeError) {
+        // Server unreachable (ECONNREFUSED, socket hang up) — chat will also fail
+        setStatus('error');
+        setErrorMsg('Unable to reach the server. Please try again.');
+        return;
+      }
       setStatus('idle');
       // Graceful degradation: start adventure without narration
       onAdventureStart();
@@ -89,12 +97,21 @@ export function AudioPlayer({ onAdventureStart, characterClass, pronouns }: Audi
   }
 
   return (
-    <button
-      onClick={handleStartAdventure}
-      disabled={status === 'loading'}
-      className="font-cinzel text-xl text-parchment px-8 py-4 border border-blood bg-blood/20 hover:bg-blood/40 tracking-widest disabled:opacity-60 disabled:cursor-not-allowed"
-    >
-      {status === 'loading' ? 'The Dungeon Master is speaking...' : 'Enter the Realm'}
-    </button>
+    <div className="flex flex-col items-center gap-3">
+      <button
+        onClick={handleStartAdventure}
+        disabled={status === 'loading'}
+        className="font-cinzel text-xl text-parchment px-8 py-4 border border-blood bg-blood/20 hover:bg-blood/40 tracking-widest disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        {status === 'loading'
+          ? 'The Dungeon Master is speaking...'
+          : status === 'error'
+            ? 'Try Again'
+            : 'Enter the Realm'}
+      </button>
+      {errorMsg && (
+        <p className="font-fell text-sm text-blood-light">{errorMsg}</p>
+      )}
+    </div>
   );
 }

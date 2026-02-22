@@ -13,6 +13,7 @@ function stripTTSTags(text: string): string {
 interface MessageBubbleProps {
   message: Message;
   onStopAudio: () => void;
+  onReplayAudio: (messageId: string) => void;
 }
 
 function getOutcomeBracket(value: number) {
@@ -23,7 +24,7 @@ function getOutcomeBracket(value: number) {
   return { label: 'Natural 20!', bg: 'bg-yellow-700/70', border: 'border-yellow-400', text: 'text-yellow-300' };
 }
 
-export function MessageBubble({ message, onStopAudio }: MessageBubbleProps) {
+export function MessageBubble({ message, onStopAudio, onReplayAudio }: MessageBubbleProps) {
   const { role, content } = message;
 
   if (role === 'dm') {
@@ -32,13 +33,24 @@ export function MessageBubble({ message, onStopAudio }: MessageBubbleProps) {
       <div className="flex justify-start mb-3 group">
         <div className="dm-prose text-lg relative max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble font-fell leading-[1.8] text-[color:var(--color-dm-message)] text-[1.05rem]">
           <Markdown>{cleanContent}</Markdown>
-          <button
-            onClick={onStopAudio}
-            title="Stop audio"
-            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-blood/80 text-parchment/70 hover:text-parchment hover:bg-blood flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"
-          >
-            ■
-          </button>
+          <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {message.audioUrl && (
+              <button
+                onClick={() => onReplayAudio(message.id)}
+                title="Replay audio"
+                className="w-5 h-5 rounded-full bg-dm-gold/80 text-surface hover:bg-dm-gold flex items-center justify-center text-[10px]"
+              >
+                ▶
+              </button>
+            )}
+            <button
+              onClick={onStopAudio}
+              title="Stop audio"
+              className="w-5 h-5 rounded-full bg-blood/80 text-parchment/70 hover:text-parchment hover:bg-blood flex items-center justify-center text-[10px]"
+            >
+              ■
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -71,7 +83,7 @@ export function MessageBubble({ message, onStopAudio }: MessageBubbleProps) {
           <span className={`font-cinzel text-sm tracking-wider ${bracket.text}`}>
             {bracket.label}
           </span>
-          <span className="text-parchment/40 text-xs font-sans">d20</span>
+          <span className="text-parchment/60 text-xs font-sans">d20</span>
         </div>
       </div>
     );

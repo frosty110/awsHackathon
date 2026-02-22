@@ -2,16 +2,26 @@ import { useState, useCallback, useRef } from 'react';
 import type { Message } from '../types/chat';
 import type { NarrateResult } from '../components/AudioPlayer';
 import type { CharacterClass } from '../components/ClassSelect';
-import { playFromResponse, stopAudio as stopGlobalAudio } from '../services/audioController';
+import { playAudio, stopAudio as stopGlobalAudio } from '../services/audioController';
+import { changeMood } from '../services/backgroundMusic';
+import { changeScene, resetScenes } from '../services/sceneVideo';
+import { MINIMAX_TTS_PER_CHAR, stripTTSTags } from '@ai-dm/shared-types';
 
-function stripTTSTags(text: string): string {
-  return text
-    .replace(/^\{\{mood:\w+\}\}\s*/, "")
-    .replace(/\{\{voice:\w+\}\}/g, "")
-    .replace(/\{\{\/voice\}\}/g, "")
-    .replace(/\[(excited|whisper|angry|fearful|sad|shouting)\]\s*/g, "")
-    .trim();
+export interface UsageBreakdown {
+  bedrockInputTokens: number;
+  bedrockOutputTokens: number;
+  bedrockCost: number;
+  ttsCharacters: number;
+  ttsCost: number;
 }
+
+const EMPTY_BREAKDOWN: UsageBreakdown = {
+  bedrockInputTokens: 0,
+  bedrockOutputTokens: 0,
+  bedrockCost: 0,
+  ttsCharacters: 0,
+  ttsCost: 0,
+};
 
 function buildUserVisibleError(message: string, requestId?: string) {
   return requestId
@@ -22,16 +32,25 @@ function buildUserVisibleError(message: string, requestId?: string) {
 export function useSSEChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionCost, setSessionCost] = useState(0);
+  const [usageBreakdown, setUsageBreakdown] = useState<UsageBreakdown>({ ...EMPTY_BREAKDOWN });
   const conversationId = useRef<string | null>(null);
   const characterClassRef = useRef<CharacterClass | null>(null);
   const pronounsRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
+  const audioUrlsRef = useRef<string[]>([]);
 
   const stopAudio = useCallback(() => {
     stopGlobalAudio();
   }, []);
+
+  const replayMessageAudio = useCallback((messageId: string) => {
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg?.audioUrl) return;
+    stopGlobalAudio();
+    const audio = new Audio(msg.audioUrl);
+    playAudio(audio);
+  }, [messages]);
 
   const skip = useCallback(() => {
     abortRef.current?.abort();
@@ -50,7 +69,10 @@ export function useSSEChat() {
     const dmId = crypto.randomUUID();
     let fullContent = '';
     let ttsText = '';
+    let mood: string | undefined;
+    let scene: string | undefined;
     let wasAborted = false;
+    let streamError: string | undefined;
 
     // --- 1. Stream Bedrock response, accumulate silently ---
     try {
@@ -69,7 +91,12 @@ export function useSSEChat() {
 
       if (!res.ok) {
         let requestId: string | undefined;
-        let errorMessage = `HTTP ${res.status}`;
+        let errorMessage: string;
+        if (res.status === 502 || res.status === 503 || res.status === 504) {
+          errorMessage = 'The server is temporarily unavailable. Please try again in a moment.';
+        } else {
+          errorMessage = `HTTP ${res.status}`;
+        }
         try {
           const errorBody = await res.json() as { error?: string; requestId?: string };
           requestId = errorBody.requestId;
@@ -104,9 +131,11 @@ export function useSSEChat() {
             conversationId?: string;
             text?: string;
             ttsText?: string;
+            mood?: string;
+            scene?: string;
             error?: string;
             requestId?: string;
-            usage?: { costUsd?: number };
+            usage?: { inputTokens?: number; outputTokens?: number; costUsd?: number };
           };
           try {
             data = JSON.parse(payload) as typeof data;
@@ -119,14 +148,23 @@ export function useSSEChat() {
 
           if (data.error) {
             console.error('[useSSEChat] server stream error', data);
+            streamError = buildUserVisibleError(data.error, data.requestId);
             break readLoop;
           }
 
-          if (data.usage?.costUsd) {
-            setSessionCost(prev => prev + data.usage!.costUsd!);
+          if (data.usage) {
+            const u = data.usage;
+            setUsageBreakdown(prev => ({
+              ...prev,
+              bedrockInputTokens: prev.bedrockInputTokens + (u.inputTokens ?? 0),
+              bedrockOutputTokens: prev.bedrockOutputTokens + (u.outputTokens ?? 0),
+              bedrockCost: prev.bedrockCost + (u.costUsd ?? 0),
+            }));
           }
 
           if (data.ttsText) ttsText = data.ttsText;
+          if (data.mood) mood = data.mood;
+          if (data.scene) scene = data.scene;
 
           if (data.text) fullContent += data.text;
         }
@@ -136,9 +174,15 @@ export function useSSEChat() {
         wasAborted = true;
       } else {
         console.error('[useSSEChat] chat request failed', err);
+        // TypeError is thrown by fetch when the server is unreachable (ECONNREFUSED, socket hang up)
+        const content = err instanceof TypeError
+          ? 'Unable to reach the server. Please check your connection and try again.'
+          : err instanceof Error
+            ? err.message
+            : 'The Dungeon Master was lost to the void. Please try again.';
         setMessages(prev => [
           ...prev,
-          { id: dmId, role: 'dm', content: err instanceof Error ? err.message : 'The Dungeon Master was lost to the void. Please try again.' },
+          { id: dmId, role: 'dm', content },
         ]);
         if (generation === generationRef.current) setIsLoading(false);
         return;
@@ -152,12 +196,25 @@ export function useSSEChat() {
       return;
     }
 
+    if (streamError) {
+      setMessages(prev => [
+        ...prev,
+        { id: dmId, role: 'dm', content: streamError },
+      ]);
+      if (generation === generationRef.current) setIsLoading(false);
+      return;
+    }
+
     if (!fullContent || generation !== generationRef.current) {
       if (generation === generationRef.current) setIsLoading(false);
       return;
     }
 
-    // --- 2. Fetch TTS, then reveal text + play audio at the same moment ---
+    // --- 2. Crossfade music to new mood + scene video (starts during TTS generation) ---
+    if (mood) void changeMood(mood);
+    if (scene) void changeScene(scene);
+
+    // --- 3. Fetch TTS, then reveal text + play audio at the same moment ---
     const ttsPayload = ttsText || fullContent;
     try {
       const ttsRes = await fetch('/api/narrate', {
@@ -167,9 +224,20 @@ export function useSSEChat() {
       });
 
       if (ttsRes.ok && generation === generationRef.current) {
-        setMessages(prev => [...prev, { id: dmId, role: 'dm', content: stripTTSTags(fullContent) }]);
+        const ttsChars = ttsPayload.length;
+        setUsageBreakdown(prev => ({
+          ...prev,
+          ttsCharacters: prev.ttsCharacters + ttsChars,
+          ttsCost: prev.ttsCost + ttsChars * MINIMAX_TTS_PER_CHAR,
+        }));
+        const arrayBuffer = await ttsRes.arrayBuffer();
+        const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+        const audioUrl = URL.createObjectURL(blob);
+        audioUrlsRef.current.push(audioUrl);
+        setMessages(prev => [...prev, { id: dmId, role: 'dm', content: stripTTSTags(fullContent), audioUrl }]);
         if (generation === generationRef.current) setIsLoading(false);
-        await playFromResponse(ttsRes);
+        const audio = new Audio(audioUrl);
+        playAudio(audio);
         return;
       }
     } catch {
@@ -184,20 +252,30 @@ export function useSSEChat() {
   // Called when "Start Adventure" is clicked.
   // If narration is provided (from /api/narrate Bedrock call), use it directly.
   // Otherwise fall back to a separate /api/chat call.
-  const startAdventure = useCallback(async (narration?: NarrateResult & { usage?: { totalCostUsd?: number } }, characterClass?: CharacterClass, pronouns?: string) => {
+  const startAdventure = useCallback(async (narration?: NarrateResult & { usage?: { bedrockInputTokens?: number; bedrockOutputTokens?: number; bedrockCostUsd?: number; ttsCharacters?: number; ttsCostUsd?: number; totalCostUsd?: number } }, characterClass?: CharacterClass, pronouns?: string) => {
     if (characterClass) {
       characterClassRef.current = characterClass;
     }
     pronounsRef.current = pronouns ?? null;
     if (narration) {
       conversationId.current = narration.conversationId;
-      if (narration.usage?.totalCostUsd) {
-        setSessionCost(prev => prev + narration.usage!.totalCostUsd!);
+      if (narration.usage) {
+        const u = narration.usage;
+        setUsageBreakdown(prev => ({
+          ...prev,
+          bedrockInputTokens: prev.bedrockInputTokens + (u.bedrockInputTokens ?? 0),
+          bedrockOutputTokens: prev.bedrockOutputTokens + (u.bedrockOutputTokens ?? 0),
+          bedrockCost: prev.bedrockCost + (u.bedrockCostUsd ?? 0),
+          ttsCharacters: prev.ttsCharacters + (u.ttsCharacters ?? 0),
+          ttsCost: prev.ttsCost + (u.ttsCostUsd ?? 0),
+        }));
       }
+      if (narration.audioUrl) audioUrlsRef.current.push(narration.audioUrl);
       setMessages([{
         id: crypto.randomUUID(),
         role: 'dm',
         content: narration.text,
+        audioUrl: narration.audioUrl,
       }]);
       return;
     }
@@ -219,13 +297,18 @@ export function useSSEChat() {
   const reset = useCallback(() => {
     abortRef.current?.abort();
     stopGlobalAudio();
+    resetScenes();
+    audioUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    audioUrlsRef.current = [];
     setMessages([]);
     setIsLoading(false);
-    setSessionCost(0);
+    setUsageBreakdown({ ...EMPTY_BREAKDOWN });
     conversationId.current = null;
     characterClassRef.current = null;
     pronounsRef.current = null;
   }, []);
 
-  return { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, sessionCost };
+  const sessionCost = usageBreakdown.bedrockCost + usageBreakdown.ttsCost;
+
+  return { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, replayMessageAudio, sessionCost, usageBreakdown };
 }

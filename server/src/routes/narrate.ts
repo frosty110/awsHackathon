@@ -69,12 +69,16 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
   const messages: ChatMessage[] = [{ role: "user", content: buildOpeningPrompt(characterClass, pronouns) }];
   let text = "";
   let bedrockCostUsd = 0;
+  let bedrockInputTokens = 0;
+  let bedrockOutputTokens = 0;
 
   try {
     const result = await queueBedrockCall(() =>
       streamBedrockResponse(messages, () => {}, { characterClass, pronouns })
     );
     text = result.text;
+    bedrockInputTokens = result.inputTokens;
+    bedrockOutputTokens = result.outputTokens;
     bedrockCostUsd = recordBedrockUsage(null, "narrate-opening", result.inputTokens, result.outputTokens);
   } catch (err) {
     logEvent(
@@ -105,7 +109,14 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
       audio: audioBuffer.toString("base64"),
       text: cleanText,
       conversationId: conversation.id,
-      usage: { bedrockCostUsd, ttsCostUsd, totalCostUsd: bedrockCostUsd + ttsCostUsd },
+      usage: {
+        bedrockInputTokens,
+        bedrockOutputTokens,
+        bedrockCostUsd,
+        ttsCharacters: text.length,
+        ttsCostUsd,
+        totalCostUsd: bedrockCostUsd + ttsCostUsd,
+      },
     });
     logEvent("info", "narrate.opening_completed", {
       requestId,
@@ -133,7 +144,14 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
       conversationId: conversation.id,
       ttsError: "Opening narration audio generation failed",
       requestId,
-      usage: { bedrockCostUsd, ttsCostUsd: 0, totalCostUsd: bedrockCostUsd },
+      usage: {
+        bedrockInputTokens,
+        bedrockOutputTokens,
+        bedrockCostUsd,
+        ttsCharacters: 0,
+        ttsCostUsd: 0,
+        totalCostUsd: bedrockCostUsd,
+      },
     });
   }
 });

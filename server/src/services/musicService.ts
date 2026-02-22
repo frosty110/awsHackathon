@@ -1,7 +1,7 @@
 import tracer from "dd-trace";
 import { config } from "./config.js";
 import { logEvent } from "./logger.js";
-import { buildKey, get as s3Get, put as s3Put } from "./mediaCache.js";
+import { buildKey, get as s3Get, put as s3Put, listKeys } from "./mediaCache.js";
 import { recordMusicUsage } from "./usageTracker.js";
 import { type SceneMood, VALID_MOODS } from "@ai-dm/shared-types";
 
@@ -30,6 +30,7 @@ interface MoodCacheEntry {
   error: string | null;
   lastFailedAt: number | null;
   retryCount: number;
+  generationStartedAt: number | null;
 }
 
 const moodCache = new Map<SceneMood, MoodCacheEntry>();
@@ -55,7 +56,7 @@ export function getMusicCacheStats() {
 function getOrCreateEntry(mood: SceneMood): MoodCacheEntry {
   let entry = moodCache.get(mood);
   if (!entry) {
-    entry = { audio: null, generating: false, error: null, lastFailedAt: null, retryCount: 0 };
+    entry = { audio: null, generating: false, error: null, lastFailedAt: null, retryCount: 0, generationStartedAt: null };
     moodCache.set(mood, entry);
   }
   return entry;
@@ -77,6 +78,7 @@ function startGeneration(mood: SceneMood) {
     entry.error = null;
   }
   entry.generating = true;
+  entry.generationStartedAt = Date.now();
 
   logEvent("info", "music.generation_started", {
     mood,
@@ -93,11 +95,19 @@ async function runGeneration(mood: SceneMood) {
   const prompt = MOOD_PROMPTS[mood];
   let apiCallDurationMs: number | null = null;
   let cdnDownloadDurationMs: number | null = null;
+  let progressTimer: ReturnType<typeof setInterval> | undefined;
 
   try {
     const apiKey = config.MINIMAX_MUSIC_API_KEY || config.MINIMAX_API_KEY;
 
     const apiStart = Date.now();
+    progressTimer = setInterval(() => {
+      logEvent("info", "music.generation_progress", {
+        mood,
+        elapsedMs: Date.now() - apiStart,
+        phase: "awaiting_api_response",
+      });
+    }, 30_000);
     const res = await fetch("https://api.minimax.io/v1/music_generation", {
       method: "POST",
       headers: {
@@ -223,6 +233,7 @@ async function runGeneration(mood: SceneMood) {
       err
     );
   } finally {
+    clearInterval(progressTimer);
     entry.generating = false;
   }
 }
@@ -231,9 +242,9 @@ async function runGeneration(mood: SceneMood) {
 
 export type MusicResult =
   | { status: "ready"; audio: Buffer }
-  | { status: "generating"; mood: SceneMood }
-  | { status: "error"; error: string; terminal: boolean }
-  | { status: "retrying"; mood: SceneMood };
+  | { status: "generating"; mood: SceneMood; startedAt: number }
+  | { status: "retrying"; mood: SceneMood; startedAt: number }
+  | { status: "error"; error: string; terminal: boolean };
 
 /**
  * Get music for a given mood. Manages in-memory + S3 caching, retry logic, and
@@ -304,7 +315,7 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
         retryCount: entry.retryCount,
         maxRetries: MAX_SERVER_RETRIES,
       });
-      return { status: "retrying", mood };
+      return { status: "retrying", mood, startedAt: entry.generationStartedAt ?? Date.now() };
     }
     logEvent("warn", "music.served_error", {
       route: "/api/music",
@@ -325,5 +336,30 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
     cacheMisses: musicCacheMisses,
     reason: "not_generated",
   });
-  return { status: "generating", mood };
+  return { status: "generating", mood, startedAt: entry.generationStartedAt ?? Date.now() };
+}
+
+/**
+ * Pick a random music track already cached in S3.
+ * Returns the audio buffer or null if nothing is cached yet.
+ */
+export async function getRandomMusic(): Promise<Buffer | null> {
+  try {
+    const keys = await listKeys("music/v1/");
+    if (keys.length === 0) return null;
+
+    const randomKey = keys[Math.floor(Math.random() * keys.length)];
+    const buf = await s3Get(randomKey);
+    if (buf) {
+      logEvent("info", "music.random_served", {
+        key: randomKey,
+        audioSizeBytes: buf.length,
+        totalCachedTracks: keys.length,
+      });
+    }
+    return buf;
+  } catch (err) {
+    logEvent("warn", "music.random_failed", { error: String(err) });
+    return null;
+  }
 }

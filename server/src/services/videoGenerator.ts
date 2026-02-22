@@ -39,6 +39,7 @@ interface SceneCacheEntry {
   error: string | null;
   lastFailedAt: number | null;
   retryCount: number;
+  generationStartedAt: number | null;
 }
 
 const sceneVideoCache = new Map<SceneId, SceneCacheEntry>();
@@ -88,7 +89,7 @@ export async function tryLoadFromS3(scene: SceneId): Promise<boolean> {
 export function getOrCreateEntry(scene: SceneId): SceneCacheEntry {
   let entry = sceneVideoCache.get(scene);
   if (!entry) {
-    entry = { video: null, generating: false, error: null, lastFailedAt: null, retryCount: 0 };
+    entry = { video: null, generating: false, error: null, lastFailedAt: null, retryCount: 0, generationStartedAt: null };
     sceneVideoCache.set(scene, entry);
   }
   return entry;
@@ -110,6 +111,7 @@ export function startGeneration(scene: SceneId) {
     entry.error = null;
   }
   entry.generating = true;
+  entry.generationStartedAt = Date.now();
 
   logEvent("info", "video.generation_started", {
     scene,
@@ -161,9 +163,11 @@ async function runGeneration(scene: SceneId) {
     // Step 2: Poll for completion
     let fileId: string | null = null;
     const pollStart = Date.now();
+    let attempt = 0;
 
     while (Date.now() - pollStart < GENERATION_TIMEOUT_MS) {
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+      attempt++;
 
       const pollRes = await fetch(
         `https://api.minimax.io/v1/query/video_generation?task_id=${taskId}`,
@@ -180,6 +184,15 @@ async function runGeneration(scene: SceneId) {
         status?: string;
         file_id?: string;
       };
+
+      logEvent("info", "video.poll_progress", {
+        scene,
+        taskId,
+        attempt,
+        maxAttempts: Math.floor(GENERATION_TIMEOUT_MS / POLL_INTERVAL_MS),
+        status: pollJson.status ?? "unknown",
+        elapsedMs: Date.now() - pollStart,
+      });
 
       if (pollJson.base_resp && pollJson.base_resp.status_code !== 0) {
         throw new Error(`MiniMax video poll error: ${pollJson.base_resp.status_msg}`);

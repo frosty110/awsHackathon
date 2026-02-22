@@ -10,7 +10,7 @@ import neo4j from "neo4j-driver";
 
 import { createApp } from "./app.js";
 import { config, warnOnBlankConfig } from "./services/config.js";
-import { connectRedis } from "./services/redis.js";
+import { connectRedis, redisClient, isRedisAvailable } from "./services/redis.js";
 import { initSocketIO } from "./sockets/index.js";
 import { initRag } from "./services/rag.js";
 
@@ -80,17 +80,23 @@ async function main(): Promise<void> {
   const server = createServer(app);
 
   // Attach Socket.IO to the http.Server (must be done before server.listen)
-  await initSocketIO(server);
+  const io = await initSocketIO(server);
 
   server.listen(config.PORT, () => {
     console.log(`Server listening on http://localhost:${config.PORT}`);
   });
 
-  // M3: Graceful shutdown — close Neo4j driver and HTTP server on termination
+  // M3: Graceful shutdown — close Socket.IO, HTTP server, Neo4j, and Redis in correct order
   const shutdown = async (signal: string) => {
     console.log(`[shutdown] ${signal} received, closing gracefully...`);
+    // 1. Close Socket.IO first — sends disconnect packets while HTTP is still up
+    io.close();
+    // 2. Stop accepting new HTTP connections
     server.close();
+    // 3. Close Neo4j driver
     if (driver) await driver.close();
+    // 4. Flush pending Redis commands and close TCP connection
+    if (isRedisAvailable()) await redisClient.quit();
     process.exit(0);
   };
   process.on("SIGTERM", () => void shutdown("SIGTERM"));

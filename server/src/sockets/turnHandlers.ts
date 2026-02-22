@@ -139,8 +139,7 @@ export function startCountdownTimer(io: IO, roomCode: string, durationMs = 30_00
  */
 export async function triggerDMOpening(io: IO, roomCode: string): Promise<void> {
   const room = getRoom(roomCode);
-  if (!room) return;
-
+  if (!room || room.phase === "dm-responding") return; // idempotency guard
   room.phase = "dm-responding";
 
   const players = [...room.players.values()];
@@ -226,8 +225,7 @@ export async function triggerDMOpening(io: IO, roomCode: string): Promise<void> 
  */
 export async function triggerDMResponse(io: IO, roomCode: string): Promise<void> {
   const room = getRoom(roomCode);
-  if (!room) return;
-
+  if (!room || room.phase === "dm-responding") return; // idempotency guard
   room.phase = "dm-responding";
 
   const players = [...room.players.values()];

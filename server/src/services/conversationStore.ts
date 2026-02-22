@@ -45,19 +45,23 @@ export class InMemoryConversationStore implements IConversationStore {
     const id = conversationId ?? crypto.randomUUID();
 
     if (isRedisAvailable()) {
-      let convo = await this._getFromRedis(id);
-      if (!convo) {
-        convo = { id, history: [], characterClass, pronouns };
-      } else {
-        if (characterClass && !convo.characterClass) {
-          convo.characterClass = characterClass;
+      try {
+        let convo = await this._getFromRedis(id);
+        if (!convo) {
+          convo = { id, history: [], characterClass, pronouns };
+        } else {
+          if (characterClass && !convo.characterClass) {
+            convo.characterClass = characterClass;
+          }
+          if (pronouns && !convo.pronouns) {
+            convo.pronouns = pronouns;
+          }
         }
-        if (pronouns && !convo.pronouns) {
-          convo.pronouns = pronouns;
-        }
+        await this._saveToRedis(convo);
+        return convo;
+      } catch (err) {
+        console.error("[conversationStore] Redis error, falling back to in-memory:", err);
       }
-      await this._saveToRedis(convo);
-      return convo;
     }
 
     // In-memory fallback
@@ -76,27 +80,39 @@ export class InMemoryConversationStore implements IConversationStore {
 
   async getCharacterClass(conversationId: string): Promise<string | undefined> {
     if (isRedisAvailable()) {
-      const convo = await this._getFromRedis(conversationId);
-      return convo?.characterClass;
+      try {
+        const convo = await this._getFromRedis(conversationId);
+        return convo?.characterClass;
+      } catch (err) {
+        console.error("[conversationStore] Redis error, falling back to in-memory:", err);
+      }
     }
     return this.store.get(conversationId)?.characterClass;
   }
 
   async getPronouns(conversationId: string): Promise<string | undefined> {
     if (isRedisAvailable()) {
-      const convo = await this._getFromRedis(conversationId);
-      return convo?.pronouns;
+      try {
+        const convo = await this._getFromRedis(conversationId);
+        return convo?.pronouns;
+      } catch (err) {
+        console.error("[conversationStore] Redis error, falling back to in-memory:", err);
+      }
     }
     return this.store.get(conversationId)?.pronouns;
   }
 
   async appendMessage(conversationId: string, message: ChatMessage): Promise<void> {
     if (isRedisAvailable()) {
-      const convo = await this._getFromRedis(conversationId);
-      if (!convo) throw new Error(`Conversation ${conversationId} not found`);
-      convo.history.push(message);
-      await this._saveToRedis(convo);
-      return;
+      try {
+        const convo = await this._getFromRedis(conversationId);
+        if (!convo) throw new Error(`Conversation ${conversationId} not found`);
+        convo.history.push(message);
+        await this._saveToRedis(convo);
+        return;
+      } catch (err) {
+        console.error("[conversationStore] Redis error, falling back to in-memory:", err);
+      }
     }
 
     // In-memory fallback
@@ -111,9 +127,13 @@ export class InMemoryConversationStore implements IConversationStore {
     maxTurns = 12
   ): Promise<ChatMessage[]> {
     if (isRedisAvailable()) {
-      const convo = await this._getFromRedis(conversationId);
-      if (!convo) return [];
-      return convo.history.slice(-maxTurns);
+      try {
+        const convo = await this._getFromRedis(conversationId);
+        if (!convo) return [];
+        return convo.history.slice(-maxTurns);
+      } catch (err) {
+        console.error("[conversationStore] Redis error, falling back to in-memory:", err);
+      }
     }
 
     // In-memory fallback

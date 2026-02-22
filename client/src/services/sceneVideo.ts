@@ -1,5 +1,7 @@
 // Scene video controller — fetches scene-specific background videos with polling and caching.
 
+import { pushError } from './errorStore';
+
 const DEFAULT_VIDEO_URL = "/hero-bg.webm";
 const INITIAL_POLL_DELAY_MS = 15_000;
 const BACKOFF_BASE_MS = 2_000;
@@ -59,6 +61,7 @@ async function fetchSceneVideo(scene: string): Promise<string | null> {
       pollCounts.set(scene, polls + 1);
       if (polls + 1 > MAX_POLLS) {
         console.warn(`[scene-video] max polls for ${scene} — giving up`);
+        pushError("Video", `Scene video generation timed out for "${scene}"`);
         fetchingScenes.delete(scene);
         return null;
       }
@@ -85,6 +88,7 @@ async function fetchSceneVideo(scene: string): Promise<string | null> {
         });
       }
       console.warn(`[scene-video] ${scene} max retries reached`);
+      pushError("Video", `Failed to load scene video after ${MAX_RETRIES} retries`);
       fetchingScenes.delete(scene);
       return null;
     }
@@ -98,6 +102,7 @@ async function fetchSceneVideo(scene: string): Promise<string | null> {
     return url;
   } catch (err) {
     console.warn(`[scene-video] fetch ${scene} failed:`, err);
+    pushError("Video", `Network error loading scene video`);
     fetchingScenes.delete(scene);
     return null;
   }

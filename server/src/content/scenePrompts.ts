@@ -1,55 +1,61 @@
 import type { SceneId } from "@ai-dm/shared-types";
 
-/** MiniMax video generation prompts keyed by scene ID. */
+/** MiniMax video generation prompts keyed by scene ID.
+ *
+ * Style: "living photograph" — photorealistic, locked-off tripod camera,
+ * mostly still frame with 1-2 subtle moving elements that bring the
+ * scene to life (fire flickering, trees swaying, dust drifting).
+ * Combat scenes feel paused mid-action with small details in motion.
+ */
 export const SCENE_PROMPTS: Record<SceneId, string> = {
   tavern_idle:
-    "Dark fantasy tavern interior, warm firelight flickering on wooden beams, half-empty common room, stone hearth with low flames, tankards on tables, atmospheric smoke, medieval inn, cinematic looping ambient shot, no camera movement",
+    "Photorealistic dark fantasy tavern interior, fixed tripod camera, completely static shot, no camera movement. Warm firelight flickers gently on wooden beams, half-empty common room, stone hearth with low flames dancing subtly, faint smoke drifting lazily upward. A tankard sits on a table, liquid barely rippling. Living photograph, 5 second seamless loop",
   tavern_tense:
-    "Tense confrontation inside a dark medieval tavern, two figures facing off across a table, firelight casting dramatic shadows, patrons frozen in place, cinematic tension, dark fantasy aesthetic, looping ambient shot",
+    "Photorealistic tense standoff inside a dark medieval tavern, fixed tripod camera, completely static shot, no camera movement. Two figures frozen mid-confrontation across a table, firelight casting dramatic shadows that flicker slightly. A patron in the background slowly looks down at their drink. Living photograph, 5 second seamless loop",
   goblin_ambush:
-    "Goblins bursting through a wooden door into a tavern, green-skinned creatures with rusted weapons, chaotic attack scene, splinters flying, dark fantasy, dramatic lighting, cinematic action shot, looping",
+    "Photorealistic frozen moment of goblins mid-burst through a wooden door into a tavern, fixed tripod camera, completely static shot, no camera movement. Green-skinned creatures with rusted weapons caught in motion, wood splinters hanging in air drifting slowly, dust particles floating in torchlight. Living photograph of paused chaos, 5 second seamless loop",
   combat_melee:
-    "Sword combat in a stone interior, sparks flying from clashing blades, two warriors fighting, dramatic torchlight, dark fantasy dungeon, cinematic action, looping combat scene",
+    "Photorealistic frozen sword combat in a stone dungeon interior, fixed tripod camera, completely static shot, no camera movement. Two warriors locked with blades touching, bright sparks slowly cascading from the contact point, torchlight flickering on stone walls. Muscles tensed, sweat droplets suspended. Living photograph of paused action, 5 second seamless loop",
   cave_entrance:
-    "Dark cave mouth set into forested hills, eerie mist rolling out, twisted trees framing the entrance, moonlight filtering through clouds, dark fantasy landscape, cinematic establishing shot, looping",
+    "Photorealistic dark cave mouth set into forested hills, fixed tripod camera, completely static shot, no camera movement. Eerie mist slowly rolling out of the entrance, twisted tree branches swaying gently in wind, moonlight filtering through drifting clouds. Living photograph, 5 second seamless loop",
   cave_interior:
-    "Underground tunnel in a fantasy dungeon, dripping water, faint bioluminescent glow on cave walls, stalactites, narrow passage disappearing into darkness, cinematic ambient shot, looping",
+    "Photorealistic underground tunnel in a fantasy dungeon, fixed tripod camera, completely static shot, no camera movement. Water drops falling slowly from stalactites, faint bioluminescent glow pulsing gently on cave walls, narrow passage disappearing into darkness. Living photograph, 5 second seamless loop",
   npc_dialogue:
-    "Gruff dwarf barkeep behind a wooden counter in a medieval tavern, braided beard, dim firelight, fantasy character portrait scene, atmospheric, cinematic medium shot, looping",
+    "Photorealistic gruff dwarf barkeep behind a wooden counter in a medieval tavern, fixed tripod camera, completely static shot, no camera movement. Braided beard, dim firelight flickering on his face, he slowly looks up then glances back down. Atmospheric dust motes drifting in warm light. Living photograph, 5 second seamless loop",
   forest_path:
-    "Winding path through a dark ancient forest, gnarled trees with twisted branches, fog drifting between trunks, faint moonlight, dark fantasy atmosphere, cinematic tracking shot, looping",
+    "Photorealistic winding path through a dark ancient forest, fixed tripod camera, completely static shot, no camera movement. Gnarled trees with branches swaying gently in breeze, fog drifting slowly between trunks, faint moonlight casting still shadows on the ground. Living photograph, 5 second seamless loop",
   town_street:
-    "Medieval town street at night, cobblestone road, hanging lanterns casting warm pools of light, half-timbered buildings, dark fantasy aesthetic, atmospheric mist, cinematic shot, looping",
+    "Photorealistic medieval town street at night, fixed tripod camera, completely static shot, no camera movement. Cobblestone road, hanging lanterns with flames gently swaying, warm pools of light on half-timbered buildings, faint atmospheric mist drifting at ground level. Living photograph, 5 second seamless loop",
   campfire:
-    "Campfire in a forest clearing at night, warm orange glow illuminating bedrolls and gear, embers floating upward, dark trees surrounding, fantasy adventure camp, cinematic ambient shot, looping",
+    "Photorealistic campfire in a forest clearing at night, fixed tripod camera, completely static shot, no camera movement. Warm orange flames crackling and dancing, embers floating slowly upward, bedrolls and gear illuminated in warm glow, dark trees surrounding completely still. Living photograph, 5 second seamless loop",
   treasure_found:
-    "Glowing magical artifact revealed in a dark stone chamber, golden light radiating from an ornate chest, dust particles in light beams, fantasy treasure discovery, cinematic reveal shot, looping",
+    "Photorealistic glowing magical artifact revealed in a dark stone chamber, fixed tripod camera, completely static shot, no camera movement. Golden light radiating softly from an ornate chest, dust particles drifting lazily through light beams, everything else perfectly still. Living photograph, 5 second seamless loop",
   magic_spell:
-    "Arcane magical energy swirling in the air, glowing blue and purple runes orbiting, fantasy spell casting, particle effects, dark atmospheric background, cinematic shot, looping",
+    "Photorealistic arcane magical energy frozen in the air, fixed tripod camera, completely static shot, no camera movement. Glowing blue and purple runes orbiting slowly, faint particle effects drifting gently, dark atmospheric background perfectly still. Living photograph, 5 second seamless loop",
   fireball:
-    "Massive fireball erupting in a stone dungeon chamber, orange and red flames expanding, heat distortion, dramatic fantasy combat magic, cinematic explosion shot, looping",
+    "Photorealistic frozen moment of a fireball erupting in a stone dungeon chamber, fixed tripod camera, completely static shot, no camera movement. Orange and red flames suspended mid-expansion, faint heat distortion shimmering slowly, embers floating in place. Living photograph of paused destruction, 5 second seamless loop",
   stealth:
-    "Cloaked figure creeping through deep shadows in a stone corridor, moonlight through narrow windows, dark fantasy stealth scene, atmospheric tension, cinematic shot, looping",
+    "Photorealistic cloaked figure frozen mid-creep through deep shadows in a stone corridor, fixed tripod camera, completely static shot, no camera movement. Moonlight through narrow windows casting still beams, the figure's cloak barely rippling, dust motes drifting in the light. Living photograph, 5 second seamless loop",
   trap_danger:
-    "Ancient trap mechanism activating in a dungeon corridor, arrows shooting from wall slots, pressure plate, stone dust falling, dark fantasy danger, dramatic cinematic shot, looping",
+    "Photorealistic ancient trap mechanism caught mid-activation in a dungeon corridor, fixed tripod camera, completely static shot, no camera movement. Arrows suspended in flight from wall slots, stone dust falling slowly from the ceiling, pressure plate barely depressed. Living photograph of frozen danger, 5 second seamless loop",
   locked_door:
-    "Ornate locked door covered in ancient glowing runes, massive iron hinges, stone archway in a dungeon, mysterious light seeping through cracks, dark fantasy, cinematic shot, looping",
+    "Photorealistic ornate locked door covered in ancient runes that pulse with faint light, fixed tripod camera, completely static shot, no camera movement. Massive iron hinges, stone archway in a dungeon, mysterious light gently seeping and flickering through door cracks. Living photograph, 5 second seamless loop",
   rain_storm:
-    "Heavy rain falling on a medieval town at night, lightning illuminating stone buildings, puddles on cobblestone, dramatic storm, dark fantasy atmosphere, cinematic wide shot, looping",
+    "Photorealistic heavy rain falling on a medieval town at night, fixed tripod camera, completely static shot, no camera movement. Raindrops splashing on cobblestone, distant lightning briefly illuminating stone buildings, puddles rippling gently, dark fantasy atmosphere. Living photograph, 5 second seamless loop",
   victory:
-    "Triumphant fantasy hero standing in golden light, epic rays breaking through clouds, victorious pose, dramatic moment, dark fantasy aesthetic, cinematic hero shot, looping",
+    "Photorealistic triumphant fantasy hero standing still in golden light, fixed tripod camera, completely static shot, no camera movement. Epic rays slowly breaking through parting clouds, hero's cape barely rippling in gentle wind, dramatic golden hour lighting. Living photograph, 5 second seamless loop",
   defeat:
-    "Fallen warrior kneeling in fading light, somber atmosphere, dust settling, broken weapon nearby, dark fantasy defeat, melancholic cinematic shot, looping",
+    "Photorealistic fallen warrior kneeling motionless in fading light, fixed tripod camera, completely static shot, no camera movement. Somber atmosphere, dust settling slowly around them, broken weapon nearby, a single ember drifting upward from the ground. Living photograph, 5 second seamless loop",
   potion_drink:
-    "Glowing potion bottles on an alchemist table, bubbling liquids in various colors, fantasy alchemy lab, mysterious ambient light, dark atmospheric, cinematic close-up shot, looping",
+    "Photorealistic glowing potion bottles on an alchemist table, fixed tripod camera, completely static shot, no camera movement. Liquids bubbling gently in various colored bottles, mysterious ambient light shifting subtly, wisps of vapor rising slowly from an open flask. Living photograph, 5 second seamless loop",
   bridge_crossing:
-    "Narrow stone bridge spanning a dark bottomless chasm, rope railings, mist rising from below, faint torchlight, dark fantasy architecture, cinematic wide shot, looping",
+    "Photorealistic narrow stone bridge spanning a dark bottomless chasm, fixed tripod camera, completely static shot, no camera movement. Rope railings perfectly still, faint mist rising slowly from below, single torch flame flickering gently on the far side. Living photograph, 5 second seamless loop",
   throne_room:
-    "Dark fantasy throne room with tall stone pillars, empty imposing throne, torchlight casting long shadows, gothic architecture, ominous atmosphere, cinematic establishing shot, looping",
+    "Photorealistic dark fantasy throne room with tall stone pillars, fixed tripod camera, completely static shot, no camera movement. Empty imposing throne, torchlight casting long shadows that flicker gently on gothic architecture walls, dust motes drifting in shafts of light. Living photograph, 5 second seamless loop",
   moonrise:
-    "Full moon rising over dark fantasy hills, silver moonlight illuminating rolling landscape, silhouetted trees, atmospheric clouds, cinematic landscape shot, looping",
+    "Photorealistic full moon hanging over dark fantasy hills, fixed tripod camera, completely static shot, no camera movement. Silver moonlight illuminating rolling landscape, silhouetted trees with branches barely swaying, clouds drifting very slowly across the moon. Living photograph, 5 second seamless loop",
   merchant:
-    "Medieval merchant stall displaying potions and fantasy weapons, colorful bottles, ornate swords, busy market atmosphere, lantern light, dark fantasy bazaar, cinematic shot, looping",
+    "Photorealistic medieval merchant stall displaying potions and fantasy weapons, fixed tripod camera, completely static shot, no camera movement. Colorful bottles with liquids gently glowing, ornate swords catching lantern light, the merchant slowly looking up from their wares. Living photograph, 5 second seamless loop",
   dice_roll:
-    "Glowing magical d20 die rolling across a worn wooden surface, fantasy runes on the die faces, warm tavern light, dramatic close-up, particle effects, cinematic shot, looping",
+    "Photorealistic glowing magical d20 die resting on a worn wooden surface, fixed tripod camera, completely static shot, no camera movement. Fantasy runes on the die faces pulsing with faint light, warm tavern glow, subtle particle effects drifting around the die. Living photograph, 5 second seamless loop",
 };

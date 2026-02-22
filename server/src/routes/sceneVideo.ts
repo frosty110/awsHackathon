@@ -63,7 +63,7 @@ router.get(["/scene-video", "/api/scene-video"], async (req, res) => {
         scene,
         retryCount: entry.retryCount,
       });
-      res.status(202).json({ status: "generating", scene });
+      res.status(202).json({ status: "generating", scene, startedAt: entry.generationStartedAt ?? Date.now() });
       return;
     }
     logEvent("warn", "video.served_error", {
@@ -83,7 +83,7 @@ router.get(["/scene-video", "/api/scene-video"], async (req, res) => {
     generating: true,
     reason: "not_generated",
   });
-  res.status(202).json({ status: "generating", scene });
+  res.status(202).json({ status: "generating", scene, startedAt: entry.generationStartedAt ?? Date.now() });
 });
 
 export default router;

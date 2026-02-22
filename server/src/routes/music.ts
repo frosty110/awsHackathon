@@ -1,12 +1,24 @@
 import { Router } from "express";
 import { config } from "../services/config.js";
 import { logEvent } from "../services/logger.js";
-import { getMusicForMood, getMusicCacheStats, VALID_MOODS } from "../services/musicService.js";
+import { getMusicForMood, getRandomMusic, getMusicCacheStats, VALID_MOODS } from "../services/musicService.js";
 import { type SceneMood } from "@ai-dm/shared-types";
 
 export { getMusicCacheStats };
 
 const router = Router();
+
+router.get(["/music/random", "/api/music/random"], async (req, res) => {
+  const audio = await getRandomMusic();
+  if (!audio) {
+    res.status(404).json({ error: "No cached music available" });
+    return;
+  }
+  res.setHeader("Content-Type", "audio/mpeg");
+  res.setHeader("Content-Length", audio.length);
+  res.setHeader("Cache-Control", "no-cache");
+  res.send(audio);
+});
 
 router.get(["/music", "/api/music"], async (req, res) => {
   if (!config.MINIMAX_MUSIC_API_KEY && !config.MINIMAX_API_KEY) {
@@ -33,7 +45,7 @@ router.get(["/music", "/api/music"], async (req, res) => {
 
     case "generating":
     case "retrying":
-      res.status(202).json({ status: "generating", mood });
+      res.status(202).json({ status: "generating", mood, startedAt: result.startedAt });
       break;
 
     case "error":

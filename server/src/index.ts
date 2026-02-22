@@ -27,14 +27,16 @@ async function main(): Promise<void> {
     ["MINIMAX_API_KEY", "MINIMAX_GROUP_ID"],
     "MiniMax TTS (needed in Phase 7)"
   );
-  warnOnBlankConfig(
-    ["REDIS_URL"],
-    "Redis (needed for Phase 9 persistence)"
-  );
-  warnOnBlankConfig(
-    ["JWT_SECRET"],
-    "JWT Auth (needed for Phase 9 authentication)"
-  );
+  if (config.NODE_ENV === "production") {
+    warnOnBlankConfig(
+      ["REDIS_URL"],
+      "Redis (needed for Phase 9 persistence)"
+    );
+    warnOnBlankConfig(
+      ["JWT_SECRET"],
+      "JWT Auth (needed for Phase 9 authentication)"
+    );
+  }
 
   // Connect Redis before any routes or sockets that depend on it
   await connectRedis();

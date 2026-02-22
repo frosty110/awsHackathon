@@ -1,5 +1,6 @@
 import { createClient } from "redis";
 import { config } from "./config.js";
+import { logEvent } from "./logger.js";
 
 // Module-level flag — tracks whether Redis connection was attempted and succeeded
 let redisEnabled = false;
@@ -21,9 +22,10 @@ redisClient.on("error", (err) => {
  */
 export async function connectRedis(): Promise<void> {
   if (!config.REDIS_URL) {
-    console.warn(
-      "[redis] REDIS_URL not configured — running without Redis (in-memory fallback)"
-    );
+    logEvent("info", "redis.skipped", {
+      reason: "REDIS_URL not configured",
+      fallback: "in-memory",
+    });
     redisEnabled = false;
     return;
   }

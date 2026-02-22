@@ -10,10 +10,10 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ messages, isLoading, onStopAudio, onReplayAudio }: ChatWindowProps) {
-  const bottomRef = useChatScroll(messages);
+  const { bottomRef, containerRef } = useChatScroll(messages);
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4">
+    <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-4">
       {messages.map(message => (
         <MessageBubble key={message.id} message={message} onStopAudio={onStopAudio} onReplayAudio={onReplayAudio} />
       ))}

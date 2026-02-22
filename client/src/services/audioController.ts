@@ -5,6 +5,7 @@ import { duckForTTS, restoreFromTTS } from './backgroundMusic';
 
 let current: HTMLAudioElement | null = null;
 let currentMessageId: string | null = null;
+let currentUrl: string | null = null;
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -26,6 +27,10 @@ export function playAudio(audio: HTMLAudioElement, messageId?: string) {
   if (current) {
     current.pause();
     current = null;
+  }
+  if (currentUrl) {
+    URL.revokeObjectURL(currentUrl);
+    currentUrl = null;
   }
   current = audio;
   currentMessageId = messageId ?? null;
@@ -55,6 +60,10 @@ export function stopAudio() {
     current.pause();
     current = null;
     currentMessageId = null;
+    if (currentUrl) {
+      URL.revokeObjectURL(currentUrl);
+      currentUrl = null;
+    }
     restoreFromTTS();
     notify();
   }
@@ -66,6 +75,6 @@ export async function playFromResponse(response: Response, messageId?: string): 
   const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
-  audio.addEventListener('ended', () => URL.revokeObjectURL(url));
   playAudio(audio, messageId);
+  currentUrl = url;
 }

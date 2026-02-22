@@ -46,7 +46,8 @@ function getPollDelay(pollCount: number): number {
   return Math.min(BACKOFF_BASE_MS * Math.pow(2, pollCount), BACKOFF_CAP_MS);
 }
 
-async function fetchSceneVideo(scene: string): Promise<string | null> {
+async function fetchSceneVideo(scene: string, gen: number): Promise<string | null> {
+  if (gen !== generation) return null;
   if (sceneBlobUrls.has(scene)) return sceneBlobUrls.get(scene)!;
   if (fetchingScenes.has(scene)) return null;
 
@@ -56,6 +57,7 @@ async function fetchSceneVideo(scene: string): Promise<string | null> {
 
   try {
     const res = await fetch(`/api/scene-video?scene=${scene}`);
+    if (gen !== generation) { fetchingScenes.delete(scene); return null; }
 
     if (res.status === 202) {
       pollCounts.set(scene, polls + 1);
@@ -70,8 +72,9 @@ async function fetchSceneVideo(scene: string): Promise<string | null> {
 
       return new Promise((resolve) => {
         setTimeout(async () => {
+          if (gen !== generation) { fetchingScenes.delete(scene); resolve(null); return; }
           fetchingScenes.delete(scene);
-          resolve(await fetchSceneVideo(scene));
+          resolve(await fetchSceneVideo(scene, gen));
         }, delay);
       });
     }
@@ -82,8 +85,9 @@ async function fetchSceneVideo(scene: string): Promise<string | null> {
         console.warn(`[scene-video] ${scene} error: ${res.status}, retry ${retries + 1}/${MAX_RETRIES}`);
         return new Promise((resolve) => {
           setTimeout(async () => {
+            if (gen !== generation) { fetchingScenes.delete(scene); resolve(null); return; }
             fetchingScenes.delete(scene);
-            resolve(await fetchSceneVideo(scene));
+            resolve(await fetchSceneVideo(scene, gen));
           }, RETRY_INTERVAL_MS);
         });
       }
@@ -94,6 +98,7 @@ async function fetchSceneVideo(scene: string): Promise<string | null> {
     }
 
     const blob = await res.blob();
+    if (gen !== generation) { fetchingScenes.delete(scene); return null; }
     const url = URL.createObjectURL(blob);
     sceneBlobUrls.set(scene, url);
     pollCounts.delete(scene);
@@ -124,15 +129,24 @@ export async function changeScene(scene: string | undefined) {
   }
 
   // Fetch in background, keep current video until ready
-  const url = await fetchSceneVideo(scene);
-  if (url) {
+  const gen = generation;
+  const url = await fetchSceneVideo(scene, gen);
+  if (url && gen === generation) {
     currentScene = scene;
     currentVideoUrl = url;
     notify();
   }
 }
 
+// Generation counter — incremented on reset to invalidate stale async work
+let generation = 0;
+
 export function resetScenes() {
+  generation++;
+  for (const url of sceneBlobUrls.values()) {
+    URL.revokeObjectURL(url);
+  }
+  sceneBlobUrls.clear();
   currentScene = null;
   currentVideoUrl = DEFAULT_VIDEO_URL;
   fetchingScenes.clear();

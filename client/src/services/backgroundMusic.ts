@@ -374,6 +374,15 @@ export function stopBackgroundMusic() {
   fetchingMoods.clear();
   pollCounts.clear();
   retryCounts.clear();
+  // Revoke all cached blob URLs to prevent memory leaks
+  for (const url of moodBlobUrls.values()) {
+    URL.revokeObjectURL(url);
+  }
+  moodBlobUrls.clear();
+  if (introBlobUrl) {
+    URL.revokeObjectURL(introBlobUrl);
+    introBlobUrl = null;
+  }
   notify();
 }
 

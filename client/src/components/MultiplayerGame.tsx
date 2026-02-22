@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Markdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import { socket } from '../services/socket';
 import { useMultiplayerRoom } from '../hooks/useMultiplayerRoom';
 import { PlayerStatusBar } from './PlayerStatusBar';
@@ -129,7 +130,7 @@ export function MultiplayerGame({ roomCode, onLeave }: MultiplayerGameProps) {
             {dmMessages.map(msg => (
               <div key={msg.id} className="flex justify-start">
                 <div className="dm-prose text-lg max-w-[90%] px-4 py-3 rounded-lg bg-dm-bubble font-fell leading-[1.8] text-[color:var(--color-dm-message)] text-[1.05rem]">
-                  <Markdown>{msg.content}</Markdown>
+                  <Markdown rehypePlugins={[rehypeSanitize]}>{msg.content}</Markdown>
                 </div>
               </div>
             ))}
@@ -138,7 +139,7 @@ export function MultiplayerGame({ roomCode, onLeave }: MultiplayerGameProps) {
             {currentStreamText && (
               <div className="flex justify-start">
                 <div className="dm-prose text-lg max-w-[90%] px-4 py-3 rounded-lg bg-dm-bubble font-fell leading-[1.8] text-[color:var(--color-dm-message)] text-[1.05rem]">
-                  <Markdown>{currentStreamText}</Markdown>
+                  <Markdown rehypePlugins={[rehypeSanitize]}>{currentStreamText}</Markdown>
                   <span className="inline-block w-2 h-4 bg-dm-gold animate-pulse ml-1 align-middle" />
                 </div>
               </div>
@@ -177,6 +178,7 @@ export function MultiplayerGame({ roomCode, onLeave }: MultiplayerGameProps) {
                   onChange={e => setActionText(e.target.value)}
                   onKeyDown={handleActionKeyDown}
                   disabled={actionDisabled}
+                  maxLength={500}
                   placeholder={
                     isCollecting
                       ? 'Describe your action...'

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Message } from '../types/chat';
 import type { NarrateResult } from '../components/AudioPlayer';
 import type { CharacterClass } from '../components/ClassSelect';
@@ -32,6 +32,8 @@ function buildUserVisibleError(message: string, requestId?: string) {
 
 export function useSSEChat() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const messagesRef = useRef<Message[]>([]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
   const [isLoading, setIsLoading] = useState(false);
   const [usageBreakdown, setUsageBreakdown] = useState<UsageBreakdown>({ ...EMPTY_BREAKDOWN });
   const conversationId = useRef<string | null>(null);
@@ -46,12 +48,12 @@ export function useSSEChat() {
   }, []);
 
   const replayMessageAudio = useCallback((messageId: string) => {
-    const msg = messages.find(m => m.id === messageId);
+    const msg = messagesRef.current.find(m => m.id === messageId);
     if (!msg?.audioUrl) return;
     stopGlobalAudio();
     const audio = new Audio(msg.audioUrl);
     playAudio(audio, messageId);
-  }, [messages]);
+  }, []);
 
   const skip = useCallback(() => {
     abortRef.current?.abort();

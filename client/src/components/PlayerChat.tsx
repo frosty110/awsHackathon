@@ -202,6 +202,7 @@ export function PlayerChat({
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={handleKeyDown}
+          maxLength={500}
           placeholder="Whisper to party..."
           className="flex-1 px-2 py-1.5 rounded bg-surface text-parchment font-fell text-sm border border-blood/30 placeholder:text-parchment/50 focus:border-blood/60"
         />

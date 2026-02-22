@@ -29,6 +29,7 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
         onChange={e => setText(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
+        maxLength={500}
         placeholder="What do you do?"
         className="flex-1 px-3 py-2 rounded bg-surface text-parchment font-sans text-base border border-blood/30 placeholder:text-parchment/50 focus:border-blood/60 disabled:opacity-40 disabled:cursor-not-allowed"
       />

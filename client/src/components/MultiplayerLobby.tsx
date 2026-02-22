@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { socket } from '../services/socket';
 import {
   CHARACTER_CLASSES,
@@ -33,6 +33,10 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
+
+  // Ref to track roomState for use outside state updaters
+  const roomStateRef = useRef<RoomState | null>(null);
+  useEffect(() => { roomStateRef.current = roomState; }, [roomState]);
 
   // Register Socket.IO event listeners — cleaned up on unmount
   useEffect(() => {
@@ -85,11 +89,8 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
     }
 
     function onRoomStarted() {
-      // Use functional form of setRoomState to read latest value without stale closure
-      setRoomState(prev => {
-        if (prev) onGameStart(prev);
-        return prev;
-      });
+      const current = roomStateRef.current;
+      if (current) onGameStart(current);
     }
 
     function onRoomError({ message }: { message: string }) {

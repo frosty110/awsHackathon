@@ -33,9 +33,12 @@ function usePingPong(
     let drawRaf = 0;
     let lastCapTs = 0;
 
+    const MAX_FRAMES = 120;
+
     /* Phase 1 — capture frames while video plays forward natively */
     const captureLoop = (ts: number) => {
       if (!alive || video.paused || video.ended) return;
+      if (frames.length >= MAX_FRAMES) return;
       if (ts - lastCapTs >= FRAME_MS) {
         lastCapTs = ts;
         createImageBitmap(video)
@@ -162,11 +165,13 @@ export function SceneBackground() {
     setIncomingReady(true);
     // After crossfade duration, promote incoming to active
     setTimeout(() => {
-      setActiveUrl(incomingUrl!);
-      setIncomingUrl(null);
+      setIncomingUrl(prev => {
+        if (prev) setActiveUrl(prev);
+        return null;
+      });
       setIncomingReady(false);
     }, CROSSFADE_MS);
-  }, [incomingUrl]);
+  }, []);
 
   return (
     <>

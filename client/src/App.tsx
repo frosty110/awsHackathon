@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useSSEChat } from './hooks/useSSEChat';
 import { startBackgroundMusic, startRandomMusic, stopBackgroundMusic } from './services/backgroundMusic';
 import { SceneBackground } from './components/SceneBackground';
@@ -20,8 +20,8 @@ import type { AppState } from './types/chat';
 export default function App() {
   const [appState, setAppState] = useState<AppState>('modeSelect');
   const [multiplayerRoomCode, setMultiplayerRoomCode] = useState<string | null>(null);
-  const selectedClass = useRef<CharacterClass | null>(null);
-  const selectedPronouns = useRef<string>('They/Them');
+  const [selectedClass, setSelectedClass] = useState<CharacterClass | null>(null);
+  const [selectedPronouns, setSelectedPronouns] = useState<string>('They/Them');
   const { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, replayMessageAudio, sessionCost, usageBreakdown } = useSSEChat();
 
   // ----- Single-player handlers -----
@@ -31,22 +31,22 @@ export default function App() {
   }
 
   function handleClassSelected(cls: CharacterClass, pronouns: string) {
-    selectedClass.current = cls;
-    selectedPronouns.current = pronouns;
+    setSelectedClass(cls);
+    setSelectedPronouns(pronouns);
     setAppState('classSelect');
   }
 
   function handleStart(narration?: NarrateResult) {
     setAppState('adventure');
-    void startAdventure(narration, selectedClass.current ?? undefined, selectedPronouns.current);
+    void startAdventure(narration, selectedClass ?? undefined, selectedPronouns);
     startBackgroundMusic("tavern");
   }
 
   function handleReset() {
     reset();
     stopBackgroundMusic();
-    selectedClass.current = null;
-    selectedPronouns.current = 'They/Them';
+    setSelectedClass(null);
+    setSelectedPronouns('They/Them');
     setMultiplayerRoomCode(null);
     setAppState('modeSelect');
   }
@@ -134,10 +134,10 @@ export default function App() {
           ) : appState === 'classSelect' ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
               <p className="font-fell text-parchment/60 text-xl">
-                Playing as <span className="text-dm-gold font-cinzel font-semibold">{selectedClass.current?.icon} {selectedClass.current?.name}</span>
-                <span className="text-parchment/60"> ({selectedPronouns.current})</span>
+                Playing as <span className="text-dm-gold font-cinzel font-semibold">{selectedClass?.icon} {selectedClass?.name}</span>
+                <span className="text-parchment/60"> ({selectedPronouns})</span>
               </p>
-              <AudioPlayer onAdventureStart={handleStart} characterClass={selectedClass.current?.name} pronouns={selectedPronouns.current} />
+              <AudioPlayer onAdventureStart={handleStart} characterClass={selectedClass?.name} pronouns={selectedPronouns} />
             </div>
           ) : appState === 'adventure' ? (
             <>
@@ -153,7 +153,7 @@ export default function App() {
                     </button>
                   </div>
                 )}
-                <MessageInput onSend={sendMessage} disabled={false} />
+                <MessageInput onSend={sendMessage} disabled={isLoading} />
                 <DiceRoller
                   onRoll={handleRollDice}
                   disabled={isLoading}
@@ -165,9 +165,9 @@ export default function App() {
               onGameStart={handleMultiplayerGameStart}
               onBack={handleMultiplayerBack}
             />
-          ) : appState === 'multiplayerGame' ? (
+          ) : appState === 'multiplayerGame' && multiplayerRoomCode ? (
             <MultiplayerGame
-              roomCode={multiplayerRoomCode!}
+              roomCode={multiplayerRoomCode}
               onLeave={handleMultiplayerLeave}
             />
           ) : null}

@@ -112,6 +112,7 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
 
     function onRoomError(payload: { message: string }) {
       setError(payload.message);
+      setTimeout(() => setError(prev => prev === payload.message ? null : prev), 8000);
     }
 
     function onTurnCollectingStart() {
@@ -192,7 +193,9 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
     }
 
     function onDmError(payload: { message: string }) {
-      setError(payload.message ?? 'DM encountered an error');
+      const msg = payload.message ?? 'DM encountered an error';
+      setError(msg);
+      setTimeout(() => setError(prev => prev === msg ? null : prev), 8000);
       setCurrentStreamText('');
       streamTextRef.current = '';
       streamMessageIdRef.current = null;

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import tracer from "dd-trace";
 import type { Driver } from "neo4j-driver";
 import { queryLore, type LoreRecord } from "./neo4j.js";
 import { logEvent } from "./logger.js";
@@ -187,6 +188,7 @@ export async function buildLoreContext(message: string): Promise<string> {
 
   if (cached && Date.now() - cached.createdAt < LORE_CACHE_TTL_MS) {
     loreCacheHits++;
+    tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'lore', source: 'memory' });
     logEvent("info", "rag.cache_hit", {
       cacheKey,
       preHashKey,
@@ -200,6 +202,7 @@ export async function buildLoreContext(message: string): Promise<string> {
   }
 
   loreCacheMisses++;
+  tracer.dogstatsd.increment('cache.miss', 1, { cache_type: 'lore' });
   logEvent("info", "rag.cache_miss", {
     cacheKey,
     preHashKey,

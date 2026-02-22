@@ -22,7 +22,7 @@ const envDefaults: Record<string, string> = {
   MINIMAX_MUSIC_API_KEY: "",
   SKIP_NEO4J_CONNECTIVITY_CHECK: "0",
   S3_AUDIO_CACHE_BUCKET: "",
-  S3_MEDIA_CACHE_BUCKET: "",
+  S3_MEDIA_CACHE_BUCKET: "ai-dm-media-cache",
   REDIS_URL: "",
   JWT_SECRET: "",
   SESSION_SECRET: "",

@@ -254,18 +254,31 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
       const s3Buf = await s3Get(buildMusicS3Key(mood));
       if (s3Buf) {
         entry.audio = s3Buf;
-        logEvent("info", "music.s3_cache_hit", { mood, bytes: s3Buf.length });
+        musicCacheHits++;
+        tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'music', source: 's3' });
+        logEvent("info", "music.cache_hit", {
+          route: "/api/music",
+          mood,
+          source: "s3",
+          audioSizeBytes: s3Buf.length,
+          cacheHits: musicCacheHits,
+          cacheMisses: musicCacheMisses,
+        });
+        return { status: "ready", audio: entry.audio };
       }
     } catch (err) {
       logEvent("warn", "music.s3_cache_get_failed", { mood, error: String(err) });
     }
   }
 
+  // L1: in-memory hit
   if (entry.audio) {
     musicCacheHits++;
+    tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'music', source: 'memory' });
     logEvent("info", "music.cache_hit", {
       route: "/api/music",
       mood,
+      source: "memory",
       audioSizeBytes: entry.audio.length,
       cacheHits: musicCacheHits,
       cacheMisses: musicCacheMisses,
@@ -302,6 +315,7 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
   }
 
   musicCacheMisses++;
+  tracer.dogstatsd.increment('cache.miss', 1, { cache_type: 'music' });
   startGeneration(mood);
   logEvent("info", "music.cache_miss", {
     route: "/api/music",

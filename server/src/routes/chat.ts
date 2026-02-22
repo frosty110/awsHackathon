@@ -13,6 +13,7 @@ import { stripTTSTags, extractMood, extractScene, expandPhrases } from "../servi
 import { buildLoreContext } from "../services/rag.js";
 import { queueBedrockCall, isBedrockQueueOverloaded } from "../services/bedrockQueue.js";
 import { createMoodStreamDetector } from "../services/moodStreamDetector.js";
+import { sanitizeUserInput } from "../services/inputSanitizer.js";
 
 const router = Router();
 
@@ -24,8 +25,16 @@ router.post("/api/chat", async (req, res) => {
     characterClass?: string;
     pronouns?: string;
   };
-  const message = typeof body.message === "string" ? body.message : "";
+  const message = sanitizeUserInput(typeof body.message === "string" ? body.message : "");
   const isSystemTrigger = Boolean(body.isSystemTrigger);
+
+  // M4: Validate conversationId format (must be UUID if provided)
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (body.conversationId && !UUID_RE.test(body.conversationId)) {
+    res.status(400).json({ error: "Invalid conversationId format" });
+    return;
+  }
+
   const characterClass = typeof body.characterClass === "string" ? body.characterClass.trim() : undefined;
   const pronouns = typeof body.pronouns === "string" ? body.pronouns.trim() : undefined;
   const requestId = buildRequestId(req.get("x-request-id"));
@@ -71,6 +80,10 @@ router.post("/api/chat", async (req, res) => {
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
 
+  // M1: Detect client disconnect to abort SSE writes
+  let clientDisconnected = false;
+  req.on("close", () => { clientDisconnected = true; });
+
   // First event sends conversationId so client can track the session
   res.write(`data: ${JSON.stringify({ conversationId: conversation.id })}\n\n`);
 
@@ -92,8 +105,8 @@ router.post("/api/chat", async (req, res) => {
     const resolvedClass = characterClass || (await getCharacterClass(conversation.id));
     const resolvedPronouns = pronouns || (await getPronouns(conversation.id));
     const detector = createMoodStreamDetector(
-      (mood) => res.write(`data: ${JSON.stringify({ moodChange: mood })}\n\n`),
-      (text) => res.write(`data: ${JSON.stringify({ text })}\n\n`),
+      (mood) => { if (!clientDisconnected) res.write(`data: ${JSON.stringify({ moodChange: mood })}\n\n`); },
+      (text) => { if (!clientDisconnected) res.write(`data: ${JSON.stringify({ text })}\n\n`); },
     );
     const result = await queueBedrockCall(() =>
       streamBedrockResponse(
@@ -140,20 +153,25 @@ router.post("/api/chat", async (req, res) => {
     );
   }
 
-  // Emit tagged text for client TTS consumption, then usage, before [DONE]
-  if (!streamErrored && fullText) {
-    const [mood] = extractMood(fullText);
-    const [scene] = extractScene(fullText);
-    res.write(`data: ${JSON.stringify({ ttsText: fullText, mood: mood ?? undefined, scene: scene ?? undefined })}\n\n`);
+  // M1: If client disconnected during streaming, skip final writes
+  if (clientDisconnected) {
+    res.end();
+  } else {
+    // Emit tagged text for client TTS consumption, then usage, before [DONE]
+    if (!streamErrored && fullText) {
+      const [mood] = extractMood(fullText);
+      const [scene] = extractScene(fullText);
+      res.write(`data: ${JSON.stringify({ ttsText: fullText, mood: mood ?? undefined, scene: scene ?? undefined })}\n\n`);
 
-    const costUsd = recordBedrockUsage(conversation.id, "chat", inputTokens, outputTokens);
-    res.write(`data: ${JSON.stringify({
-      usage: { inputTokens, outputTokens, costUsd, model: "bedrock-haiku", feature: "chat" },
-    })}\n\n`);
+      const costUsd = recordBedrockUsage(conversation.id, "chat", inputTokens, outputTokens);
+      res.write(`data: ${JSON.stringify({
+        usage: { inputTokens, outputTokens, costUsd, model: "bedrock-haiku", feature: "chat" },
+      })}\n\n`);
+    }
+
+    res.write("data: [DONE]\n\n");
+    res.end();
   }
-
-  res.write("data: [DONE]\n\n");
-  res.end();
 
   // Persist assistant response after stream completes (stripped of TTS tags)
   if (fullText) {

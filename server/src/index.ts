@@ -85,6 +85,16 @@ async function main(): Promise<void> {
   server.listen(config.PORT, () => {
     console.log(`Server listening on http://localhost:${config.PORT}`);
   });
+
+  // M3: Graceful shutdown — close Neo4j driver and HTTP server on termination
+  const shutdown = async (signal: string) => {
+    console.log(`[shutdown] ${signal} received, closing gracefully...`);
+    server.close();
+    if (driver) await driver.close();
+    process.exit(0);
+  };
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 }
 
 main().catch((error) => {

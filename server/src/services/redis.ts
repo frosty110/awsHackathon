@@ -13,6 +13,16 @@ redisClient.on("error", (err) => {
   console.error("[redis] client error:", err);
 });
 
+redisClient.on("end", () => {
+  console.warn("[redis] connection ended");
+  redisEnabled = false;
+});
+
+redisClient.on("ready", () => {
+  console.log("[redis] connection ready");
+  redisEnabled = true;
+});
+
 /**
  * Connect to Redis before any dependent code runs.
  * Called once in server/src/index.ts main() before createApp() and initSocketIO().

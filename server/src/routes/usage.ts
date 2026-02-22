@@ -4,10 +4,11 @@ import { getTTSCacheStats } from "../services/tts.js";
 import { getLoreCacheStats } from "../services/rag.js";
 import { getMusicCacheStats } from "../routes/music.js";
 import { getSceneVideoStats } from "../services/videoGenerator.js";
+import { optionalAuth } from "../middleware/auth.js";
 
 const router = Router();
 
-router.get("/api/usage", (req, res) => {
+router.get("/api/usage", optionalAuth, (req, res) => {
   const conversationId = typeof req.query.conversationId === "string" ? req.query.conversationId : null;
   const global = getGlobalUsage();
   const conversation = conversationId ? getConversationUsage(conversationId) : null;

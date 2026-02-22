@@ -20,6 +20,7 @@ import { generateMultiVoiceTTS, extractMood } from "../services/tts.js";
 import { buildLoreContext } from "../services/rag.js";
 import { queueBedrockCall } from "../services/bedrockQueue.js";
 import { createMoodStreamDetector } from "../services/moodStreamDetector.js";
+import { sanitizeUserInput } from "../services/inputSanitizer.js";
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -40,10 +41,14 @@ export function registerTurnHandlers(io: IO, socket: TypedSocket): void {
       return;
     }
 
+    // Sanitize and cap action text at 500 chars
+    const sanitizedAction = sanitizeUserInput(action, 500);
+    if (!sanitizedAction) return; // Empty after sanitization — silently ignore
+
     // Check if the countdown timer needs to start (first submission this turn)
     const timerNotStarted = room.timerStartedAt === null;
 
-    submitAction(roomCode, socket.id, action);
+    submitAction(roomCode, socket.id, sanitizedAction);
 
     // Notify all players that this player has submitted (action text hidden)
     io.to(roomCode).emit("turn:player-submitted", { socketId: socket.id });

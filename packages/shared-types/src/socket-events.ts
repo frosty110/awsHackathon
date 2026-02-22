@@ -56,4 +56,8 @@ export interface SocketData {
   characterClass: string;
   gender: string;
   pronouns: string;
+  /** Populated by Socket.IO JWT auth middleware (optional — may be absent in dev) */
+  userId?: string;
+  /** Populated by Socket.IO JWT auth middleware (optional — may be absent in dev) */
+  username?: string;
 }

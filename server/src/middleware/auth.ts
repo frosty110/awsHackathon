@@ -2,7 +2,26 @@ import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
 import { config } from "../services/config.js";
 
-const DEV_SECRET = "dev-secret-do-not-use-in-production";
+let devSecretWarned = false;
+
+/**
+ * Get the JWT secret for signing/verifying tokens.
+ * - In production: requires JWT_SECRET to be set, throws fatal error if missing.
+ * - In development: falls back to a dev-only secret with a one-time warning.
+ */
+export function getJwtSecret(): string {
+  if (config.JWT_SECRET) {
+    return config.JWT_SECRET;
+  }
+  if (config.NODE_ENV === "production") {
+    throw new Error("FATAL: JWT_SECRET must be set in production");
+  }
+  if (!devSecretWarned) {
+    console.warn("[auth] WARNING: Using dev-only JWT secret. Set JWT_SECRET for production.");
+    devSecretWarned = true;
+  }
+  return "dev-secret-do-not-use-in-production";
+}
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -27,7 +46,7 @@ export function requireAuth(
 
   const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, config.JWT_SECRET || DEV_SECRET) as {
+    const payload = jwt.verify(token, getJwtSecret()) as {
       userId: string;
       username: string;
     };
@@ -56,7 +75,7 @@ export function optionalAuth(
 
   const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, config.JWT_SECRET || DEV_SECRET) as {
+    const payload = jwt.verify(token, getJwtSecret()) as {
       userId: string;
       username: string;
     };

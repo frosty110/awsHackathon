@@ -23,9 +23,12 @@ const entries: UsageEntry[] = [];
 export function evictStaleEntries(): void {
   const cutoff = Date.now() - MAX_AGE_MS;
   // Remove entries older than 24h from the front (chronological order)
-  while (entries.length > 0 && entries[0].timestamp < cutoff) {
-    entries.shift();
+  // Count-then-splice: O(n) instead of O(n^2) shift-in-a-loop
+  let staleCount = 0;
+  while (staleCount < entries.length && entries[staleCount].timestamp < cutoff) {
+    staleCount++;
   }
+  if (staleCount > 0) entries.splice(0, staleCount);
   // Hard cap: if still over MAX_ENTRIES, remove oldest
   if (entries.length > MAX_ENTRIES) {
     entries.splice(0, entries.length - MAX_ENTRIES);

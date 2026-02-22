@@ -19,9 +19,32 @@ import {
   getActiveRoomCodes,
 } from "../services/roomStore.js";
 import { getOrCreate } from "../services/conversationStore.js";
+import { sanitizeUserInput } from "../services/inputSanitizer.js";
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
+
+// Valid character class and gender values for socket field validation
+const VALID_CHARACTER_CLASSES = new Set(["warrior", "mage", "rogue", "cleric", "ranger", "bard"]);
+const VALID_GENDERS = new Set(["male", "female", "nonbinary"]);
+const DISPLAY_NAME_RE = /^[\w\s\-']{1,20}$/;
+
+function validatePlayerFields(
+  displayName: string,
+  characterClass: string,
+  gender: string,
+): string | null {
+  if (typeof displayName !== "string" || !DISPLAY_NAME_RE.test(displayName)) {
+    return "Display name must be 1-20 characters (letters, numbers, spaces, hyphens, apostrophes)";
+  }
+  if (typeof characterClass !== "string" || !VALID_CHARACTER_CLASSES.has(characterClass)) {
+    return `Invalid character class. Must be one of: ${[...VALID_CHARACTER_CLASSES].join(", ")}`;
+  }
+  if (typeof gender !== "string" || !VALID_GENDERS.has(gender)) {
+    return `Invalid gender. Must be one of: ${[...VALID_GENDERS].join(", ")}`;
+  }
+  return null;
+}
 
 /**
  * Register all room lifecycle socket event handlers: create, join, ready, disconnect.
@@ -30,6 +53,12 @@ type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<str
 export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
   // ─── room:create ──────────────────────────────────────────────────────────
   socket.on("room:create", async ({ displayName, characterClass, gender, pronouns = 'They/Them' }) => {
+    const validationError = validatePlayerFields(displayName, characterClass, gender);
+    if (validationError) {
+      socket.emit("room:error", { message: validationError });
+      return;
+    }
+
     const code = generateUniqueRoomCode();
     // Create a conversation for this room so the DM has persistent history
     const convo = await getOrCreate();
@@ -68,6 +97,12 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
 
   // ─── room:join ────────────────────────────────────────────────────────────
   socket.on("room:join", ({ code, displayName, characterClass, gender, pronouns = 'They/Them' }) => {
+    const validationError = validatePlayerFields(displayName, characterClass, gender);
+    if (validationError) {
+      socket.emit("room:error", { message: validationError });
+      return;
+    }
+
     const normalizedCode = code.toUpperCase();
     const room = getRoom(normalizedCode);
     console.log(`[room:join] code="${normalizedCode}" socket=${socket.id} found=${!!room}`);

@@ -53,7 +53,7 @@ router.get(["/scene-video", "/api/scene-video"], async (req, res) => {
         error: entry.error,
         retryCount: entry.retryCount,
       });
-      res.status(500).json({ error: entry.error, terminal: true });
+      res.status(500).json({ error: "Video generation failed", terminal: true });
       return;
     }
     if (entry.lastFailedAt && Date.now() - entry.lastFailedAt >= RETRY_COOLDOWN_MS) {
@@ -71,7 +71,7 @@ router.get(["/scene-video", "/api/scene-video"], async (req, res) => {
       scene,
       error: entry.error,
     });
-    res.status(500).json({ error: entry.error });
+    res.status(500).json({ error: "Video generation failed" });
     return;
   }
 

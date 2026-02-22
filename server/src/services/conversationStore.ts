@@ -36,6 +36,21 @@ export interface IConversationStore {
 // ---------------------------------------------------------------------------
 export class InMemoryConversationStore implements IConversationStore {
   private store = new Map<string, Conversation>();
+  private locks = new Map<string, Promise<void>>();
+
+  private async withLock<T>(conversationId: string, fn: () => Promise<T>): Promise<T> {
+    const existing = this.locks.get(conversationId) ?? Promise.resolve();
+    let release: () => void;
+    const next = new Promise<void>(resolve => { release = resolve; });
+    this.locks.set(conversationId, next);
+    await existing;
+    try {
+      return await fn();
+    } finally {
+      release!();
+      if (this.locks.get(conversationId) === next) this.locks.delete(conversationId);
+    }
+  }
 
   async getOrCreate(
     conversationId?: string,
@@ -46,19 +61,21 @@ export class InMemoryConversationStore implements IConversationStore {
 
     if (isRedisAvailable()) {
       try {
-        let convo = await this._getFromRedis(id);
-        if (!convo) {
-          convo = { id, history: [], characterClass, pronouns };
-        } else {
-          if (characterClass && !convo.characterClass) {
-            convo.characterClass = characterClass;
+        return await this.withLock(id, async () => {
+          let convo = await this._getFromRedis(id);
+          if (!convo) {
+            convo = { id, history: [], characterClass, pronouns };
+          } else {
+            if (characterClass && !convo.characterClass) {
+              convo.characterClass = characterClass;
+            }
+            if (pronouns && !convo.pronouns) {
+              convo.pronouns = pronouns;
+            }
           }
-          if (pronouns && !convo.pronouns) {
-            convo.pronouns = pronouns;
-          }
-        }
-        await this._saveToRedis(convo);
-        return convo;
+          await this._saveToRedis(convo);
+          return convo;
+        });
       } catch (err) {
         console.error("[conversationStore] Redis error, falling back to in-memory:", err);
       }
@@ -105,10 +122,13 @@ export class InMemoryConversationStore implements IConversationStore {
   async appendMessage(conversationId: string, message: ChatMessage): Promise<void> {
     if (isRedisAvailable()) {
       try {
-        const convo = await this._getFromRedis(conversationId);
-        if (!convo) throw new Error(`Conversation ${conversationId} not found`);
-        convo.history.push(message);
-        await this._saveToRedis(convo);
+        await this.withLock(conversationId, async () => {
+          const convo = await this._getFromRedis(conversationId);
+          if (!convo) throw new Error(`Conversation ${conversationId} not found`);
+          convo.history.push(message);
+          if (convo.history.length > 100) convo.history = convo.history.slice(-100);
+          await this._saveToRedis(convo);
+        });
         return;
       } catch (err) {
         console.error("[conversationStore] Redis error, falling back to in-memory:", err);
@@ -119,6 +139,7 @@ export class InMemoryConversationStore implements IConversationStore {
     const conversation = this.store.get(conversationId);
     if (!conversation) throw new Error(`Conversation ${conversationId} not found`);
     conversation.history.push(message);
+    if (conversation.history.length > 100) conversation.history = conversation.history.slice(-100);
   }
 
   // Keep last N turns to stay within token budget

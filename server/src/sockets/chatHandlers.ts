@@ -1,5 +1,6 @@
 import type { Server, Socket } from "socket.io";
 import type { ClientToServerEvents, ServerToClientEvents, SocketData } from "./types.js";
+import { sanitizeUserInput } from "../services/inputSanitizer.js";
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -15,6 +16,11 @@ const ALLOWED_EMOJIS = new Set(["thumbs_up", "skull", "fire", "swords", "sparkle
 export function registerChatHandlers(io: IO, socket: TypedSocket): void {
   // ─── chat:send ────────────────────────────────────────────────────────────
   socket.on("chat:send", ({ text }) => {
+    // Validate and sanitize text input (H5: cap at 500 chars)
+    if (typeof text !== "string") return;
+    const sanitizedText = sanitizeUserInput(text, 500);
+    if (!sanitizedText) return; // Empty after sanitization — silently ignore
+
     const roomCode = socket.data.roomCode;
     if (!roomCode) return;
 
@@ -24,7 +30,7 @@ export function registerChatHandlers(io: IO, socket: TypedSocket): void {
       fromName: socket.data.displayName ?? "Unknown",
       fromClass: socket.data.characterClass ?? "Unknown",
       fromGender: socket.data.gender ?? "nonbinary",
-      text,
+      text: sanitizedText,
       timestamp: Date.now(),
     };
 

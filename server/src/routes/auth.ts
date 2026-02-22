@@ -1,9 +1,9 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { config } from "../services/config.js";
 import { redisClient, isRedisAvailable } from "../services/redis.js";
 import { logEvent } from "../services/logger.js";
+import { getJwtSecret } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -125,7 +125,7 @@ router.post("/api/auth/login", async (req, res) => {
 
     const token = jwt.sign(
       { userId: user.userId, username: user.username },
-      config.JWT_SECRET || "dev-secret-do-not-use-in-production",
+      getJwtSecret(),
       { expiresIn: "7d" }
     );
 

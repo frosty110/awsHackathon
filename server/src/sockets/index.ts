@@ -1,6 +1,7 @@
 import { Server } from "socket.io";
 import { Server as HTTPServer } from "node:http";
 import { createAdapter } from "@socket.io/redis-adapter";
+import jwt from "jsonwebtoken";
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -11,11 +12,39 @@ import { registerChatHandlers } from "./chatHandlers.js";
 import { registerTurnHandlers } from "./turnHandlers.js";
 import { redisClient, isRedisAvailable } from "../services/redis.js";
 import { ALLOWED_ORIGINS } from "../middleware/security.js";
+import { getJwtSecret } from "../middleware/auth.js";
 
 export type { ClientToServerEvents, ServerToClientEvents, SocketData };
 
 // Module-level io instance — set once during server init, used by route handlers
 let io: Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
+
+// ─── H2: Per-socket sliding window rate limiter ──────────────────────────────
+const socketRateMap = new Map<string, number[]>();
+const SOCKET_RATE_LIMIT = 30; // max events per window
+const SOCKET_RATE_WINDOW_MS = 10_000; // 10 seconds
+
+function checkSocketRate(socketId: string): boolean {
+  const now = Date.now();
+  const cutoff = now - SOCKET_RATE_WINDOW_MS;
+  let timestamps = socketRateMap.get(socketId);
+  if (!timestamps) {
+    timestamps = [];
+    socketRateMap.set(socketId, timestamps);
+  }
+  // Evict timestamps outside the window
+  let staleCount = 0;
+  while (staleCount < timestamps.length && timestamps[staleCount] < cutoff) {
+    staleCount++;
+  }
+  if (staleCount > 0) timestamps.splice(0, staleCount);
+  // Check limit
+  if (timestamps.length >= SOCKET_RATE_LIMIT) {
+    return false; // Over limit
+  }
+  timestamps.push(now);
+  return true;
+}
 
 /**
  * Attach Socket.IO to an existing http.Server without disrupting Express routes.
@@ -47,6 +76,8 @@ export async function initSocketIO(
         maxDisconnectionDuration: 2 * 60 * 1000,
         skipMiddlewares: true,
       },
+      // M2: Limit incoming packet size to prevent abuse (16KB)
+      maxHttpBufferSize: 16 * 1024,
     }
   );
 
@@ -60,7 +91,39 @@ export async function initSocketIO(
     console.log("[socket.io] Redis adapter attached");
   }
 
+  // H1: Socket.IO JWT auth middleware (optional auth — matches HTTP optionalAuth pattern)
+  io.use((socket, next) => {
+    const token = socket.handshake.auth?.token as string | undefined;
+    if (!token) {
+      // Allow unauthenticated connections in dev (matches optionalAuth pattern)
+      return next();
+    }
+    try {
+      const payload = jwt.verify(token, getJwtSecret()) as { userId: string; username: string };
+      socket.data.userId = payload.userId;
+      socket.data.username = payload.username;
+      next();
+    } catch {
+      next(new Error("Authentication failed"));
+    }
+  });
+
   io.on("connection", (socket) => {
+    // H2: Per-socket rate limiting middleware — intercepts all events before handlers fire
+    socket.use((_packet, next) => {
+      if (!checkSocketRate(socket.id)) {
+        console.warn(`[socket.io] Rate limit exceeded for socket ${socket.id}, disconnecting`);
+        socket.disconnect(true);
+        return;
+      }
+      next();
+    });
+
+    // Clean up rate tracking on disconnect
+    socket.on("disconnect", () => {
+      socketRateMap.delete(socket.id);
+    });
+
     // Handle reconnection first — if session was recovered, restore room state
     if (socket.recovered) {
       handleReconnection(io, socket);

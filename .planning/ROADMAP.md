@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 12: Production Hardening** — Auth rate limiting, Redis resilience, JWT secret alignment
 - [x] **Phase 13: Dead Code Cleanup** — Remove dead DI scaffolding, deduplicate stripTTSTags
 - [x] **Phase 14: Parallel TTS Processing** — Parallelize multi-voice TTS segment generation for ~5x narration latency reduction
-- [ ] **Phase 15: Client Polling Optimization** — Exponential backoff and initial delays for music/video polling to reduce wasted requests by ~70%
+- [x] **Phase 15: Client Polling Optimization** — Exponential backoff and initial delays for music/video polling to reduce wasted requests by ~70%
 - [x] **Phase 16: Generation Observability & Log Hygiene** — Progress logging for long-running generation tasks, dev-mode log noise reduction
 
 ## Phase Details
@@ -302,7 +302,40 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 16-01-PLAN.md — Video/music generation progress logging + dev-mode config warning suppression for Redis/JWT
+- [x] 16-01-PLAN.md — Video/music generation progress logging + dev-mode config warning suppression for Redis/JWT
+
+### Phase 17: Code Review Bug Fixes Wave 1 — Auth enforcement, JWT pinning, input validation, error handling
+
+**Goal:** Fix all critical and high-severity bugs plus easy/trivial medium-severity issues identified in `docs/CODE_REVIEW_2026-02-22.md` Wave 1 priority list — the pre-production blockers that must be resolved before deploying to 1000 users
+**Depends on:** Phase 16
+**Requirements:** Strengthens SCALE-02 (auth), SCALE-03 (rate limiting), SCALE-04 (reliability)
+**Source:** `docs/CODE_REVIEW_2026-02-22.md` — Wave 1 (14 issues) + select Wave 2 easy fixes
+**Success Criteria** (what must be TRUE):
+  1. `requireAuth` middleware enforced on `/api/chat`, `/api/narrate`, `/api/music`, `/api/scene-video` (C-1)
+  2. JWT sign/verify pinned to `HS256` algorithm explicitly (H-1)
+  3. Socket.IO `skipMiddlewares: false` on connection state recovery (H-2)
+  4. `dice:roll` event validates result as integer 1-20 (H-3)
+  5. Emoji allowlist uses Unicode characters matching client-sent values (H-4)
+  6. S3 `response.Body` null-checked before `transformToByteArray()` (H-8)
+  7. Post-`res.end()` `appendMessage` wrapped in try/catch (H-9)
+  8. Narrate route sanitizes input text with `sanitizeUserInput()` and length limit (H-15)
+  9. Password policy requires 8-128 characters (M-3)
+  10. Health endpoint no longer exposes `process.uptime()` (M-6)
+  11. `x-request-id` validated against alphanumeric regex, max 128 chars (M-7)
+  12. Narrate endpoint validates `conversationId` format (M-8)
+  13. Bedrock queue overload threshold lowered to 40-60 (M-9)
+  14. Neo4j query uses 5000ms timeout (M-12)
+  15. Graceful shutdown closes Redis, Socket.IO, and drains SSE streams (H-7)
+  16. DM trigger functions have idempotency guard against concurrent invocation (H-10)
+  17. Room deletion clears pending timers and aborts Bedrock streams (H-13)
+  18. TypeScript compiles clean (`npx tsc --noEmit`) and existing tests pass
+**Context:** The comprehensive code review identified ~80 unique findings across 4 review dimensions (security, code quality, architecture, performance). This phase targets the 14 Wave 1 items (all trivial/easy effort) plus 3 easy Wave 2 items (H-7, H-10, H-13) that are critical for production safety. Wave 2 architectural changes (Redis Lists, circuit breakers, conversation ownership) and Wave 3 performance tuning are deferred to future phases.
+**Plans:** 3 plans
+
+Plans:
+- [ ] 17-01-PLAN.md — Auth enforcement (C-1), JWT algorithm pinning (H-1), Socket.IO auth bypass fix (H-2), password policy (M-3)
+- [ ] 17-02-PLAN.md — Input validation and error handling: dice:roll (H-3), emoji allowlist (H-4), S3 null check (H-8), post-stream try/catch (H-9), narrate sanitization (H-15), health uptime (M-6), request-id validation (M-7), narrate conversationId (M-8), Bedrock threshold (M-9), Neo4j timeout (M-12)
+- [ ] 17-03-PLAN.md — Graceful shutdown (H-7), DM trigger idempotency (H-10), room deletion cleanup (H-13)
 
 ---
 
@@ -331,3 +364,4 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 14. Parallel TTS Processing | 1/1 | ✅ Complete | 2026-02-21 |
 | 15. Client Polling Optimization | 1/1 | ✅ Complete | 2026-02-22 |
 | 16. Generation Observability & Log Hygiene | 1/1 | ✅ Complete | 2026-02-22 |
+| 17. Code Review Bug Fixes Wave 1 | 0/3 | 🔄 Planned | — |

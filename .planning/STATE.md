@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 11 (Architecture Audit) COMPLETE — All 5 plans done.
+**Current focus:** Phase 11 (Architecture Audit) COMPLETE — All 6 plans done.
 
 ## Current Position
 
-Phase: Phase 11 (Architecture Audit) — ALL plans complete (01, 02, 03, 04, 05).
-Plan: Phase 11 Plan 05 complete (vitest infrastructure + 41 unit tests).
-Status: All architecture audit improvements done. Security, store interfaces, eviction, music service, prompt extraction, and test infrastructure all in place.
-Last activity: 2026-02-21 — Phase 11 Plan 05 complete (vitest + unit tests for promptBuilder, conversationStore, usageTracker).
+Phase: Phase 11 (Architecture Audit) — ALL plans complete (01, 02, 03, 04, 05, 06).
+Plan: Phase 11 Plan 06 complete (dead rate limiter exports removed from rateLimits.ts).
+Status: All architecture audit improvements done. Security, store interfaces, eviction, music service, prompt extraction, test infrastructure, and dead code cleanup all in place.
+Last activity: 2026-02-21 — Phase 11 Plan 06 complete (removed dead chatLimiter/narrateLimiter from rateLimits.ts; added architecture JSDoc).
 
 Progress: [██████████] 97%
 
@@ -62,6 +62,7 @@ Progress: [██████████] 97%
 | Phase 11 P03 | 3 | 2 tasks | 3 files |
 | Phase 11 P02 | 4 | 2 tasks | 2 files |
 | Phase 11 P05 | 3 | 2 tasks | 6 files |
+| Phase 11 P06 | 3 | 1 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -146,6 +147,8 @@ Recent decisions affecting current work:
 - [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
 - [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
 - [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
 
 ### Roadmap Evolution
 
@@ -186,5 +189,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 11-02-PLAN.md (promptBuilder extraction + p-queue verification)
-Resume context: Phase 11 Plan 02 complete. DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt extracted to promptBuilder.ts; bedrock.ts is now pure AWS transport with re-exports for backward compatibility. p-queue concurrency cap of 20 via bedrockQueue.ts (established in Phase 09). Plans 03, 04, 05 remain in Phase 11.
+Stopped at: Completed 11-06-PLAN.md (dead rate limiter exports removed)
+Resume context: Phase 11 all 6 plans complete. Dead chatLimiter and narrateLimiter exports deleted from rateLimits.ts; musicLimiter remains as sole export with architecture JSDoc. All 41 server unit tests pass. Phase 11 Architecture Audit fully complete.

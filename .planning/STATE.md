@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 17 (Code Review Bug Fixes Wave 1) IN PROGRESS — Plan 01 complete.
+**Current focus:** Phase 17 (Code Review Bug Fixes Wave 1) COMPLETE — All plans done (03/03). Verified 18/18.
 
 ## Current Position
 
-Phase: Phase 17 (Code Review Bug Fixes Wave 1) — Plan 01 complete.
-Plan: 17-01 complete.
-Status: Auth enforcement (C-1), JWT algorithm pinning (H-1), Socket.IO reconnection auth bypass (H-2), and password policy (M-3) all fixed. requireAuth on all 6 game routes, { algorithms: ["HS256"] } on all 3 jwt.verify calls, skipMiddlewares: false, password 8-128 chars. TypeScript compiles clean, all 48 tests pass.
-Last activity: 2026-02-22 — Completed Phase 17-01: Auth enforcement, JWT algorithm pinning, socket reconnection auth fix
+Phase: Phase 17 (Code Review Bug Fixes Wave 1) — ALL plans complete (01, 02, 03). Verified.
+Plan: Phase 17 complete.
+Status: All 17 code review findings fixed: auth enforcement on 6 game routes (C-1), JWT HS256 pinning on sign+verify (H-1), Socket.IO reconnection auth (H-2), dice:roll validation (H-3), emoji Unicode allowlist (H-4), graceful shutdown (H-7), S3 null check (H-8), post-stream try/catch (H-9), DM idempotency (H-10), room deletion cleanup (H-13), narrate sanitization (H-15), password policy (M-3), health uptime removal (M-6), request-id validation (M-7), conversationId UUID validation (M-8), Bedrock threshold 50 (M-9), Neo4j 5s timeout (M-12). TypeScript compiles clean, all 48 tests pass.
+Last activity: 2026-02-22 — Completed Phase 17: Code Review Bug Fixes Wave 1
 
 Progress: [██████████] 100%
 
@@ -43,7 +43,7 @@ Progress: [██████████] 100%
 | 14-parallel-tts-processing | 1/1 | ✅ Complete |
 | 15-client-polling-optimization | 1/1 | ✅ Complete |
 | 16-generation-observability | 1/1 | ✅ Complete |
-| 17-code-review-bug-fixes-wave-1 | 1/N | 🔄 In Progress |
+| 17-code-review-bug-fixes-wave-1 | 3/3 | ✅ Complete |
 
 **Quick Tasks:** 5/5 complete (TTS optimization, chat styling, pronouns, gender, code review fixes)
 

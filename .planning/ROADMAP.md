@@ -325,17 +325,17 @@ Plans:
   12. Narrate endpoint validates `conversationId` format (M-8)
   13. Bedrock queue overload threshold lowered to 40-60 (M-9)
   14. Neo4j query uses 5000ms timeout (M-12)
-  15. Graceful shutdown closes Redis, Socket.IO, and drains SSE streams (H-7)
+  15. Graceful shutdown closes Redis, Socket.IO, and stops accepting new connections (H-7)
   16. DM trigger functions have idempotency guard against concurrent invocation (H-10)
-  17. Room deletion clears pending timers and aborts Bedrock streams (H-13)
+  17. Room deletion clears pending timers and emits dm:error if DM was streaming (H-13)
   18. TypeScript compiles clean (`npx tsc --noEmit`) and existing tests pass
 **Context:** The comprehensive code review identified ~80 unique findings across 4 review dimensions (security, code quality, architecture, performance). This phase targets the 14 Wave 1 items (all trivial/easy effort) plus 3 easy Wave 2 items (H-7, H-10, H-13) that are critical for production safety. Wave 2 architectural changes (Redis Lists, circuit breakers, conversation ownership) and Wave 3 performance tuning are deferred to future phases.
 **Plans:** 3 plans
 
 Plans:
-- [ ] 17-01-PLAN.md — Auth enforcement (C-1), JWT algorithm pinning (H-1), Socket.IO auth bypass fix (H-2), password policy (M-3)
-- [ ] 17-02-PLAN.md — Input validation and error handling: dice:roll (H-3), emoji allowlist (H-4), S3 null check (H-8), post-stream try/catch (H-9), narrate sanitization (H-15), health uptime (M-6), request-id validation (M-7), narrate conversationId (M-8), Bedrock threshold (M-9), Neo4j timeout (M-12)
-- [ ] 17-03-PLAN.md — Graceful shutdown (H-7), DM trigger idempotency (H-10), room deletion cleanup (H-13)
+- [x] 17-01-PLAN.md — Auth enforcement (C-1), JWT algorithm pinning (H-1), Socket.IO auth bypass fix (H-2), password policy (M-3)
+- [x] 17-02-PLAN.md — Input validation and error handling: dice:roll (H-3), emoji allowlist (H-4), S3 null check (H-8), post-stream try/catch (H-9), narrate sanitization (H-15), health uptime (M-6), request-id validation (M-7), narrate conversationId (M-8), Bedrock threshold (M-9), Neo4j timeout (M-12)
+- [x] 17-03-PLAN.md — Graceful shutdown (H-7), DM trigger idempotency (H-10), room deletion cleanup (H-13)
 
 ---
 
@@ -364,4 +364,4 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 14. Parallel TTS Processing | 1/1 | ✅ Complete | 2026-02-21 |
 | 15. Client Polling Optimization | 1/1 | ✅ Complete | 2026-02-22 |
 | 16. Generation Observability & Log Hygiene | 1/1 | ✅ Complete | 2026-02-22 |
-| 17. Code Review Bug Fixes Wave 1 | 0/3 | 🔄 Planned | — |
+| 17. Code Review Bug Fixes Wave 1 | 3/3 | ✅ Complete | 2026-02-22 |

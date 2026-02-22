@@ -283,10 +283,10 @@ Plans:
   6. Total polling requests for a typical video generation (~180s) reduced proportionally
   7. Existing `MAX_POLLS` and `MAX_RETRIES` safety limits preserved as upper bounds
 **Context:** The client polls `/api/music` every 4s (`client/src/services/backgroundMusic.ts`, `POLL_INTERVAL_MS = 4000`) and `/api/scene-video` every 5s (`client/src/services/sceneVideo.ts`, `POLL_INTERVAL_MS = 5000`) with no backoff. Music generation takes ~55s, producing 14 wasted 202 responses. Video generation takes up to 180s. The server routes (`server/src/routes/music.ts` and `server/src/routes/sceneVideo.ts`) return plain `{ status: "generating" }` with no progress info. The server-side music service (`server/src/services/musicService.ts`) and video generator (`server/src/services/videoGenerator.ts`) track generation start time internally.
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 15 to break down)
+- [ ] 15-01-PLAN.md — Server startedAt timestamps on 202 responses + client exponential backoff with initial delay
 
 ### Phase 16: Generation Observability & Log Hygiene
 
@@ -329,5 +329,5 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 12. Production Hardening | 2/2 | ✅ Complete | 2026-02-21 |
 | 13. Dead Code Cleanup | 1/1 | ✅ Complete | 2026-02-21 |
 | 14. Parallel TTS Processing | 0/1 | Not started | - |
-| 15. Client Polling Optimization | 0/0 | Not started | - |
+| 15. Client Polling Optimization | 0/1 | Not started | - |
 | 16. Generation Observability & Log Hygiene | 0/0 | Not started | - |

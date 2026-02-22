@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 15 (Client Polling Optimization) COMPLETE — All plans done (01/01). Verification passed 8/8.
+**Current focus:** Phase 17 (Code Review Bug Fixes Wave 1) IN PROGRESS — Plan 01 complete.
 
 ## Current Position
 
-Phase: Phase 15 (Client Polling Optimization) — ALL plans complete (01). Verified.
-Plan: Phase 15 complete.
-Status: Fixed-interval polling replaced with exponential backoff (2s->4s->8s->16s->30s cap) in both backgroundMusic.ts and sceneVideo.ts. Initial delays added (10s music, 15s video). Server 202 responses include startedAt timestamps. Error retry paths and safety limits unchanged. TypeScript compiles clean.
-Last activity: 2026-02-22 — Completed quick task 5: Fix all 34 code review issues
+Phase: Phase 17 (Code Review Bug Fixes Wave 1) — Plan 01 complete.
+Plan: 17-01 complete.
+Status: Auth enforcement (C-1), JWT algorithm pinning (H-1), Socket.IO reconnection auth bypass (H-2), and password policy (M-3) all fixed. requireAuth on all 6 game routes, { algorithms: ["HS256"] } on all 3 jwt.verify calls, skipMiddlewares: false, password 8-128 chars. TypeScript compiles clean, all 48 tests pass.
+Last activity: 2026-02-22 — Completed Phase 17-01: Auth enforcement, JWT algorithm pinning, socket reconnection auth fix
 
 Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22 (across 8 phases) + 4 quick tasks
+- Total plans completed: 35 (across 16 phases) + 5 quick tasks
 - Average duration: ~3 min per plan
-- Total execution time: ~1.1 hours
+- Total execution time: ~2 hours
 
 **By Phase:**
 
@@ -35,7 +35,15 @@ Progress: [██████████] 100%
 | 06-datadog-observability | 2/2 | ✅ Complete |
 | 07-voice-demo-polish | 3/3 | ✅ Complete |
 | 08-multiplayer-mode | 5/5 | ✅ Complete |
+| 09-scale-and-auth | 3/3 | ✅ Complete |
+| 10-s3-audio-cache | 1/1 | ✅ Complete |
+| 11-architecture-audit | 6/6 | ✅ Complete |
+| 12-production-hardening | 2/2 | ✅ Complete |
+| 13-dead-code-cleanup | 1/1 | ✅ Complete |
+| 14-parallel-tts-processing | 1/1 | ✅ Complete |
 | 15-client-polling-optimization | 1/1 | ✅ Complete |
+| 16-generation-observability | 1/1 | ✅ Complete |
+| 17-code-review-bug-fixes-wave-1 | 1/N | 🔄 In Progress |
 
 **Quick Tasks:** 5/5 complete (TTS optimization, chat styling, pronouns, gender, code review fixes)
 
@@ -70,6 +78,9 @@ Progress: [██████████] 100%
 | Phase 14-parallel-tts-processing P01 | 8 | 2 tasks | 2 files |
 | Phase 16 P01 | 7 | 2 tasks | 4 files |
 | Phase 15 P01 | 217 | 2 tasks | 4 files |
+| Phase 17-01 P01 | 2 | 2 tasks | 4 files |
+| Phase 17-code-review-bug-fixes-wave-1 P03 | 5 | 2 tasks | 3 files |
+| Phase 17-code-review-bug-fixes-wave-1 P02 | 2 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -170,6 +181,10 @@ Recent decisions affecting current work:
 - [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
 - [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
 - [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
 
 ### Roadmap Evolution
 
@@ -179,6 +194,7 @@ Recent decisions affecting current work:
 - Phase 14 added: Parallel TTS Processing — Parallelize multi-voice TTS segment generation for ~5x narration latency reduction (from ~15s sequential to ~3s parallel)
 - Phase 15 added: Client Polling Optimization — Exponential backoff and initial delays for music/video polling to reduce wasted requests by ~70%
 - Phase 16 added: Generation Observability & Log Hygiene — Progress logging for long-running generation tasks, dev-mode log noise reduction
+- Phase 17 added: Code Review Bug Fixes Wave 1 — Fix critical/high-severity bugs from comprehensive code review (auth enforcement, JWT pinning, input validation, error handling, graceful shutdown)
 
 ### Pending Todos
 
@@ -213,6 +229,6 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 
 ## Session Continuity
 
-Last session: 2026-02-21
-Stopped at: Completed 15-01-PLAN.md (client polling optimization: exponential backoff replacing fixed intervals)
-Resume context: Phase 15 Plan 01 complete. backgroundMusic.ts uses 10s initial delay + exponential backoff (2s base, 30s cap). sceneVideo.ts uses 15s initial delay + exponential backoff. Server 202 responses for music and video routes now include startedAt timestamps. TypeScript compiles clean in both client and server.
+Last session: 2026-02-22
+Stopped at: Completed Phase 17-01: Auth enforcement, JWT algorithm pinning, socket reconnection auth fix.
+Resume context: Phase 17 Plan 01 complete. Auth enforcement (C-1), JWT algorithm pinning (H-1), Socket.IO reconnection auth bypass (H-2), and password policy (M-3) all fixed. TypeScript compiles clean, all 48 tests pass. Ready for Phase 17-02 (input validation and error handling).

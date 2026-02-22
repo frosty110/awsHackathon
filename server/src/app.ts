@@ -9,7 +9,7 @@ import sceneVideoRouter from "./routes/sceneVideo.js";
 import usageRouter from "./routes/usage.js";
 import authRouter from "./routes/auth.js";
 import { buildRequestId, logEvent } from "./services/logger.js";
-import { optionalAuth } from "./middleware/auth.js";
+import { optionalAuth, requireAuth } from "./middleware/auth.js";
 import { chatRateLimiter, narrateRateLimiter, registerLimiter, loginLimiter } from "./middleware/rateLimiter.js";
 import { helmetMiddleware, corsMiddleware } from "./middleware/security.js";
 import { musicLimiter } from "./middleware/rateLimits.js";
@@ -41,12 +41,13 @@ export function createApp(_deps: AppDeps): Express {
   // 6. Auth routes
   app.use(authRouter);
 
-  // 7. Rate limiters applied before their respective route handlers
-  app.use("/api/chat", chatRateLimiter);
-  app.use("/api/narrate", narrateRateLimiter);
-  app.use("/narrate", narrateRateLimiter);
-  app.use("/api/music", musicLimiter);
-  app.use("/music", musicLimiter);
+  // 7. Auth enforcement + rate limiters applied before their respective route handlers
+  app.use("/api/chat", requireAuth, chatRateLimiter);
+  app.use("/api/narrate", requireAuth, narrateRateLimiter);
+  app.use("/narrate", requireAuth, narrateRateLimiter);
+  app.use("/api/music", requireAuth, musicLimiter);
+  app.use("/music", requireAuth, musicLimiter);
+  app.use("/api/scene-video", requireAuth);
 
   // 8. Route handlers
   app.use(chatRouter);

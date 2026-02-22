@@ -46,7 +46,7 @@ export function requireAuth(
 
   const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, getJwtSecret()) as {
+    const payload = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] }) as {
       userId: string;
       username: string;
     };
@@ -75,7 +75,7 @@ export function optionalAuth(
 
   const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, getJwtSecret()) as {
+    const payload = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] }) as {
       userId: string;
       username: string;
     };

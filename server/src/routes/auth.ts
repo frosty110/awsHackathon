@@ -32,8 +32,8 @@ router.post("/api/auth/register", async (req, res) => {
     });
     return;
   }
-  if (typeof password !== "string" || password.length < 6) {
-    res.status(400).json({ error: "Password must be at least 6 characters" });
+  if (typeof password !== "string" || password.length < 8 || password.length > 128) {
+    res.status(400).json({ error: "Password must be 8-128 characters" });
     return;
   }
 
@@ -126,7 +126,7 @@ router.post("/api/auth/login", async (req, res) => {
     const token = jwt.sign(
       { userId: user.userId, username: user.username },
       getJwtSecret(),
-      { expiresIn: "7d" }
+      { algorithm: "HS256", expiresIn: "7d" }
     );
 
     logEvent("info", "auth.login_success", { username });

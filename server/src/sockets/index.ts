@@ -99,7 +99,7 @@ export async function initSocketIO(
       return next();
     }
     try {
-      const payload = jwt.verify(token, getJwtSecret()) as { userId: string; username: string };
+      const payload = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] }) as { userId: string; username: string };
       socket.data.userId = payload.userId;
       socket.data.username = payload.username;
       next();

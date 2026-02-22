@@ -25,9 +25,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 11: System Architecture Review**
 - [x] **Phase 12: Production Hardening** — Auth rate limiting, Redis resilience, JWT secret alignment
 - [x] **Phase 13: Dead Code Cleanup** — Remove dead DI scaffolding, deduplicate stripTTSTags
-- [ ] **Phase 14: Parallel TTS Processing** — Parallelize multi-voice TTS segment generation for ~5x narration latency reduction
+- [x] **Phase 14: Parallel TTS Processing** — Parallelize multi-voice TTS segment generation for ~5x narration latency reduction
 - [ ] **Phase 15: Client Polling Optimization** — Exponential backoff and initial delays for music/video polling to reduce wasted requests by ~70%
-- [ ] **Phase 16: Generation Observability & Log Hygiene** — Progress logging for long-running generation tasks, dev-mode log noise reduction
+- [x] **Phase 16: Generation Observability & Log Hygiene** — Progress logging for long-running generation tasks, dev-mode log noise reduction
 
 ## Phase Details
 
@@ -268,7 +268,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 14-01-PLAN.md — Unit tests for parallel TTS behavior + refactor generateMultiVoiceTTS to Promise.allSettled fan-out with per-segment fallback and timing log
+- [x] 14-01-PLAN.md — Unit tests for parallel TTS behavior + refactor generateMultiVoiceTTS to Promise.allSettled fan-out with per-segment fallback and timing log
 
 ### Phase 15: Client Polling Optimization
 
@@ -328,6 +328,6 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 11. Architecture Audit | 6/6 | ✅ Complete | 2026-02-21 |
 | 12. Production Hardening | 2/2 | ✅ Complete | 2026-02-21 |
 | 13. Dead Code Cleanup | 1/1 | ✅ Complete | 2026-02-21 |
-| 14. Parallel TTS Processing | 0/1 | Not started | - |
+| 14. Parallel TTS Processing | 1/1 | ✅ Complete | 2026-02-21 |
 | 15. Client Polling Optimization | 0/1 | Not started | - |
 | 16. Generation Observability & Log Hygiene | 0/1 | Not started | - |

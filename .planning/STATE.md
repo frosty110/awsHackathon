@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 16 (Generation Observability & Log Hygiene) COMPLETE — All plans done (01/01). All 48 tests pass.
+**Current focus:** Phase 14 (Parallel TTS Processing) COMPLETE — All plans done (01/01). Verification passed 6/6.
 
 ## Current Position
 
-Phase: Phase 16 (Generation Observability & Log Hygiene) — ALL plans complete (01). Verified.
-Plan: Phase 16 Plan 01 complete.
-Status: Poll-loop progress logging added to videoGenerator.ts (video.poll_progress) and musicService.ts (music.generation_progress with clearInterval). Dev-mode Redis/JWT config warnings suppressed. Redis console.warn replaced with structured logEvent. All 48 server tests pass. TypeScript compiles clean.
-Last activity: 2026-02-22 — Phase 16 Plan 01 complete.
+Phase: Phase 14 (Parallel TTS Processing) — ALL plans complete (01). Verified.
+Plan: Phase 14 complete.
+Status: generateMultiVoiceTTS refactored from sequential for/await to Promise.allSettled fan-out. Per-segment fallback preserved in concurrent closures. Narrator failure terminal. Timing log emits tts.multi_voice_completed. All 48 server tests pass. TypeScript compiles clean.
+Last activity: 2026-02-21 — Phase 14 verified and complete.
 
 Progress: [██████████] 100%
 

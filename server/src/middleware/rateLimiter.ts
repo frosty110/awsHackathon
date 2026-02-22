@@ -1,4 +1,4 @@
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import { redisClient, isRedisAvailable } from "../services/redis.js";
 import type { AuthenticatedRequest } from "./auth.js";
@@ -29,7 +29,7 @@ export const chatRateLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   keyGenerator: (req) =>
-    (req as AuthenticatedRequest).userId ?? req.ip ?? "unknown",
+    (req as AuthenticatedRequest).userId ?? ipKeyGenerator(req.ip ?? "unknown"),
   store: createStore("rl:chat:"),
   message: { error: "Too many chat requests, slow down" },
 });
@@ -44,7 +44,7 @@ export const narrateRateLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   keyGenerator: (req) =>
-    (req as AuthenticatedRequest).userId ?? req.ip ?? "unknown",
+    (req as AuthenticatedRequest).userId ?? ipKeyGenerator(req.ip ?? "unknown"),
   store: createStore("rl:narrate:"),
   message: { error: "Too many narrate requests, slow down" },
 });
@@ -59,7 +59,7 @@ export const registerLimiter = rateLimit({
   limit: 3,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip ?? "unknown",
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
   store: createStore("rl:register:"),
   message: { error: "Too many registration attempts, slow down" },
 });
@@ -74,7 +74,7 @@ export const loginLimiter = rateLimit({
   limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip ?? "unknown",
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
   store: createStore("rl:login:"),
   message: { error: "Too many login attempts, slow down" },
 });

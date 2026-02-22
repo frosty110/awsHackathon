@@ -117,9 +117,21 @@ router.post("/api/chat", async (req, res) => {
       },
       err
     );
+
+    // Categorize error for user-friendly message
+    let userError = "The Dungeon Master encountered an error. Please try again.";
+    if (err instanceof Error) {
+      if (err.message.includes("security token") || err.message.includes("credential") || err.name === "UnrecognizedClientException") {
+        userError = "The server's connection to the AI service is misconfigured. Please contact the administrator.";
+      } else if (err.message.includes("timed out") || err.name === "AbortError") {
+        userError = "The Dungeon Master took too long to respond. Please try again.";
+      } else if (err.message.includes("throttl") || err.name === "ThrottlingException") {
+        userError = "Too many adventurers! The Dungeon Master is overwhelmed. Please try again shortly.";
+      }
+    }
     res.write(
       `data: ${JSON.stringify({
-        error: "Bedrock stream failed",
+        error: userError,
         requestId,
       })}\n\n`
     );

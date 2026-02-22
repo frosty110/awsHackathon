@@ -1,4 +1,4 @@
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { logEvent } from "../services/logger.js";
 
 /**
@@ -33,15 +33,13 @@ export const musicLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) =>
     (req.body as Record<string, unknown>)?.conversationId as string | undefined ??
-    req.ip ??
-    "unknown",
+    ipKeyGenerator(req.ip ?? "unknown"),
   handler: (req, res) => {
     logEvent("warn", "rate_limit.exceeded", {
       route: req.originalUrl,
       key:
         (req.body as Record<string, unknown>)?.conversationId ??
-        req.ip ??
-        "unknown",
+        ipKeyGenerator(req.ip ?? "unknown"),
       limiter: "music",
     });
     res.status(429).json({ error: "Rate limit exceeded. Slow down, adventurer." });

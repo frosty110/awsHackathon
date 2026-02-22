@@ -2,54 +2,144 @@ import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from '
 import { subscribe, getCurrentVideoUrl } from '../services/sceneVideo';
 
 const CROSSFADE_MS = 600;
+const CAPTURE_FPS = 30;
+const FRAME_MS = 1000 / CAPTURE_FPS;
+
+function videoMimeType(src: string): string {
+  return src.endsWith('.webm') ? 'video/webm' : 'video/mp4';
+}
 
 /**
- * Ping-pong loop: plays the video forward natively, then on `ended`
- * reverses via requestAnimationFrame seeking at 1× speed.
- * When currentTime reaches 0 it calls play() again — seamless infinite loop.
+ * Captures frames at ~30 fps during the first native forward play,
+ * then loops forever as a canvas-driven ping-pong (forward ↔ backward).
+ * No seeking involved after initial play — no stutter.
  */
 function usePingPong(
   videoRef: React.RefObject<HTMLVideoElement | null>,
-  dep: unknown,
+  canvasRef: React.RefObject<HTMLCanvasElement | null>,
+  src: string,
 ) {
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
 
-    let rafId = 0;
-    let lastTs = 0;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    const stepBackward = (ts: number) => {
-      const v = videoRef.current;
-      if (!v) return;
+    let alive = true;
+    const frames: ImageBitmap[] = [];
+    let capRaf = 0;
+    let drawRaf = 0;
+    let lastCapTs = 0;
 
-      if (lastTs > 0) {
-        const dt = (ts - lastTs) / 1000;
-        const next = v.currentTime - dt;
-        if (next <= 0) {
-          v.currentTime = 0;
-          void v.play();
-          return;
-        }
-        v.currentTime = next;
+    /* Phase 1 — capture frames while video plays forward natively */
+    const captureLoop = (ts: number) => {
+      if (!alive || video.paused || video.ended) return;
+      if (ts - lastCapTs >= FRAME_MS) {
+        lastCapTs = ts;
+        createImageBitmap(video)
+          .then(b => { if (alive) frames.push(b); else b.close(); })
+          .catch(() => {});
+      }
+      capRaf = requestAnimationFrame(captureLoop);
+    };
+
+    /* Phase 2 — canvas-rendered ping-pong from captured frames */
+    const startCanvasLoop = () => {
+      if (frames.length < 2) {
+        // Too few frames captured — simple restart fallback
+        video.currentTime = 0;
+        void video.play();
+        return;
       }
 
-      lastTs = ts;
-      rafId = requestAnimationFrame(stepBackward);
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      video.style.visibility = 'hidden';
+      canvas.style.visibility = 'visible';
+
+      let idx = frames.length - 1;
+      let dir: 1 | -1 = -1; // start going backward
+      let lastTs = 0;
+
+      const draw = (ts: number) => {
+        if (!alive) return;
+        if (!lastTs) lastTs = ts;
+
+        if (ts - lastTs >= FRAME_MS) {
+          lastTs = ts;
+          ctx.drawImage(frames[idx], 0, 0, canvas.width, canvas.height);
+          idx += dir;
+          if (idx <= 0) { idx = 0; dir = 1; }
+          else if (idx >= frames.length - 1) { idx = frames.length - 1; dir = -1; }
+        }
+
+        drawRaf = requestAnimationFrame(draw);
+      };
+
+      drawRaf = requestAnimationFrame(draw);
+    };
+
+    const onPlay = () => {
+      if (frames.length === 0) {
+        lastCapTs = 0;
+        capRaf = requestAnimationFrame(captureLoop);
+      }
     };
 
     const onEnded = () => {
-      lastTs = 0;
-      rafId = requestAnimationFrame(stepBackward);
+      cancelAnimationFrame(capRaf);
+      startCanvasLoop();
     };
 
+    video.addEventListener('play', onPlay);
     video.addEventListener('ended', onEnded);
 
+    // If already playing (autoplay), kick off capture immediately
+    if (!video.paused && !video.ended) onPlay();
+
     return () => {
+      alive = false;
+      video.removeEventListener('play', onPlay);
       video.removeEventListener('ended', onEnded);
-      cancelAnimationFrame(rafId);
+      cancelAnimationFrame(capRaf);
+      cancelAnimationFrame(drawRaf);
+      frames.forEach(f => f.close());
     };
-  }, [videoRef, dep]);
+  }, [videoRef, canvasRef, src]);
+}
+
+/** Video + canvas pair with automatic ping-pong looping. */
+function PingPongVideo({ src, onCanPlay }: { src: string; onCanPlay?: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  usePingPong(videoRef, canvasRef, src);
+
+  const fill = 'absolute inset-0 w-full h-full object-cover';
+
+  return (
+    <>
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        aria-hidden="true"
+        className={fill}
+        onCanPlay={onCanPlay}
+      >
+        <source src={src} type={videoMimeType(src)} />
+      </video>
+      <canvas
+        ref={canvasRef}
+        aria-hidden="true"
+        className={fill}
+        style={{ visibility: 'hidden' }}
+      />
+    </>
+  );
 }
 
 export function SceneBackground() {
@@ -57,8 +147,6 @@ export function SceneBackground() {
   const [activeUrl, setActiveUrl] = useState(videoUrl);
   const [incomingUrl, setIncomingUrl] = useState<string | null>(null);
   const [incomingReady, setIncomingReady] = useState(false);
-  const activeRef = useRef<HTMLVideoElement>(null);
-  const incomingRef = useRef<HTMLVideoElement>(null);
   const prevUrlRef = useRef(videoUrl);
 
   // Detect when videoUrl changes from the store
@@ -69,10 +157,6 @@ export function SceneBackground() {
       setIncomingReady(false);
     }
   }
-
-  // Ping-pong loop for both active and incoming videos
-  usePingPong(activeRef, activeUrl);
-  usePingPong(incomingRef, incomingUrl);
 
   const handleIncomingCanPlay = useCallback(() => {
     setIncomingReady(true);
@@ -86,41 +170,22 @@ export function SceneBackground() {
 
   return (
     <>
-      {/* Active video — purely decorative background, hidden from assistive tech */}
-      <video
-        ref={activeRef}
-        key={activeUrl}
-        autoPlay
-        muted
-        playsInline
-        aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover transition-opacity"
-        style={{
-          opacity: incomingReady ? 0 : 1,
-          transitionDuration: `${CROSSFADE_MS}ms`,
-        }}
+      {/* Active layer */}
+      <div
+        className="absolute inset-0 transition-opacity"
+        style={{ opacity: incomingReady ? 0 : 1, transitionDuration: `${CROSSFADE_MS}ms` }}
       >
-        <source src={activeUrl} type={activeUrl.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
-      </video>
+        <PingPongVideo key={activeUrl} src={activeUrl} />
+      </div>
 
-      {/* Incoming video (crossfade layer) — purely decorative */}
+      {/* Incoming layer (crossfade) */}
       {incomingUrl && (
-        <video
-          ref={incomingRef}
-          key={incomingUrl}
-          autoPlay
-          muted
-          playsInline
-          aria-hidden="true"
-          onCanPlay={handleIncomingCanPlay}
-          className="absolute inset-0 w-full h-full object-cover transition-opacity"
-          style={{
-            opacity: incomingReady ? 1 : 0,
-            transitionDuration: `${CROSSFADE_MS}ms`,
-          }}
+        <div
+          className="absolute inset-0 transition-opacity"
+          style={{ opacity: incomingReady ? 1 : 0, transitionDuration: `${CROSSFADE_MS}ms` }}
         >
-          <source src={incomingUrl} type={incomingUrl.startsWith('blob:') ? 'video/mp4' : 'video/webm'} />
-        </video>
+          <PingPongVideo key={incomingUrl} src={incomingUrl} onCanPlay={handleIncomingCanPlay} />
+        </div>
       )}
     </>
   );

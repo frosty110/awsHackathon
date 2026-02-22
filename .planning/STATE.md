@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 11 (Architecture Audit) COMPLETE — All 6 plans done.
+**Current focus:** Phase 12 (Production Hardening) — Plan 02 complete.
 
 ## Current Position
 
-Phase: Phase 11 (Architecture Audit) — ALL plans complete (01, 02, 03, 04, 05, 06).
-Plan: Phase 11 Plan 06 complete (dead rate limiter exports removed from rateLimits.ts).
-Status: All architecture audit improvements done. Security, store interfaces, eviction, music service, prompt extraction, test infrastructure, and dead code cleanup all in place.
-Last activity: 2026-02-21 — Phase 11 Plan 06 complete (removed dead chatLimiter/narrateLimiter from rateLimits.ts; added architecture JSDoc).
+Phase: Phase 12 (Production Hardening) — Plan 02 complete.
+Plan: Phase 12 Plan 02 complete (Redis resilience in conversationStore — try/catch fallback on all 5 public methods).
+Status: conversationStore is fully Redis-resilient; mid-run Redis failures degrade to in-memory instead of 500 errors.
+Last activity: 2026-02-22 — Phase 12 Plan 02 complete (try/catch in all 5 public methods of InMemoryConversationStore).
 
-Progress: [██████████] 97%
+Progress: [██████████] 98%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [██████████] 97%
 | Phase 11 P02 | 4 | 2 tasks | 2 files |
 | Phase 11 P05 | 3 | 2 tasks | 6 files |
 | Phase 11 P06 | 3 | 1 tasks | 1 file |
+| Phase 12-production-hardening P02 | 3 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -149,6 +150,7 @@ Recent decisions affecting current work:
 - [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
 - [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
 - [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
 
 ### Roadmap Evolution
 
@@ -188,6 +190,6 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 
 ## Session Continuity
 
-Last session: 2026-02-21
-Stopped at: Completed 11-06-PLAN.md (dead rate limiter exports removed)
-Resume context: Phase 11 all 6 plans complete. Dead chatLimiter and narrateLimiter exports deleted from rateLimits.ts; musicLimiter remains as sole export with architecture JSDoc. All 41 server unit tests pass. Phase 11 Architecture Audit fully complete.
+Last session: 2026-02-22
+Stopped at: Completed 12-02-PLAN.md (Redis resilience in conversationStore)
+Resume context: Phase 12 Plan 02 complete. try/catch wrapped around all 5 public methods in InMemoryConversationStore (getOrCreate, appendMessage, getWindowedHistory, getCharacterClass, getPronouns). Redis failures now log via console.error and fall through to in-memory path — no more 500 errors on transient Redis failures. All 41 server unit tests pass. TypeScript compiles clean.

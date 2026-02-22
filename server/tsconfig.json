@@ -5,7 +5,9 @@
     "moduleResolution": "NodeNext",
     "moduleDetection": "force",
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "include": [
     "src"

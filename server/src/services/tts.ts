@@ -2,30 +2,23 @@ import { createHash } from "node:crypto";
 import tracer from "dd-trace";
 import { config } from "./config.js";
 import { logEvent } from "./logger.js";
-import { buildCacheKey as buildS3Key, getAudio, putAudio } from "./audioCache.js";
+import { buildKey, get as s3Get, put as s3Put } from "./mediaCache.js";
+import {
+  type SceneMood,
+  type SceneId,
+  type CharacterVoice,
+  VALID_SCENES,
+  VALID_MOODS,
+  extractMood,
+  extractScene,
+  splitVoiceSegments,
+  stripTTSTags,
+} from "@ai-dm/shared-types";
+
+export type { SceneMood, SceneId, CharacterVoice };
+export { extractMood, extractScene, splitVoiceSegments, stripTTSTags };
 
 export type TTSModel = "speech-2.8-hd" | "speech-2.8-turbo";
-
-export type SceneMood = "combat" | "tavern" | "mystery" | "dramatic" | "danger";
-
-export type SceneId =
-  | "tavern_idle" | "tavern_tense" | "goblin_ambush" | "combat_melee"
-  | "cave_entrance" | "cave_interior" | "npc_dialogue" | "forest_path"
-  | "town_street" | "campfire" | "treasure_found" | "magic_spell"
-  | "fireball" | "stealth" | "trap_danger" | "locked_door"
-  | "rain_storm" | "victory" | "defeat" | "potion_drink"
-  | "bridge_crossing" | "throne_room" | "moonrise" | "merchant" | "dice_roll";
-
-const VALID_SCENES: SceneId[] = [
-  "tavern_idle", "tavern_tense", "goblin_ambush", "combat_melee",
-  "cave_entrance", "cave_interior", "npc_dialogue", "forest_path",
-  "town_street", "campfire", "treasure_found", "magic_spell",
-  "fireball", "stealth", "trap_danger", "locked_door",
-  "rain_storm", "victory", "defeat", "potion_drink",
-  "bridge_crossing", "throne_room", "moonrise", "merchant", "dice_roll",
-];
-
-export type CharacterVoice = "narrator" | "barkeep" | "goblin";
 
 export interface TTSOptions {
   model?: TTSModel;         // default "speech-2.8-hd"
@@ -90,64 +83,6 @@ export function getTTSCacheStats() {
   return { hits: ttsCacheHits, misses: ttsCacheMisses, size: ttsCache.size };
 }
 
-/** Extract and strip {{mood:TAG}} from start of text. Returns [mood, cleanText]. */
-export function extractMood(text: string): [SceneMood | null, string] {
-  const match = text.match(/^\{\{mood:(\w+)\}\}\s*/);
-  if (!match) return [null, text];
-  const mood = match[1] as SceneMood;
-  const valid: SceneMood[] = ["combat", "tavern", "mystery", "dramatic", "danger"];
-  return valid.includes(mood) ? [mood, text.slice(match[0].length)] : [null, text];
-}
-
-/** Extract and strip {{scene:TAG}} from text. Returns [scene, cleanText]. */
-export function extractScene(text: string): [SceneId | null, string] {
-  const match = text.match(/\{\{scene:(\w+)\}\}\s*/);
-  if (!match) return [null, text];
-  const scene = match[1] as SceneId;
-  return VALID_SCENES.includes(scene) ? [scene, text.replace(match[0], "")] : [null, text];
-}
-
-/** Split text into segments by {{voice:ID}}...{{/voice}} tags.
- *  Returns array of { voice: CharacterVoice, text: string } segments. */
-export function splitVoiceSegments(text: string): Array<{ voice: CharacterVoice; text: string }> {
-  const segments: Array<{ voice: CharacterVoice; text: string }> = [];
-  const regex = /\{\{voice:(\w+)\}\}([\s\S]*?)\{\{\/voice\}\}/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(text)) !== null) {
-    // Text before this voice tag = narrator
-    if (match.index > lastIndex) {
-      const before = text.slice(lastIndex, match.index).trim();
-      if (before) segments.push({ voice: "narrator", text: before });
-    }
-    const voice = match[1] as CharacterVoice;
-    const validVoices: CharacterVoice[] = ["narrator", "barkeep", "goblin"];
-    segments.push({
-      voice: validVoices.includes(voice) ? voice : "narrator",
-      text: match[2].trim()
-    });
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Remaining text after last voice tag
-  const remaining = text.slice(lastIndex).trim();
-  if (remaining) segments.push({ voice: "narrator", text: remaining });
-
-  return segments.length > 0 ? segments : [{ voice: "narrator", text }];
-}
-
-/** Strip emotion tags, mood tags, scene tags, and voice tags for UI display. */
-export function stripTTSTags(text: string): string {
-  return text
-    .replace(/^\{\{mood:\w+\}\}\s*/, "")
-    .replace(/\{\{scene:\w+\}\}\s*/g, "")
-    .replace(/\{\{voice:\w+\}\}/g, "")
-    .replace(/\{\{\/voice\}\}/g, "")
-    .replace(/\[(excited|whisper|angry|fearful|sad|shouting)\]\s*/g, "")
-    .trim();
-}
-
 export async function generateTTS(text: string, options: TTSOptions = {}): Promise<TTSResult> {
   const model = options.model ?? "speech-2.8-hd";
   const voice = options.voice ?? "narrator";
@@ -156,12 +91,13 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
   // ── Cache lookup ──────────────────────────────────────────────────────
   const preHashKey = buildTTSCacheKey(text, voice, options.mood, model);
   const cacheKey = hashKey(preHashKey);
-  const s3Key = buildS3Key(text, voice, options.mood, model);
+  const s3Key = buildKey("tts/v1", `${model}|${voice}|${options.mood ?? "none"}|${text}`, "mp3");
 
   // L1: in-memory Map (zero latency for recently generated audio)
   const l1Cached = ttsCache.get(cacheKey);
   if (l1Cached && Date.now() - l1Cached.createdAt < TTS_CACHE_TTL_MS) {
     ttsCacheHits++;
+    tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'tts', source: 'memory' });
     logEvent("info", "tts.cache_hit", {
       cacheKey,
       s3Key,
@@ -181,7 +117,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
   // L2: S3 (durable, cross-instance cache)
   let s3Buffer: Buffer | null = null;
   try {
-    s3Buffer = await getAudio(s3Key);
+    s3Buffer = await s3Get(s3Key);
   } catch (err) {
     // S3 unavailable — degrade gracefully, treat as miss
     logEvent("warn", "tts.s3_cache_get_failed", { s3Key, error: String(err) });
@@ -189,6 +125,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
 
   if (s3Buffer) {
     ttsCacheHits++;
+    tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'tts', source: 's3' });
     const s3Result: TTSResult = { audioBuffer: s3Buffer, audioFormat: "mp3", durationMs: 0 };
     // Promote to L1 for zero-latency access on subsequent requests in this session
     ttsCache.set(cacheKey, { result: s3Result, createdAt: Date.now() });
@@ -209,6 +146,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
   }
 
   ttsCacheMisses++;
+  tracer.dogstatsd.increment('cache.miss', 1, { cache_type: 'tts' });
   logEvent("info", "tts.cache_miss", {
     cacheKey,
     s3Key,
@@ -303,7 +241,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
       ttsCache.set(cacheKey, { result, createdAt: Date.now() });
 
       // L2: store in S3 (fire-and-forget, non-blocking — does NOT add latency to TTS response)
-      putAudio(s3Key, result.audioBuffer, {
+      s3Put(s3Key, result.audioBuffer, "audio/mpeg", {
         voice: VOICE_MAP[voice],
         mood: options.mood ?? "none",
         model,

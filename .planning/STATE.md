@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 14 (Parallel TTS Processing) COMPLETE — All plans done (01/01). Verification passed 6/6.
+**Current focus:** Phase 15 (Client Polling Optimization) COMPLETE — All plans done (01/01). Verification passed 8/8.
 
 ## Current Position
 
-Phase: Phase 14 (Parallel TTS Processing) — ALL plans complete (01). Verified.
-Plan: Phase 14 complete.
-Status: generateMultiVoiceTTS refactored from sequential for/await to Promise.allSettled fan-out. Per-segment fallback preserved in concurrent closures. Narrator failure terminal. Timing log emits tts.multi_voice_completed. All 48 server tests pass. TypeScript compiles clean.
-Last activity: 2026-02-21 — Phase 14 verified and complete.
+Phase: Phase 15 (Client Polling Optimization) — ALL plans complete (01). Verified.
+Plan: Phase 15 complete.
+Status: Fixed-interval polling replaced with exponential backoff (2s->4s->8s->16s->30s cap) in both backgroundMusic.ts and sceneVideo.ts. Initial delays added (10s music, 15s video). Server 202 responses include startedAt timestamps. Error retry paths and safety limits unchanged. TypeScript compiles clean.
+Last activity: 2026-02-22 — Phase 15 verified and complete.
 
 Progress: [██████████] 100%
 

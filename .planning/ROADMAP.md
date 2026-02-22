@@ -286,7 +286,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 15-01-PLAN.md — Server startedAt timestamps on 202 responses + client exponential backoff with initial delay
+- [x] 15-01-PLAN.md — Server startedAt timestamps on 202 responses + client exponential backoff with initial delay
 
 ### Phase 16: Generation Observability & Log Hygiene
 

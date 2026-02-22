@@ -9,6 +9,7 @@ This folder stores project-local, tooling-focused skills for the hackathon workf
 - `skills/bedrock-runtime-operator/SKILL.md`
 - `skills/neo4j-rag-operator/SKILL.md`
 - `skills/dnd-game-ux/SKILL.md`
+- `skills/datadog-ai-analytics/SKILL.md`
 
 ## Intended use
 
@@ -17,6 +18,7 @@ This folder stores project-local, tooling-focused skills for the hackathon workf
 3. Use Bedrock runtime skills when implementing or changing Bedrock invocation/stream logic.
 4. Use Neo4j RAG skills when implementing lore retrieval and prompt-context injection.
 5. Use D&D game UX skills when changing any frontend component, layout, typography, color, animation, or player-facing interaction.
+6. Use Datadog AI analytics skills when building token economics dashboards, cost monitors, cache ROI widgets, or budget alerting.
 
 ## Notes
 

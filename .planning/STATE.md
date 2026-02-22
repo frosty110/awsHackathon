@@ -185,6 +185,9 @@ Recent decisions affecting current work:
 - [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
 - [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
 - [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
 
 ### Roadmap Evolution
 
@@ -230,5 +233,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed Phase 17-01: Auth enforcement, JWT algorithm pinning, socket reconnection auth fix.
-Resume context: Phase 17 Plan 01 complete. Auth enforcement (C-1), JWT algorithm pinning (H-1), Socket.IO reconnection auth bypass (H-2), and password policy (M-3) all fixed. TypeScript compiles clean, all 48 tests pass. Ready for Phase 17-02 (input validation and error handling).
+Stopped at: Completed 17-03-PLAN.md (graceful shutdown, DM idempotency, room deletion cleanup)
+Resume context: Phase 17 plan 03 complete. H-7 (graceful shutdown order: io.close first), H-10 (DM trigger idempotency guards), and H-13 (room deletion timer/stream cleanup) fixed in server/src/index.ts, server/src/sockets/turnHandlers.ts, and server/src/sockets/roomHandlers.ts. TypeScript clean, 48 tests pass.

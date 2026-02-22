@@ -74,7 +74,7 @@ export async function initSocketIO(
         // NOTE: Works for single-instance only — Redis Pub/Sub adapter does not support
         // cross-instance recovery. Use @socket.io/redis-streams-adapter for that.
         maxDisconnectionDuration: 2 * 60 * 1000,
-        skipMiddlewares: true,
+        skipMiddlewares: false, // Auth middleware must re-run on reconnection (H-2)
       },
       // M2: Limit incoming packet size to prevent abuse (16KB)
       maxHttpBufferSize: 16 * 1024,

@@ -329,5 +329,5 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 12. Production Hardening | 2/2 | ✅ Complete | 2026-02-21 |
 | 13. Dead Code Cleanup | 1/1 | ✅ Complete | 2026-02-21 |
 | 14. Parallel TTS Processing | 1/1 | ✅ Complete | 2026-02-21 |
-| 15. Client Polling Optimization | 0/1 | Not started | - |
-| 16. Generation Observability & Log Hygiene | 0/1 | Not started | - |
+| 15. Client Polling Optimization | 1/1 | ✅ Complete | 2026-02-22 |
+| 16. Generation Observability & Log Hygiene | 1/1 | ✅ Complete | 2026-02-22 |

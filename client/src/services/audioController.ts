@@ -1,6 +1,8 @@
 // Single source of truth for the currently playing audio element.
 // Only one DM voice can play at a time — any new audio replaces the previous.
 
+import { duckForTTS, restoreFromTTS } from './backgroundMusic';
+
 let current: HTMLAudioElement | null = null;
 
 export function playAudio(audio: HTMLAudioElement) {
@@ -9,9 +11,15 @@ export function playAudio(audio: HTMLAudioElement) {
     current = null;
   }
   current = audio;
+  duckForTTS();
   audio.play().catch(() => {});
   audio.addEventListener('ended', () => {
     if (current === audio) current = null;
+    restoreFromTTS();
+  });
+  audio.addEventListener('error', () => {
+    if (current === audio) current = null;
+    restoreFromTTS();
   });
 }
 
@@ -19,6 +27,7 @@ export function stopAudio() {
   if (current) {
     current.pause();
     current = null;
+    restoreFromTTS();
   }
 }
 

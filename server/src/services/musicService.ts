@@ -1,8 +1,9 @@
 import tracer from "dd-trace";
 import { config } from "./config.js";
 import { logEvent } from "./logger.js";
-import { buildKey, get as s3Get, put as s3Put, listKeys } from "./mediaCache.js";
+import { get as s3Get, put as s3Put, listKeys } from "./mediaCache.js";
 import { recordMusicUsage } from "./usageTracker.js";
+import { randomUUID } from "node:crypto";
 import { type SceneMood, VALID_MOODS } from "@ai-dm/shared-types";
 
 export type { SceneMood };
@@ -11,18 +12,21 @@ export { VALID_MOODS };
 // ── Mood prompts ──────────────────────────────────────────────────────────────
 
 const MOOD_PROMPTS: Record<SceneMood, string> = {
-  combat: "Epic orchestral fantasy battle, urgent drums, brass fanfare, instrumental, no vocals, fast tempo",
-  tavern: "Medieval tavern folk music, lute, fiddle, warm acoustic, instrumental, no vocals, moderate tempo",
-  mystery: "Dark ambient fantasy, ethereal pads, subtle strings, suspenseful, instrumental, no vocals, slow tempo",
-  dramatic: "Cinematic orchestral fantasy, sweeping strings, emotional crescendo, instrumental, no vocals, moderate tempo",
-  danger: "Ominous dark fantasy, deep drums, minor key strings, tension building, instrumental, no vocals, slow tempo",
+  combat: "Epic orchestral fantasy battle, urgent drums, brass fanfare, instrumental, no vocals, fast tempo, 30 seconds",
+  exploration: "Dark ambient fantasy, ethereal pads, subtle strings, suspenseful, instrumental, no vocals, slow tempo, 30 seconds",
+  tavern: "Medieval tavern folk music, lute, fiddle, warm acoustic, instrumental, no vocals, moderate tempo, 30 seconds",
+  mystery: "Dark mysterious fantasy, low cello drones, distant chimes, subtle tension, instrumental, no vocals, slow tempo, 30 seconds",
+  dramatic: "Cinematic fantasy orchestral, sweeping strings, building crescendo, emotional, instrumental, no vocals, moderate tempo, 30 seconds",
+  danger: "Ominous dark fantasy, deep war drums, dissonant brass, foreboding tension, instrumental, no vocals, slow building tempo, 30 seconds",
 };
 
-function buildMusicS3Key(mood: SceneMood): string {
-  return buildKey("music/v1", `music-2.5|${mood}|${MOOD_PROMPTS[mood]}`, "mp3");
+const MAX_VARIANTS = 5;
+
+function buildMusicS3Key(mood: SceneMood, variant: number): string {
+  return `music/v1/${mood}-${variant}.mp3`;
 }
 
-// ── Per-mood in-memory cache ──────────────────────────────────────────────────
+// ── Per-variant in-memory cache ──────────────────────────────────────────────
 
 interface MoodCacheEntry {
   audio: Buffer | null;
@@ -33,7 +37,8 @@ interface MoodCacheEntry {
   generationStartedAt: number | null;
 }
 
-const moodCache = new Map<SceneMood, MoodCacheEntry>();
+/** Keyed by `{mood}-{variant}` e.g. "combat-3" */
+const moodCache = new Map<string, MoodCacheEntry>();
 
 const RETRY_COOLDOWN_MS = 30_000;
 const MAX_SERVER_RETRIES = 3;
@@ -44,26 +49,40 @@ let musicCacheHits = 0;
 let musicCacheMisses = 0;
 
 export function getMusicCacheStats() {
-  const moods: Record<string, boolean> = {};
+  const moods: Record<string, { cached: number; total: number }> = {};
   for (const mood of VALID_MOODS) {
-    moods[mood] = moodCache.get(mood)?.audio !== null;
+    let cached = 0;
+    for (let v = 1; v <= MAX_VARIANTS; v++) {
+      if (moodCache.get(`${mood}-${v}`)?.audio) cached++;
+    }
+    moods[mood] = { cached, total: MAX_VARIANTS };
   }
   return { hits: musicCacheHits, misses: musicCacheMisses, moods };
 }
 
+// ── Random pool ──────────────────────────────────────────────────────────────
+
+const MIN_RANDOM_POOL = 5;
+let randomPoolGenerating = false;
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-function getOrCreateEntry(mood: SceneMood): MoodCacheEntry {
-  let entry = moodCache.get(mood);
+function variantKey(mood: SceneMood, variant: number): string {
+  return `${mood}-${variant}`;
+}
+
+function getOrCreateEntry(key: string): MoodCacheEntry {
+  let entry = moodCache.get(key);
   if (!entry) {
     entry = { audio: null, generating: false, error: null, lastFailedAt: null, retryCount: 0, generationStartedAt: null };
-    moodCache.set(mood, entry);
+    moodCache.set(key, entry);
   }
   return entry;
 }
 
-function startGeneration(mood: SceneMood) {
-  const entry = getOrCreateEntry(mood);
+function startGeneration(mood: SceneMood, variant: number) {
+  const key = variantKey(mood, variant);
+  const entry = getOrCreateEntry(key);
   if (entry.generating || entry.audio) return;
   if (entry.retryCount >= MAX_SERVER_RETRIES) return;
   if (entry.error && entry.lastFailedAt && Date.now() - entry.lastFailedAt < RETRY_COOLDOWN_MS) return;
@@ -71,6 +90,7 @@ function startGeneration(mood: SceneMood) {
     entry.retryCount++;
     logEvent("info", "music.retrying_after_failure", {
       mood,
+      variant,
       previousError: entry.error,
       retryCount: entry.retryCount,
       maxRetries: MAX_SERVER_RETRIES,
@@ -82,15 +102,17 @@ function startGeneration(mood: SceneMood) {
 
   logEvent("info", "music.generation_started", {
     mood,
+    variant,
     model: "music-2.5",
     provider: "minimax",
   });
 
-  void runGeneration(mood);
+  void runGeneration(mood, variant);
 }
 
-async function runGeneration(mood: SceneMood) {
-  const entry = getOrCreateEntry(mood);
+async function runGeneration(mood: SceneMood, variant: number) {
+  const key = variantKey(mood, variant);
+  const entry = getOrCreateEntry(key);
   const overallStart = Date.now();
   const prompt = MOOD_PROMPTS[mood];
   let apiCallDurationMs: number | null = null;
@@ -104,6 +126,7 @@ async function runGeneration(mood: SceneMood) {
     progressTimer = setInterval(() => {
       logEvent("info", "music.generation_progress", {
         mood,
+        variant,
         elapsedMs: Date.now() - apiStart,
         phase: "awaiting_api_response",
       });
@@ -152,9 +175,10 @@ async function runGeneration(mood: SceneMood) {
     entry.audio = Buffer.from(await audioRes.arrayBuffer());
     cdnDownloadDurationMs = Date.now() - cdnStart;
 
-    // L2: fire-and-forget S3 persist
-    s3Put(buildMusicS3Key(mood), entry.audio, "audio/mpeg", { mood, model: "music-2.5" })
-      .catch((err) => logEvent("warn", "music.s3_cache_put_failed", { mood, error: String(err) }));
+    // L2: fire-and-forget S3 persist with readable key
+    const s3Key = buildMusicS3Key(mood, variant);
+    s3Put(s3Key, entry.audio, "audio/mpeg", { mood, variant: String(variant), model: "music-2.5" })
+      .catch((err) => logEvent("warn", "music.s3_cache_put_failed", { mood, variant, error: String(err) }));
 
     const generationDurationMs = Date.now() - overallStart;
     const audioSizeBytes = entry.audio.length;
@@ -165,7 +189,7 @@ async function runGeneration(mood: SceneMood) {
         { kind: "tool", name: "minimax.music_generation" },
         (span) => {
           tracer.llmobs.annotate(span, {
-            inputData: JSON.stringify({ prompt, model: "music-2.5", mood }),
+            inputData: JSON.stringify({ prompt, model: "music-2.5", mood, variant }),
             outputData: JSON.stringify({
               audioSizeBytes,
               format: "mp3",
@@ -183,6 +207,7 @@ async function runGeneration(mood: SceneMood) {
               "music.model": "music-2.5",
               "music.format": "mp3",
               "music.mood": mood,
+              "music.variant": String(variant),
             },
           });
         }
@@ -191,6 +216,7 @@ async function runGeneration(mood: SceneMood) {
 
     logEvent("info", "music.generation_completed", {
       mood,
+      variant,
       generationDurationMs,
       apiCallDurationMs,
       cdnDownloadDurationMs,
@@ -207,13 +233,14 @@ async function runGeneration(mood: SceneMood) {
         { kind: "tool", name: "minimax.music_generation" },
         (span) => {
           tracer.llmobs.annotate(span, {
-            inputData: JSON.stringify({ prompt, model: "music-2.5", mood }),
+            inputData: JSON.stringify({ prompt, model: "music-2.5", mood, variant }),
             outputData: JSON.stringify({ error: entry.error }),
             tags: {
               "music.provider": "minimax",
               "music.model": "music-2.5",
               "music.error": "true",
               "music.mood": mood,
+              "music.variant": String(variant),
             },
           });
         }
@@ -225,6 +252,7 @@ async function runGeneration(mood: SceneMood) {
       "music.generation_failed",
       {
         mood,
+        variant,
         durationMs: totalMs,
         apiCallDurationMs,
         cdnDownloadDurationMs,
@@ -238,6 +266,116 @@ async function runGeneration(mood: SceneMood) {
   }
 }
 
+// ── Random pool background generation ─────────────────────────────────────────
+
+async function generateForRandomPool(): Promise<void> {
+  if (randomPoolGenerating) return;
+  randomPoolGenerating = true;
+
+  const mood = VALID_MOODS[Math.floor(Math.random() * VALID_MOODS.length)];
+  const prompt = MOOD_PROMPTS[mood];
+  const trackId = randomUUID();
+  // Random pool tracks use UUID keys so they don't collide with variant slots
+  const s3Key = `music/v1/pool-${mood}-${trackId}.mp3`;
+  const overallStart = Date.now();
+
+  logEvent("info", "music.random_pool_generation_started", { mood, trackId });
+
+  try {
+    const apiKey = config.MINIMAX_MUSIC_API_KEY || config.MINIMAX_API_KEY;
+    if (!apiKey) {
+      logEvent("warn", "music.random_pool_no_api_key");
+      return;
+    }
+
+    const apiStart = Date.now();
+    const res = await fetch("https://api.minimax.io/v1/music_generation", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "music-2.5",
+        prompt,
+        lyrics: "[instrumental]",
+        audio_setting: { sample_rate: 44100, bitrate: 256000, format: "mp3" },
+        output_format: "url",
+      }),
+      signal: AbortSignal.timeout(90_000),
+    });
+    const apiCallDurationMs = Date.now() - apiStart;
+
+    if (!res.ok) throw new Error(`MiniMax music HTTP ${res.status}`);
+
+    const json = (await res.json()) as {
+      base_resp?: { status_code: number; status_msg: string };
+      data?: { audio?: string };
+    };
+
+    if (json.base_resp && json.base_resp.status_code !== 0) {
+      throw new Error(`MiniMax music error: ${json.base_resp.status_msg}`);
+    }
+
+    const audioUrl = json.data?.audio;
+    if (!audioUrl) throw new Error("No audio URL in response");
+
+    const cdnStart = Date.now();
+    const audioRes = await fetch(audioUrl, { signal: AbortSignal.timeout(30_000) });
+    if (!audioRes.ok) throw new Error(`CDN fetch failed: ${audioRes.status}`);
+
+    const buffer = Buffer.from(await audioRes.arrayBuffer());
+    const cdnDownloadDurationMs = Date.now() - cdnStart;
+    const generationDurationMs = Date.now() - overallStart;
+
+    await s3Put(s3Key, buffer, "audio/mpeg", { mood, model: "music-2.5", pool: "random" });
+    recordMusicUsage();
+
+    try {
+      tracer.llmobs.trace(
+        { kind: "tool", name: "minimax.music_generation" },
+        (span) => {
+          tracer.llmobs.annotate(span, {
+            inputData: JSON.stringify({ prompt, model: "music-2.5", mood, pool: "random" }),
+            outputData: JSON.stringify({
+              audioSizeBytes: buffer.length,
+              format: "mp3",
+              sampleRate: 44100,
+              bitrate: 256000,
+            }),
+            metrics: {
+              generationDurationMs,
+              apiCallDurationMs,
+              cdnDownloadDurationMs,
+              audioSizeBytes: buffer.length,
+            },
+            tags: {
+              "music.provider": "minimax",
+              "music.model": "music-2.5",
+              "music.format": "mp3",
+              "music.mood": mood,
+              "music.pool": "random",
+            },
+          });
+        }
+      );
+    } catch { /* tracing failure should not affect music delivery */ }
+
+    logEvent("info", "music.random_pool_generation_completed", {
+      mood,
+      trackId,
+      generationDurationMs,
+      apiCallDurationMs,
+      cdnDownloadDurationMs,
+      audioSizeBytes: buffer.length,
+    });
+  } catch (err) {
+    logEvent("error", "music.random_pool_generation_failed", { mood, trackId, error: String(err) }, err);
+  } finally {
+    randomPoolGenerating = false;
+  }
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export type MusicResult =
@@ -247,48 +385,22 @@ export type MusicResult =
   | { status: "error"; error: string; terminal: boolean };
 
 /**
- * Get music for a given mood. Manages in-memory + S3 caching, retry logic, and
- * background generation via MiniMax music API.
- *
- * Returns:
- *   - { status: "ready", audio }      — cached audio available, serve immediately
- *   - { status: "generating", mood }  — generation in progress, client should retry
- *   - { status: "retrying", mood }    — previously failed, retry kicked off
- *   - { status: "error", error, terminal } — failed; terminal=true means max retries exhausted
+ * Get music for a given mood. Picks a random variant (1-5), checks L1→L2 cache,
+ * falls back to any cached variant for the mood, then triggers generation.
  */
 export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
-  const entry = getOrCreateEntry(mood);
+  const variant = Math.floor(Math.random() * MAX_VARIANTS) + 1;
+  const key = variantKey(mood, variant);
+  const entry = getOrCreateEntry(key);
 
-  // L2: check S3 on cold start (no L1 audio and not currently generating)
-  if (!entry.audio && !entry.generating) {
-    try {
-      const s3Buf = await s3Get(buildMusicS3Key(mood));
-      if (s3Buf) {
-        entry.audio = s3Buf;
-        musicCacheHits++;
-        tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'music', source: 's3' });
-        logEvent("info", "music.cache_hit", {
-          route: "/api/music",
-          mood,
-          source: "s3",
-          audioSizeBytes: s3Buf.length,
-          cacheHits: musicCacheHits,
-          cacheMisses: musicCacheMisses,
-        });
-        return { status: "ready", audio: entry.audio };
-      }
-    } catch (err) {
-      logEvent("warn", "music.s3_cache_get_failed", { mood, error: String(err) });
-    }
-  }
-
-  // L1: in-memory hit
+  // L1: in-memory hit for chosen variant
   if (entry.audio) {
     musicCacheHits++;
     tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'music', source: 'memory' });
     logEvent("info", "music.cache_hit", {
       route: "/api/music",
       mood,
+      variant,
       source: "memory",
       audioSizeBytes: entry.audio.length,
       cacheHits: musicCacheHits,
@@ -297,21 +409,69 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
     return { status: "ready", audio: entry.audio };
   }
 
+  // L2: check S3 for chosen variant (cold start)
+  if (!entry.generating) {
+    try {
+      const s3Buf = await s3Get(buildMusicS3Key(mood, variant));
+      if (s3Buf) {
+        entry.audio = s3Buf;
+        musicCacheHits++;
+        tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'music', source: 's3' });
+        logEvent("info", "music.cache_hit", {
+          route: "/api/music",
+          mood,
+          variant,
+          source: "s3",
+          audioSizeBytes: s3Buf.length,
+          cacheHits: musicCacheHits,
+          cacheMisses: musicCacheMisses,
+        });
+        return { status: "ready", audio: entry.audio };
+      }
+    } catch (err) {
+      logEvent("warn", "music.s3_cache_get_failed", { mood, variant, error: String(err) });
+    }
+  }
+
+  // Fallback: try any other cached variant for this mood (L1 only for speed)
+  for (let v = 1; v <= MAX_VARIANTS; v++) {
+    if (v === variant) continue;
+    const fallbackEntry = moodCache.get(variantKey(mood, v));
+    if (fallbackEntry?.audio) {
+      musicCacheHits++;
+      tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'music', source: 'memory_fallback' });
+      logEvent("info", "music.cache_hit", {
+        route: "/api/music",
+        mood,
+        variant: v,
+        source: "memory_fallback",
+        requestedVariant: variant,
+        audioSizeBytes: fallbackEntry.audio.length,
+        cacheHits: musicCacheHits,
+        cacheMisses: musicCacheMisses,
+      });
+      return { status: "ready", audio: fallbackEntry.audio };
+    }
+  }
+
+  // Error state for chosen variant
   if (entry.error) {
     if (entry.retryCount >= MAX_SERVER_RETRIES) {
       logEvent("warn", "music.max_retries_exhausted", {
         route: "/api/music",
         mood,
+        variant,
         error: entry.error,
         retryCount: entry.retryCount,
       });
       return { status: "error", error: entry.error, terminal: true };
     }
     if (entry.lastFailedAt && Date.now() - entry.lastFailedAt >= RETRY_COOLDOWN_MS) {
-      startGeneration(mood);
+      startGeneration(mood, variant);
       logEvent("info", "music.retry_triggered", {
         route: "/api/music",
         mood,
+        variant,
         retryCount: entry.retryCount,
         maxRetries: MAX_SERVER_RETRIES,
       });
@@ -320,6 +480,7 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
     logEvent("warn", "music.served_error", {
       route: "/api/music",
       mood,
+      variant,
       error: entry.error,
     });
     return { status: "error", error: entry.error, terminal: false };
@@ -327,10 +488,11 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
 
   musicCacheMisses++;
   tracer.dogstatsd.increment('cache.miss', 1, { cache_type: 'music' });
-  startGeneration(mood);
+  startGeneration(mood, variant);
   logEvent("info", "music.cache_miss", {
     route: "/api/music",
     mood,
+    variant,
     generating: true,
     cacheHits: musicCacheHits,
     cacheMisses: musicCacheMisses,
@@ -346,6 +508,12 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
 export async function getRandomMusic(): Promise<Buffer | null> {
   try {
     const keys = await listKeys("music/v1/");
+
+    // Grow the pool in the background when below minimum
+    if (keys.length < MIN_RANDOM_POOL) {
+      void generateForRandomPool();
+    }
+
     if (keys.length === 0) return null;
 
     const randomKey = keys[Math.floor(Math.random() * keys.length)];

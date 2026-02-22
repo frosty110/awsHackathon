@@ -265,10 +265,10 @@ Plans:
   4. Total narration generation time for 7 segments drops from ~15s to ~3-4s (bounded by slowest single segment)
   5. Existing L1/L2 cache behavior unchanged — cached segments still skip API calls
 **Context:** Currently in `server/src/services/tts.ts`, the `generateMultiVoiceTTS` function processes voice segments in a sequential for loop (line ~282). Each segment takes 1-3s for the MiniMax API call, and with 7 segments that's ~15s total. These calls are independent and can be parallelized. The fallback logic (non-narrator failure retries as narrator) must be preserved per-segment within the parallel execution.
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 14 to break down)
+- [ ] 14-01-PLAN.md — Unit tests for parallel TTS behavior + refactor generateMultiVoiceTTS to Promise.allSettled fan-out with per-segment fallback and timing log
 
 ### Phase 15: Client Polling Optimization
 
@@ -328,6 +328,6 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 11. Architecture Audit | 6/6 | ✅ Complete | 2026-02-21 |
 | 12. Production Hardening | 2/2 | ✅ Complete | 2026-02-21 |
 | 13. Dead Code Cleanup | 1/1 | ✅ Complete | 2026-02-21 |
-| 14. Parallel TTS Processing | 0/0 | Not started | - |
+| 14. Parallel TTS Processing | 0/1 | Not started | - |
 | 15. Client Polling Optimization | 0/0 | Not started | - |
 | 16. Generation Observability & Log Hygiene | 0/0 | Not started | - |

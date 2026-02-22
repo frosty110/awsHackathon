@@ -64,6 +64,7 @@ Progress: [██████████] 98%
 | Phase 11 P05 | 3 | 2 tasks | 6 files |
 | Phase 11 P06 | 3 | 1 tasks | 1 file |
 | Phase 12-production-hardening P02 | 3 | 1 tasks | 1 files |
+| Phase 12-production-hardening P01 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,10 @@ Recent decisions affecting current work:
 - [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
 - [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
 - [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
 - [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
 
 ### Roadmap Evolution
@@ -191,5 +196,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 12-02-PLAN.md (Redis resilience in conversationStore)
-Resume context: Phase 12 Plan 02 complete. try/catch wrapped around all 5 public methods in InMemoryConversationStore (getOrCreate, appendMessage, getWindowedHistory, getCharacterClass, getPronouns). Redis failures now log via console.error and fall through to in-memory path — no more 500 errors on transient Redis failures. All 41 server unit tests pass. TypeScript compiles clean.
+Stopped at: Completed 12-01-PLAN.md (auth rate limiting and JWT verify fix)
+Resume context: Phase 12 Plans 01 and 02 both complete. Plan 01: registerLimiter (3/min/IP) and loginLimiter (10/min/IP) added to rateLimiter.ts, wired in app.ts before authRouter, DEV_SECRET fallback added to auth.ts jwt.verify calls. Plan 02: try/catch in all 5 public methods of InMemoryConversationStore for Redis resilience. All 41 server unit tests pass. TypeScript compiles clean. Both Phase 12 plans done.

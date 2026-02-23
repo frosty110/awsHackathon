@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { redisClient, isRedisAvailable } from "./redis.js";
+import { logEvent } from "./logger.js";
 import type { ChatMessage } from "@ai-dm/shared-types";
 
 export type { ChatMessage };
@@ -103,26 +104,29 @@ export class InMemoryConversationStore implements IConversationStore {
       }
     }
 
-    // In-memory fallback
-    if (!this.store.has(id)) {
-      this.store.set(id, { id, history: [], userId, characterClass, pronouns });
-    }
-    const convo = this.store.get(id)!;
-    // IDOR ownership check
-    if (convo.userId && userId && convo.userId !== userId) {
-      throw new ConversationOwnershipError(id);
-    }
-    // Migration path: claim ownership for legacy conversations
-    if (!convo.userId && userId) {
-      convo.userId = userId;
-    }
-    if (characterClass && !convo.characterClass) {
-      convo.characterClass = characterClass;
-    }
-    if (pronouns && !convo.pronouns) {
-      convo.pronouns = pronouns;
-    }
-    return convo;
+    // In-memory fallback — wrapped in withLock to prevent race conditions under
+    // concurrent access (e.g., two requests for same id reading stale history).
+    return this.withLock(id, async () => {
+      if (!this.store.has(id)) {
+        this.store.set(id, { id, history: [], userId, characterClass, pronouns });
+      }
+      const convo = this.store.get(id)!;
+      // IDOR ownership check
+      if (convo.userId && userId && convo.userId !== userId) {
+        throw new ConversationOwnershipError(id);
+      }
+      // Migration path: claim ownership for legacy conversations
+      if (!convo.userId && userId) {
+        convo.userId = userId;
+      }
+      if (characterClass && !convo.characterClass) {
+        convo.characterClass = characterClass;
+      }
+      if (pronouns && !convo.pronouns) {
+        convo.pronouns = pronouns;
+      }
+      return convo;
+    });
   }
 
   async getCharacterClass(conversationId: string): Promise<string | undefined> {
@@ -165,11 +169,14 @@ export class InMemoryConversationStore implements IConversationStore {
       }
     }
 
-    // In-memory fallback
-    const conversation = this.store.get(conversationId);
-    if (!conversation) throw new Error(`Conversation ${conversationId} not found`);
-    conversation.history.push(message);
-    if (conversation.history.length > 100) conversation.history = conversation.history.slice(-100);
+    // In-memory fallback — wrapped in withLock to prevent lost-update races
+    // where two concurrent appends both read history length N and both write N+1.
+    await this.withLock(conversationId, async () => {
+      const conversation = this.store.get(conversationId);
+      if (!conversation) throw new Error(`Conversation ${conversationId} not found`);
+      conversation.history.push(message);
+      if (conversation.history.length > 100) conversation.history = conversation.history.slice(-100);
+    });
   }
 
   // Keep last N turns to stay within token budget
@@ -195,11 +202,30 @@ export class InMemoryConversationStore implements IConversationStore {
 
   // ---- private Redis helpers ----
 
+  // Module-level flag: flips false on first GETEX failure, avoids retrying on older Redis
+  private _getexSupported = true;
+
   private async _getFromRedis(conversationId: string): Promise<Conversation | null> {
-    const raw = await redisClient.get(redisKey(conversationId));
+    let raw: string | null | undefined;
+
+    if (this._getexSupported) {
+      try {
+        raw = await redisClient.getEx(redisKey(conversationId), {
+          EX: CONVERSATION_TTL_SECONDS,
+        });
+      } catch (err) {
+        // GETEX requires Redis 6.2+. Fall back to GET+EXPIRE for older versions.
+        this._getexSupported = false;
+        logEvent("warn", "conversationStore.getex_unsupported", { fallback: "get+expire" });
+        raw = await redisClient.get(redisKey(conversationId));
+        if (raw) await redisClient.expire(redisKey(conversationId), CONVERSATION_TTL_SECONDS);
+      }
+    } else {
+      raw = await redisClient.get(redisKey(conversationId));
+      if (raw) await redisClient.expire(redisKey(conversationId), CONVERSATION_TTL_SECONDS);
+    }
+
     if (!raw) return null;
-    // Refresh TTL on read
-    await redisClient.expire(redisKey(conversationId), CONVERSATION_TTL_SECONDS);
     return JSON.parse(raw) as Conversation;
   }
 

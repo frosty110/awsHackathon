@@ -111,8 +111,8 @@ router.post("/api/auth/login", async (req, res) => {
     }
 
     if (!user) {
-      // Constant-time delay to prevent username enumeration timing attacks
-      await bcrypt.compare(password, "$2a$12$invalidhashfortimingnorm123456");
+      // Valid pre-computed hash for constant-time comparison (prevents username enumeration)
+      await bcrypt.compare(password, "$2b$12$eImiTXuWVxfM37uY4JANjQ.GCQPekzNaZMbLLCe6ib7TRF7bBm4TK");
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }

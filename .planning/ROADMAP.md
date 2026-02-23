@@ -28,6 +28,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 14: Parallel TTS Processing** — Parallelize multi-voice TTS segment generation for ~5x narration latency reduction
 - [x] **Phase 15: Client Polling Optimization** — Exponential backoff and initial delays for music/video polling to reduce wasted requests by ~70%
 - [x] **Phase 16: Generation Observability & Log Hygiene** — Progress logging for long-running generation tasks, dev-mode log noise reduction
+- [x] **Phase 17: Code Review Bug Fixes Wave 1** — Auth enforcement, JWT pinning, input validation, error handling
+- [x] **Phase 18: Code Review Bug Fixes Wave 2** — IDOR, client auth, memory safety, prompt injection, performance
 
 ## Phase Details
 
@@ -392,16 +394,16 @@ Plans:
 **Plans:** 10 plans
 
 Plans:
-- [ ] 18-01-PLAN.md — P0 security: IDOR conversation ownership binding, random dev JWT secret, /api/usage auth enforcement
-- [ ] 18-02-PLAN.md — Prompt injection hardening: inputSanitizer unicode/role-tag expansion, characterClass allowlist, Socket.IO production auth, isSystemTrigger removal, bcrypt dummy hash
-- [ ] 18-03-PLAN.md — Memory safety: lru-cache byte-budget LRU for TTS (100MB), video (500MB), and music (200MB) caches
-- [ ] 18-04-PLAN.md — Redis optimization + SSE backpressure: GETEX replacing GET+EXPIRE, local conversation variable, res.write() backpressure check
-- [ ] 18-05-PLAN.md — Client auth integration: server refresh token flow (15m access + 7d refresh), login/register UI, Bearer headers on all API calls, Socket.IO auth token
-- [ ] 18-06-PLAN.md — Architecture extraction: DmTurnService from chat.ts/turnHandlers.ts, S3 signed URLs for multiplayer TTS
-- [ ] 18-07-PLAN.md — Server hardening P2: trust proxy, /api/-only route standardization, Bedrock queue 15s timeout, narrate 60s timeout, SSE stream drain on shutdown
-- [ ] 18-08-PLAN.md — Validation hardening: password complexity, per-username lockout, Zod on chat/narrate bodies, Zod on Redis conversation data
-- [ ] 18-09-PLAN.md — Frontend performance: React.memo MessageBubble, TTS Object URL cleanup, React.lazy code splitting, shared CHARACTER_CLASS_IDS
-- [ ] 18-10-PLAN.md — P3 cleanup: HSTS + CSP update, O(1) socket rate limiter, logEvent everywhere, remove _deps/tsyringe, .gitignore tsbuildinfo, gate _testInternals
+- [x] 18-01-PLAN.md — P0 security: IDOR conversation ownership binding, random dev JWT secret, /api/usage auth enforcement
+- [x] 18-02-PLAN.md — Prompt injection hardening: inputSanitizer unicode/role-tag expansion, characterClass allowlist, Socket.IO production auth, isSystemTrigger removal, bcrypt dummy hash
+- [x] 18-03-PLAN.md — Memory safety: lru-cache byte-budget LRU for TTS (100MB), video (500MB), and music (200MB) caches
+- [x] 18-04-PLAN.md — Redis optimization + SSE backpressure: GETEX replacing GET+EXPIRE, local conversation variable, res.write() backpressure check
+- [x] 18-05-PLAN.md — Client auth integration: server refresh token flow (15m access + 7d refresh), login/register UI, Bearer headers on all API calls, Socket.IO auth token
+- [x] 18-06-PLAN.md — Architecture extraction: DmTurnService from chat.ts/turnHandlers.ts, S3 signed URLs for multiplayer TTS
+- [x] 18-07-PLAN.md — Server hardening P2: trust proxy, /api/-only route standardization, Bedrock queue 15s timeout, narrate 60s timeout, SSE stream drain on shutdown
+- [x] 18-08-PLAN.md — Validation hardening: password complexity, per-username lockout, Zod on chat/narrate bodies, Zod on Redis conversation data
+- [x] 18-09-PLAN.md — Frontend performance: React.memo MessageBubble, TTS Object URL cleanup, React.lazy code splitting, shared CHARACTER_CLASS_IDS
+- [x] 18-10-PLAN.md — P3 cleanup: HSTS + CSP update, O(1) socket rate limiter, logEvent everywhere, remove _deps/tsyringe, .gitignore tsbuildinfo, gate _testInternals
 
 ---
 
@@ -431,4 +433,4 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 15. Client Polling Optimization | 1/1 | Complete | 2026-02-22 |
 | 16. Generation Observability & Log Hygiene | 1/1 | Complete | 2026-02-22 |
 | 17. Code Review Bug Fixes Wave 1 | 3/3 | Complete | 2026-02-22 |
-| 18. Code Review Bug Fixes Wave 2 | 0/10 | Planned | -- |
+| 18. Code Review Bug Fixes Wave 2 | 10/10 | Complete | 2026-02-22 |

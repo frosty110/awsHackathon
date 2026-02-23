@@ -65,6 +65,9 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
   const streamMessageIdRef = useRef<string | null>(null);
   const streamTextRef = useRef<string>('');
 
+  // Track TTS Object URLs for cleanup on unmount to prevent memory leaks
+  const objectUrlsRef = useRef<string[]>([]);
+
   // Track local player info via ref to avoid stale closures in callbacks
   const playersRef = useRef<MultiplayerPlayer[]>([]);
 
@@ -184,8 +187,14 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
         }
         const blob = new Blob([bytes], { type: 'audio/mpeg' });
         const url = URL.createObjectURL(blob);
+        // Track URL for cleanup on unmount
+        objectUrlsRef.current.push(url);
         const audio = new Audio(url);
-        audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+        audio.addEventListener('ended', () => {
+          URL.revokeObjectURL(url);
+          // Remove from tracking list since it was already revoked
+          objectUrlsRef.current = objectUrlsRef.current.filter(u => u !== url);
+        });
         playAudio(audio);
       } catch (err) {
         console.error('[useMultiplayerRoom] failed to play TTS audio', err);
@@ -343,6 +352,14 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       if (idleTimeout) clearTimeout(idleTimeout);
     };
   }, [roomCode]);
+
+  // Revoke any remaining TTS Object URLs when the component unmounts
+  useEffect(() => {
+    return () => {
+      objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      objectUrlsRef.current = [];
+    };
+  }, []);
 
   const submitAction = useCallback((action: string) => {
     socket.emit('turn:submit-action', { action });

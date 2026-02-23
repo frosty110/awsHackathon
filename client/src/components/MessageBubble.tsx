@@ -1,3 +1,4 @@
+import React, { useMemo } from 'react';
 import { useSyncExternalStore } from 'react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
@@ -19,17 +20,22 @@ function getOutcomeBracket(value: number) {
   return { label: 'Natural 20!', bg: 'bg-yellow-700/70', border: 'border-yellow-400', text: 'text-yellow-300' };
 }
 
-export function MessageBubble({ message, onStopAudio, onReplayAudio }: MessageBubbleProps) {
+export const MessageBubble = React.memo(function MessageBubble({ message, onStopAudio, onReplayAudio }: MessageBubbleProps) {
   const { role, content } = message;
   const playingId = useSyncExternalStore(subscribe, getPlayingMessageId);
   const isPlaying = playingId === message.id;
 
+  // Memoize expensive content transformation (strip TTS tags + expand phrases)
+  const cleanDmContent = useMemo(() => {
+    if (role !== 'dm') return content;
+    return stripTTSTags(expandPhrasesForDisplay(content));
+  }, [role, content]);
+
   if (role === 'dm') {
-    const cleanContent = stripTTSTags(expandPhrasesForDisplay(content));
     return (
       <div className="flex justify-start mb-3 group">
         <div className="dm-prose text-lg relative max-w-[75%] px-4 py-3 rounded-lg bg-dm-bubble font-fell leading-[1.8] text-[color:var(--color-dm-message)] text-[1.05rem]">
-          <Markdown rehypePlugins={[rehypeSanitize]}>{cleanContent}</Markdown>
+          <Markdown rehypePlugins={[rehypeSanitize]}>{cleanDmContent}</Markdown>
           {message.audioUrl && (
             <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity">
               {isPlaying ? (
@@ -100,4 +106,4 @@ export function MessageBubble({ message, onStopAudio, onReplayAudio }: MessageBu
       </div>
     </div>
   );
-}
+});

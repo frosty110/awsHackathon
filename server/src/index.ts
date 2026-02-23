@@ -14,6 +14,8 @@ import { connectRedis, redisClient, isRedisAvailable } from "./services/redis.js
 import { initSocketIO } from "./sockets/index.js";
 import { initRag } from "./services/rag.js";
 import { activeSSEStreams } from "./services/activeStreams.js";
+import { ensureOpeningBundles } from "./services/openingBundleService.js";
+import { logEvent } from "./services/logger.js";
 
 async function main(): Promise<void> {
   warnOnBlankConfig(
@@ -86,6 +88,11 @@ async function main(): Promise<void> {
   server.listen(config.PORT, () => {
     console.log(`Server listening on http://localhost:${config.PORT}`);
   });
+
+  // Pre-warm opening monologue bundles from S3 (non-blocking)
+  void ensureOpeningBundles().catch((err) =>
+    logEvent("error", "openings.ensure_failed", {}, err)
+  );
 
   // M3: Graceful shutdown — close Socket.IO, HTTP server, Neo4j, and Redis in correct order
   const shutdown = async (signal: string) => {

@@ -1,61 +1,82 @@
 import type { SceneId } from "@ai-dm/shared-types";
 
-/** MiniMax video generation prompts keyed by scene ID.
+/**
+ * MiniMax video generation prompts keyed by scene ID.
  *
- * Style: "living photograph" — photorealistic, locked-off tripod camera,
- * mostly still frame with 1-2 subtle moving elements that bring the
- * scene to life (fire flickering, trees swaying, dust drifting).
- * Combat scenes feel paused mid-action with small details in motion.
+ * ── Visual Style: "Illustrated Dark Fantasy" ──
+ *
+ * Art direction: Hand-painted dark fantasy illustration in the tradition
+ * of classic D&D module cover art and fantasy concept art. Rich oil-paint
+ * textures with visible brushwork, deep shadows, warm accent lighting,
+ * and a muted earth-tone palette punctuated by saturated magical hues.
+ * NOT photorealistic — stylized painterly rendering throughout.
+ *
+ * Color palette: Deep umbers, charcoal blacks, burnt sienna, muted golds,
+ * desaturated greens and blues. Magic and fire provide the only saturated
+ * color — arcane violet, ember orange, spectral teal.
+ *
+ * Perspective: First-person point of view. The viewer IS the adventurer.
+ * The camera represents the player's eyes looking directly at the scene.
+ * No third-person framing, no "watching from across the room."
+ *
+ * Motion: Ambient and environmental only — flickering firelight, drifting
+ * fog, swaying foliage, floating particles. The world breathes around
+ * the viewer. No camera movement, no character animation.
+ *
+ * Purpose: Immersive ambient backgrounds. These are living illustrations
+ * that surround the player, not captured footage of events.
+ *
+ * Format: 5-second seamless loops, locked static frame.
  */
 export const SCENE_PROMPTS: Record<SceneId, string> = {
   tavern_idle:
-    "Photorealistic dark fantasy tavern interior, fixed tripod camera, completely static shot, no camera movement. Warm firelight flickers gently on wooden beams, half-empty common room, stone hearth with low flames dancing subtly, faint smoke drifting lazily upward. A tankard sits on a table, liquid barely rippling. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking across a dim tavern common room. Oil-paint textures, visible brushwork, muted earth tones. Warm firelight flickers gently across wooden beams and a stone hearth ahead, low flames dancing subtly, faint smoke drifting upward. A tankard sits on the table in front of you, liquid barely rippling. Painterly style, 5 second seamless loop",
   tavern_tense:
-    "Photorealistic tense standoff inside a dark medieval tavern, fixed tripod camera, completely static shot, no camera movement. Two figures frozen mid-confrontation across a table, firelight casting dramatic shadows that flicker slightly. A patron in the background slowly looks down at their drink. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking at two figures locked in a tense standoff across a tavern table. Oil-paint textures, visible brushwork, dramatic chiaroscuro lighting. Firelight casts deep flickering shadows on their faces, the air feels heavy and still. A patron in the periphery slowly looks away. Painterly style, 5 second seamless loop",
   goblin_ambush:
-    "Photorealistic frozen moment of goblins mid-burst through a wooden door into a tavern, fixed tripod camera, completely static shot, no camera movement. Green-skinned creatures with rusted weapons caught in motion, wood splinters hanging in air drifting slowly, dust particles floating in torchlight. Living photograph of paused chaos, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking directly at goblins bursting through a wooden door ahead. Oil-paint textures, visible brushwork, chaotic warm torchlight. Green-skinned creatures with rusted weapons lunging toward you, wood splinters drifting slowly through the air, dust particles floating in torchlight. Painterly style, 5 second seamless loop",
   combat_melee:
-    "Photorealistic frozen sword combat in a stone dungeon interior, fixed tripod camera, completely static shot, no camera movement. Two warriors locked with blades touching, bright sparks slowly cascading from the contact point, torchlight flickering on stone walls. Muscles tensed, sweat droplets suspended. Living photograph of paused action, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking down your extended sword blade clashing against an opponent's weapon in a stone dungeon. Oil-paint textures, visible brushwork, dramatic torch-lit contrast. Bright sparks slowly cascade from the contact point, torchlight flickers on wet stone walls. Painterly style, 5 second seamless loop",
   cave_entrance:
-    "Photorealistic dark cave mouth set into forested hills, fixed tripod camera, completely static shot, no camera movement. Eerie mist slowly rolling out of the entrance, twisted tree branches swaying gently in wind, moonlight filtering through drifting clouds. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking into a dark cave mouth in a forested hillside. Oil-paint textures, visible brushwork, deep greens and blacks. Eerie mist slowly rolls out of the darkness toward you, twisted tree branches sway gently, moonlight filters through drifting clouds above. Painterly style, 5 second seamless loop",
   cave_interior:
-    "Photorealistic underground tunnel in a fantasy dungeon, fixed tripod camera, completely static shot, no camera movement. Water drops falling slowly from stalactites, faint bioluminescent glow pulsing gently on cave walls, narrow passage disappearing into darkness. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking down a narrow underground tunnel stretching ahead into darkness. Oil-paint textures, visible brushwork, deep blues and blacks. Water drops fall slowly from stalactites above, faint bioluminescent glow pulses gently on cave walls, the passage disappears into shadow. Painterly style, 5 second seamless loop",
   npc_dialogue:
-    "Photorealistic gruff dwarf barkeep behind a wooden counter in a medieval tavern, fixed tripod camera, completely static shot, no camera movement. Braided beard, dim firelight flickering on his face, he slowly looks up then glances back down. Atmospheric dust motes drifting in warm light. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking directly at a gruff dwarf barkeep behind a wooden counter, meeting your gaze. Oil-paint textures, visible brushwork, warm tavern tones. Braided beard, dim firelight flickering across his weathered face, atmospheric dust motes drifting in warm light between you. Painterly style, 5 second seamless loop",
   forest_path:
-    "Photorealistic winding path through a dark ancient forest, fixed tripod camera, completely static shot, no camera movement. Gnarled trees with branches swaying gently in breeze, fog drifting slowly between trunks, faint moonlight casting still shadows on the ground. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking down a winding path through a dark ancient forest stretching ahead. Oil-paint textures, visible brushwork, deep greens and silvers. Gnarled tree branches sway gently in breeze on either side, fog drifts slowly between trunks, faint moonlight casts long shadows on the ground before you. Painterly style, 5 second seamless loop",
   town_street:
-    "Photorealistic medieval town street at night, fixed tripod camera, completely static shot, no camera movement. Cobblestone road, hanging lanterns with flames gently swaying, warm pools of light on half-timbered buildings, faint atmospheric mist drifting at ground level. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking down a medieval town street at night stretching into the distance. Oil-paint textures, visible brushwork, warm lantern golds against deep blues. Cobblestones underfoot, hanging lantern flames sway gently, warm pools of light fall on half-timbered buildings, faint mist drifts at ground level. Painterly style, 5 second seamless loop",
   campfire:
-    "Photorealistic campfire in a forest clearing at night, fixed tripod camera, completely static shot, no camera movement. Warm orange flames crackling and dancing, embers floating slowly upward, bedrolls and gear illuminated in warm glow, dark trees surrounding completely still. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking at a campfire directly ahead in a forest clearing at night, as if sitting beside it. Oil-paint textures, visible brushwork, warm oranges against deep blacks. Flames crackle and dance, embers float slowly upward, bedrolls and gear visible in the warm glow, dark trees surround the clearing. Painterly style, 5 second seamless loop",
   treasure_found:
-    "Photorealistic glowing magical artifact revealed in a dark stone chamber, fixed tripod camera, completely static shot, no camera movement. Golden light radiating softly from an ornate chest, dust particles drifting lazily through light beams, everything else perfectly still. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking down at a glowing magical artifact revealed in an ornate chest before you in a dark stone chamber. Oil-paint textures, visible brushwork, golden light against deep shadows. Radiant light spills upward from the chest onto your hands, dust particles drift lazily through the light beams. Painterly style, 5 second seamless loop",
   magic_spell:
-    "Photorealistic arcane magical energy frozen in the air, fixed tripod camera, completely static shot, no camera movement. Glowing blue and purple runes orbiting slowly, faint particle effects drifting gently, dark atmospheric background perfectly still. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking at your outstretched hands as arcane magical energy swirls around them. Oil-paint textures, visible brushwork, saturated violet and teal against dark atmospheric background. Glowing runes orbit slowly, faint particle effects drift gently between your fingers. Painterly style, 5 second seamless loop",
   fireball:
-    "Photorealistic frozen moment of a fireball erupting in a stone dungeon chamber, fixed tripod camera, completely static shot, no camera movement. Orange and red flames suspended mid-expansion, faint heat distortion shimmering slowly, embers floating in place. Living photograph of paused destruction, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking at a fireball erupting from your outstretched palm into a stone dungeon chamber ahead. Oil-paint textures, visible brushwork, intense orange and red against dark stone. Flames expand outward, faint heat distortion shimmers slowly, embers float through the air. Painterly style, 5 second seamless loop",
   stealth:
-    "Photorealistic cloaked figure frozen mid-creep through deep shadows in a stone corridor, fixed tripod camera, completely static shot, no camera movement. Moonlight through narrow windows casting still beams, the figure's cloak barely rippling, dust motes drifting in the light. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view peering around a stone corridor corner into deep shadow ahead. Oil-paint textures, visible brushwork, extreme contrast between moonlit beams and inky darkness. Moonlight cuts through narrow windows, dust motes drift in the pale shafts of light, the corridor stretches into blackness. Painterly style, 5 second seamless loop",
   trap_danger:
-    "Photorealistic ancient trap mechanism caught mid-activation in a dungeon corridor, fixed tripod camera, completely static shot, no camera movement. Arrows suspended in flight from wall slots, stone dust falling slowly from the ceiling, pressure plate barely depressed. Living photograph of frozen danger, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking at an ancient trap mechanism activating in the dungeon corridor directly ahead. Oil-paint textures, visible brushwork, urgent warm tones against cold stone. Arrows suspended mid-flight from wall slots at eye level, stone dust falls slowly from the ceiling, a pressure plate is visible on the floor before you. Painterly style, 5 second seamless loop",
   locked_door:
-    "Photorealistic ornate locked door covered in ancient runes that pulse with faint light, fixed tripod camera, completely static shot, no camera movement. Massive iron hinges, stone archway in a dungeon, mysterious light gently seeping and flickering through door cracks. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking at a massive ornate door directly ahead, covered in ancient runes that pulse with faint light. Oil-paint textures, visible brushwork, mysterious arcane glow against dark stone. Huge iron hinges frame a gothic stone archway, spectral light gently seeps and flickers through the door cracks toward you. Painterly style, 5 second seamless loop",
   rain_storm:
-    "Photorealistic heavy rain falling on a medieval town at night, fixed tripod camera, completely static shot, no camera movement. Raindrops splashing on cobblestone, distant lightning briefly illuminating stone buildings, puddles rippling gently, dark fantasy atmosphere. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking out across a medieval town from beneath a rain-battered overhang at night. Oil-paint textures, visible brushwork, cool blues and silvers. Heavy rain streaks down ahead, distant lightning briefly illuminates stone buildings, puddles ripple on cobblestones below, dark storm clouds churn overhead. Painterly style, 5 second seamless loop",
   victory:
-    "Photorealistic triumphant fantasy hero standing still in golden light, fixed tripod camera, completely static shot, no camera movement. Epic rays slowly breaking through parting clouds, hero's cape barely rippling in gentle wind, dramatic golden hour lighting. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking up at epic golden rays breaking through parting storm clouds above a battlefield. Oil-paint textures, visible brushwork, triumphant golden hour warmth. Your raised sword catches the light at the bottom of frame, dramatic beams illuminate the scene, dust and embers drift upward. Painterly style, 5 second seamless loop",
   defeat:
-    "Photorealistic fallen warrior kneeling motionless in fading light, fixed tripod camera, completely static shot, no camera movement. Somber atmosphere, dust settling slowly around them, broken weapon nearby, a single ember drifting upward from the ground. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking down at the ground from a kneeling position, a broken weapon lying before you. Oil-paint textures, visible brushwork, somber muted tones, fading light. Dust settles slowly around you, a single ember drifts upward from scorched earth, shadows close in at the edges. Painterly style, 5 second seamless loop",
   potion_drink:
-    "Photorealistic glowing potion bottles on an alchemist table, fixed tripod camera, completely static shot, no camera movement. Liquids bubbling gently in various colored bottles, mysterious ambient light shifting subtly, wisps of vapor rising slowly from an open flask. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking down at glowing potion bottles on an alchemist table before you, one held in your hand. Oil-paint textures, visible brushwork, jewel-toned liquids against dark wood. Bottles bubble gently with luminous contents, wisps of vapor rise slowly from an open flask, mysterious ambient light shifts subtly. Painterly style, 5 second seamless loop",
   bridge_crossing:
-    "Photorealistic narrow stone bridge spanning a dark bottomless chasm, fixed tripod camera, completely static shot, no camera movement. Rope railings perfectly still, faint mist rising slowly from below, single torch flame flickering gently on the far side. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking across a narrow stone bridge stretching ahead over a dark bottomless chasm. Oil-paint textures, visible brushwork, vertigo-inducing depth. Rope railings frame either side, faint mist rises slowly from the abyss below, a single torch flame flickers gently on the far side. Painterly style, 5 second seamless loop",
   throne_room:
-    "Photorealistic dark fantasy throne room with tall stone pillars, fixed tripod camera, completely static shot, no camera movement. Empty imposing throne, torchlight casting long shadows that flicker gently on gothic architecture walls, dust motes drifting in shafts of light. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking at an imposing empty throne at the far end of a grand dark hall with tall stone pillars. Oil-paint textures, visible brushwork, dramatic scale and gothic architecture. Torchlight casts long flickering shadows on vaulted walls, dust motes drift in shafts of light from high windows. Painterly style, 5 second seamless loop",
   moonrise:
-    "Photorealistic full moon hanging over dark fantasy hills, fixed tripod camera, completely static shot, no camera movement. Silver moonlight illuminating rolling landscape, silhouetted trees with branches barely swaying, clouds drifting very slowly across the moon. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking out at a full moon rising over dark fantasy hills from a hilltop vantage. Oil-paint textures, visible brushwork, silver and deep blue palette. Moonlight illuminates rolling landscape below, silhouetted trees with branches barely swaying, clouds drift very slowly across the luminous moon. Painterly style, 5 second seamless loop",
   merchant:
-    "Photorealistic medieval merchant stall displaying potions and fantasy weapons, fixed tripod camera, completely static shot, no camera movement. Colorful bottles with liquids gently glowing, ornate swords catching lantern light, the merchant slowly looking up from their wares. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking at a medieval merchant across their stall, wares spread before you. Oil-paint textures, visible brushwork, warm lantern tones. Colorful potion bottles glow faintly, ornate swords catch lantern light, the merchant slowly looks up to meet your gaze. Painterly style, 5 second seamless loop",
   dice_roll:
-    "Photorealistic glowing magical d20 die resting on a worn wooden surface, fixed tripod camera, completely static shot, no camera movement. Fantasy runes on the die faces pulsing with faint light, warm tavern glow, subtle particle effects drifting around the die. Living photograph, 5 second seamless loop",
+    "Hand-painted dark fantasy illustration, first person point of view looking down at a glowing magical d20 die resting on a worn wooden table before you. Oil-paint textures, visible brushwork, warm tavern amber glow. Fantasy runes on the die faces pulse with faint arcane light, subtle particle effects drift around the die, your hands rest at the edge of frame. Painterly style, 5 second seamless loop",
 };

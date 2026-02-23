@@ -438,8 +438,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 19-01-PLAN.md — Auth hardening: HSETNX registration atomicity (C-3), logout endpoint (H-4), lockout expiry TTL (H-5), refresh rate limiter (M-6), Map-based user store (L-6)
-- [ ] 19-02-PLAN.md — Codebase cleanup: Zod error sanitization (C-1), Socket.IO auth default flip (H-2), lore cache LRU swap (H-3), usage tracker timer (M-3), Neo4j label constraint (M-4), remove dead AbortController (M-8), remove unused getCharacterClass/getPronouns (L-1), delete SESSION_SECRET (L-3), client TTS abort signal (L-4), socket rate config (L-5)
+- [x] 19-01-PLAN.md — Auth hardening: HSETNX registration atomicity (C-3), logout endpoint (H-4), lockout expiry TTL (H-5), refresh rate limiter (M-6), Map-based user store (L-6)
+- [x] 19-02-PLAN.md — Codebase cleanup: Zod error sanitization (C-1), Socket.IO auth default flip (H-2), lore cache LRU swap (H-3), usage tracker timer (M-3), Neo4j label constraint (M-4), remove dead AbortController (M-8), remove unused getCharacterClass/getPronouns (L-1), delete SESSION_SECRET (L-3), client TTS abort signal (L-4), socket rate config (L-5)
 
 ---
 
@@ -470,4 +470,4 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 16. Generation Observability & Log Hygiene | 1/1 | Complete | 2026-02-22 |
 | 17. Code Review Bug Fixes Wave 1 | 3/3 | Complete | 2026-02-22 |
 | 18. Code Review Bug Fixes Wave 2 | 10/10 | Complete | 2026-02-22 |
-| 19. Code Review Bug Fixes Wave 3 | 0/2 | Planned | -- |
+| 19. Code Review Bug Fixes Wave 3 | 2/2 | Complete | 2026-02-22 |

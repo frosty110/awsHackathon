@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useSSEChat } from './hooks/useSSEChat';
 import { startBackgroundMusic, startRandomMusic, stopBackgroundMusic } from './services/backgroundMusic';
 import { SceneBackground } from './components/SceneBackground';
@@ -11,9 +11,11 @@ import { ClassSelect, type CharacterClass } from './components/ClassSelect';
 import { CostTooltip } from './components/CostTooltip';
 import { ErrorNotification } from './components/ErrorNotification';
 import { ModeSelect } from './components/ModeSelect';
-import { MultiplayerLobby } from './components/MultiplayerLobby';
-import { MultiplayerGame } from './components/MultiplayerGame';
 import { LoginForm } from './components/LoginForm';
+
+// Code-split multiplayer components — only loaded when user enters multiplayer mode
+const MultiplayerLobby = lazy(() => import('./components/MultiplayerLobby'));
+const MultiplayerGame = lazy(() => import('./components/MultiplayerGame'));
 import { socket } from './services/socket';
 import { restoreAuth, clearAuth, getUsername } from './services/auth';
 import type { RoomState } from './types/multiplayer';
@@ -199,15 +201,19 @@ export default function App() {
               </div>
             </>
           ) : appState === 'multiplayerLobby' ? (
-            <MultiplayerLobby
-              onGameStart={handleMultiplayerGameStart}
-              onBack={handleMultiplayerBack}
-            />
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center text-parchment/60 font-fell">Loading multiplayer...</div>}>
+              <MultiplayerLobby
+                onGameStart={handleMultiplayerGameStart}
+                onBack={handleMultiplayerBack}
+              />
+            </Suspense>
           ) : appState === 'multiplayerGame' && multiplayerRoomCode ? (
-            <MultiplayerGame
-              roomCode={multiplayerRoomCode}
-              onLeave={handleMultiplayerLeave}
-            />
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center text-parchment/60 font-fell">Loading game...</div>}>
+              <MultiplayerGame
+                roomCode={multiplayerRoomCode}
+                onLeave={handleMultiplayerLeave}
+              />
+            </Suspense>
           ) : null}
         </main>
 

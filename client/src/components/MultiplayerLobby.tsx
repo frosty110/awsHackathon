@@ -484,3 +484,5 @@ export function MultiplayerLobby({ onGameStart, onBack }: MultiplayerLobbyProps)
   // Fallback (should not be reached)
   return null;
 }
+
+export default MultiplayerLobby;

@@ -1,13 +1,19 @@
 import { useState } from 'react';
+import { CHARACTER_CLASS_IDS } from '@ai-dm/shared-types';
+import type { CharacterClassId } from '@ai-dm/shared-types';
 
 export interface CharacterClass {
-  id: string;
+  id: CharacterClassId;
   name: string;
   icon: string;
   description: string;
   hitDie: string;
   primaryAbility: string;
 }
+
+// Compile-time check: ensure local CLASSES IDs match shared CHARACTER_CLASS_IDS
+// TypeScript will error if any id does not conform to CharacterClassId
+type _ClassIdCheck = typeof CHARACTER_CLASS_IDS[number] extends CharacterClassId ? true : never;
 
 const CLASSES: CharacterClass[] = [
   {

@@ -224,3 +224,5 @@ export function MultiplayerGame({ roomCode, onLeave }: MultiplayerGameProps) {
     </div>
   );
 }
+
+export default MultiplayerGame;

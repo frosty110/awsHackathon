@@ -11,6 +11,7 @@ export type {
 
 // Player types
 export type { CharacterClassId, GenderId } from "./player.js";
+export { CHARACTER_CLASS_IDS } from "./player.js";
 
 // TTS & scene types
 export type { SceneMood, SceneId, CharacterVoice, MiniMaxEmotion } from "./tts.js";

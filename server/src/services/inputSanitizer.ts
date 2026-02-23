@@ -2,6 +2,7 @@
  * Shared input sanitization for user-facing text inputs.
  * Strips prompt injection patterns, control characters, and enforces length limits.
  */
+import { CHARACTER_CLASS_IDS } from '@ai-dm/shared-types';
 
 // Patterns that could be used for Bedrock/Claude template injection,
 // including XML-like role confusion tags that Claude interprets as special tokens.
@@ -31,17 +32,11 @@ export function sanitizeUserInput(text: string, maxLength = 2000): string {
 }
 
 /**
- * Valid character classes matching the client ClassSelect component IDs.
- * Used to validate characterClass from request bodies before use in prompts.
+ * Valid character classes — derived from shared CHARACTER_CLASS_IDS to ensure
+ * client and server always agree on valid values.
+ * Typed as Set<string> so `.has()` accepts arbitrary user input without type assertions.
  */
-export const VALID_CHARACTER_CLASSES = new Set([
-  'fighter',
-  'wizard',
-  'rogue',
-  'cleric',
-  'ranger',
-  'paladin',
-]);
+export const VALID_CHARACTER_CLASSES: Set<string> = new Set(CHARACTER_CLASS_IDS);
 
 /**
  * Validate and normalize a characterClass value from request body.

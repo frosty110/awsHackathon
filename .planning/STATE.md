@@ -85,6 +85,7 @@ Progress: [██████████] 100%
 | Phase 18-code-review-bug-fixes-wave-2 P03 | 8 | 2 tasks | 5 files |
 | Phase 18 P10 | 6 | 2 tasks | 12 files |
 | Phase 18 P01 | 7 | 2 tasks | 7 files |
+| Phase 18 P02 | 7 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -198,6 +199,8 @@ Recent decisions affecting current work:
 - [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
 - [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
 - [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses $2b$12$ prefix (bcryptjs standard), not $2a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
 
 ### Roadmap Evolution
 
@@ -244,5 +247,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 18-01-PLAN.md (IDOR conversation ownership, random dev JWT secret, /api/usage requireAuth)
-Resume context: Phase 18 plan 01 complete. P0 security fixes: userId ownership binding on Conversation type with ConversationOwnershipError (403 on cross-user access), migration path for legacy conversations, crypto.randomBytes(32) replaces hardcoded dev JWT secret, /api/usage enforced with requireAuth in both usage.ts and app.ts. 53 tests pass (5 new IDOR tests added).
+Stopped at: Completed 18-02-PLAN.md (prompt injection hardening, socket.io production auth, bcrypt timing dummy)
+Resume context: Phase 18 plan 02 complete. Prompt injection hardening: expanded inputSanitizer with XML role tag stripping, full unicode control char range, invisible/zero-width char removal, VALID_CHARACTER_CLASSES Set, validateCharacterClass() and sanitizePronouns() exports. Socket.IO production auth: NODE_ENV=production rejects unauthenticated connections. bcrypt dummy hash replaced with valid 60-char $2b$12$ pre-computed hash. TypeScript clean, 53 tests pass.

@@ -88,12 +88,338 @@ Progress: [██████████] 100%
 | Phase 18 P02 | 7 | 2 tasks | 3 files |
 | Phase 18-code-review-bug-fixes-wave-2 P04 | 8 | 2 tasks | 2 files |
 | Phase 18 P09 | 3 | 2 tasks | 9 files |
+| Phase 18 P06 | 4 | 2 tasks | 8 files |
+| Phase 18 P08 | 5 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
 - Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
@@ -217,6 +543,1438 @@ Recent decisions affecting current work:
 - [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
 - [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
 - [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+b### Decisions
+
+2$ prefix (bcryptjs standard), not Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses $2b$12$ prefix (bcryptjs standard), not $2a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+- [Phase 18]: executeDmTurn() is transport-agnostic with onText/onMoodChange callbacks for SSE (chat.ts) or Socket.IO (turnHandlers.ts) — eliminates ~60% duplicate DM orchestration code
+b### Decisions
+
+2$ prefix (bcryptjs standard), not Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses $2b$12$ prefix (bcryptjs standard), not $2a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+b### Decisions
+
+2$ prefix (bcryptjs standard), not Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses $2b$12$ prefix (bcryptjs standard), not $2a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+- [Phase 18]: executeDmTurn() is transport-agnostic with onText/onMoodChange callbacks for SSE (chat.ts) or Socket.IO (turnHandlers.ts) — eliminates ~60% duplicate DM orchestration code
+a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+b### Decisions
+
+2$ prefix (bcryptjs standard), not Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses $2b$12$ prefix (bcryptjs standard), not $2a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+b### Decisions
+
+2$ prefix (bcryptjs standard), not Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses $2b$12$ prefix (bcryptjs standard), not $2a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+- [Phase 18]: executeDmTurn() is transport-agnostic with onText/onMoodChange callbacks for SSE (chat.ts) or Socket.IO (turnHandlers.ts) — eliminates ~60% duplicate DM orchestration code
+b### Decisions
+
+2$ prefix (bcryptjs standard), not Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses $2b$12$ prefix (bcryptjs standard), not $2a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+b### Decisions
+
+2$ prefix (bcryptjs standard), not Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Roadmap: Use `@aws-sdk/client-bedrock-runtime` (NOT `@anthropic-ai/bedrock-sdk`) — this is the only SDK dd-trace auto-instruments; wrong choice eliminates Datadog prize entirely
+- Roadmap: Phases 2 and 3 (Chat UI and Lore Seed) can run in parallel — both depend only on Phase 1, neither blocks the other
+- Roadmap: MiniMax TTS scoped to opening monologue only (not every DM turn) — avoids 3-6s blocking latency per turn
+- [Phase 01-scaffold]: envDefaults blank-default pattern: all integration keys default to empty string, validated at usage via requireConfigValues not at module load time
+- [Phase 01-scaffold]: AppDeps.driver typed as Driver | null — neo4j.driver() only called after requireConfigValues validates non-blank keys in else branch
+- [Phase 02-01]: No tailwind.config.js created — Tailwind v4 CSS-only @theme is the correct modern approach
+- [Phase 02-01]: useSSEChat interface locked as { messages, isLoading, sendMessage, reset } — stable contract for Phase 4 drop-in replacement
+- [Phase 02-01]: import type used for Message imports in hooks — required by verbatimModuleSyntax tsconfig setting
+- [Phase 02-chat-ui]: Tailwind v4 CSS-only @theme — no tailwind.config.js, no postcss.config.js; useSSEChat interface locked as { messages, isLoading, sendMessage, reset } for Phase 4 drop-in
+- [Phase 02-02]: DiceRoller shake-then-callback: 400ms setTimeout before onRoll(), useRef cleanup on unmount prevents stale calls
+- [Phase 02-02]: needsRoll one-liner regex (roll|dice|check|save|attack) on last DM message — fully derived from messages, no separate state
+- [Phase 02-02]: Dark overlay via absolute div (bg-black/60) inside relative outer wrapper — stretches full viewport independently of surface container
+- [Phase 03-01]: Ring of Ashwick is a protective talisman (symbolic dark fantasy artifact, goblins may not know its value) — fits dark fantasy tone without over-powered magic
+- [Phase 03-01]: Gorm speakingStyle: short sentences, does not volunteer, answers directly, opens up in bursts when trusted — suits gruff ex-soldier archetype
+- [Phase 03-01]: lore.json shape uses flat relationships array with fromLabel/toLabel — enables seed script MERGE dispatch without embedded nesting
+- [Phase 03-lore-graph-seed]: npx tsx in npm run seed — tsx is server devDependency, npx resolves from workspace node_modules
+- [Phase 03-lore-graph-seed]: Relationship type templated into Cypher (not parameterized) — Neo4j does not support parameterized rel types; safe because lore.json is controlled input
+- [Phase 07-01]: English_CaptivatingStoryteller voice at neutral settings (speed 1, pitch 0) — tune after hearing pre-generated audio
+- [Phase 07-01]: OPENING_MONOLOGUE exported from narrate.ts (not a separate constants file) — single import source for pre-gen script
+- [Phase 07-01]: Pre-generation script resolves output path via import.meta.url — location-independent
+- [Phase 07-01]: No rate limiting or Datadog spans on /narrate — Phase 6 handles observability; hackathon simplicity
+- [Phase 07-02]: AudioPlayer uses Blob URL approach (fetch -> arrayBuffer -> Blob -> URL.createObjectURL) inside onClick to preserve browser autoplay user gesture trust
+- [Phase 07-02]: onAdventureStart() called immediately after status='playing', before audio.play() — chat UI appears concurrently with audio
+- [Phase 07-02]: Catch block always calls onAdventureStart() — TTS failure is non-fatal, adventure still starts
+- [Phase 06-01]: streamBedrockChunks (async generator) replaced by streamBedrockResponse(messages, onChunk) — async generators cannot be wrapped in tracer.llmobs.trace() Promise-based API; route updated to pass inline chunk callback
+- [Phase 06-01]: neo4j.ts created with LLMObs span stub — real entity extraction deferred to Phase 5 RAG; span name and kind locked in now so traces appear correctly when Phase 5 runs
+- [Phase 06-01]: kind='llm' for Bedrock span, kind='tool' for neo4j and TTS — matches LLMObs taxonomy: only actual LLM model calls use kind='llm'
+- [Phase 06-datadog-observability]: import { client as ddClient, v1 } from '@datadog/datadog-api-client' — correct named import; top-level module exports client namespace not createConfiguration directly
+- [Phase 04-01]: streamBedrockResponse uses onChunk callback (not async generator + AbortSignal) — enables Phase 06 LLMObs tracer.llmobs.trace() Promise wrapping
+- [Phase 04-01]: getWindowedHistory(id, 12) replaces toBedrockMessages — returns Bedrock-shaped messages directly, eliminates separate mapping step
+- [Phase 04-01]: isSystemTrigger flag: opening monologue sent to Bedrock without being stored in player history — keeps conversation context clean
+- [Phase quick-01]: Voice IDs: narrator=CaptivatingStoryteller, barkeep=ManSportsCommentator, goblin=FloridaMan; mood prosody: combat 1.15x/+2, tavern 0.9x/-1, mystery 0.85x/-2
+- [Phase quick-01]: stripTTSTags duplicated on client (no shared package); ttsText SSE event passes tagged Bedrock output to client for TTS; playFromResponse consolidates Blob audio logic
+- [Phase 04-02]: useSSEChat external interface kept identical: { messages, isLoading, sendMessage, reset } — drop-in replacement of Phase 2 mock
+- [Phase 08-01]: socket.io hoisted to root node_modules in monorepo workspace — TypeScript and runtime both resolve correctly
+- [Phase 08-01]: connectionStateRecovery maxDisconnectionDuration: 2 minutes — player can reconnect without losing room slot
+- [Phase 08-01]: submittedAction is string | null internally, boolean in PlayerPayload — hides action text from other players until DM responds
+- [Phase 08-01]: customAlphabet omits I and O — prevents visual confusion with 1 and 0 in room codes; 6-char codes give ~300M unique values
+- [Phase 08-01]: 4-player cap enforced in addPlayer (not createRoom) — partial joins fail gracefully
+- [Phase 08-02]: Socket.IO client singleton uses io() with no URL — Vite proxy /socket.io routes to backend (established in 08-01)
+- [Phase 08-02]: CHARACTER_CLASSES: Warrior=red-400, Mage=blue-400, Rogue=purple-400, Cleric=yellow-300, Ranger=green-400, Bard=pink-400
+- [Phase 08-02]: onRoomStarted uses functional setRoomState to avoid stale closure when calling onGameStart with latest roomState
+- [Phase 08-multiplayer]: streamTextRef (useRef) accumulates DM chunk text to avoid stale closures in socket handlers
+- [Phase 08-multiplayer]: MultiplayerGame calls useMultiplayerRoom() internally — simpler API, single source of truth
+- [Phase 08-03]: Dynamic import('./turnHandlers.js') in roomHandlers breaks circular dependency without import-time coupling
+- [Phase 08-03]: 3-second pause after each DM response before next turn timer — consistent in both success and error paths
+- [Phase 08-03]: initSocketIO(server) wired in server/src/index.ts before server.listen — Socket.IO attaches at startup
+- [Phase 08-05]: Initial appState is modeSelect (not idle): ensures mode selection is the canonical entry point for every session
+- [Phase 08-05]: socket.disconnect() called in handleMultiplayerBack and handleMultiplayerLeave to prevent dangling connections
+- [Phase 10-01]: Two-tier TTS cache: L1 in-memory Map (zero-latency) + L2 S3 (durable, cross-instance). L1 preserved to avoid S3 latency (~30-100ms) for recently generated audio in same session
+- [Phase 10-01]: S3 put fire-and-forget (putAudio().catch(logEvent)) — TTS response latency unaffected by S3 write
+- [Phase 10-01]: GetObject directly (not HeadObject + GetObject) — saves one S3 round trip per cache hit; NoSuchKey is GetObject's miss error class (NotFound is HeadObject's)
+- [Phase 10-01]: span?.setTag() optional chaining required for tracer.trace() — dd-trace types span as Span | undefined in callback
+- [Phase 10-01]: S3_AUDIO_CACHE_BUCKET uses z.string() blank-default pattern — empty string disables S3 gracefully (no startup failure if unconfigured)
+- [Phase 09-scale-and-auth]: node-redis (not ioredis) singleton: connectRedis() called in main() before createApp(); bedrockQueue concurrency:20 with InstanceType<typeof PQueue> annotation for ESM type portability
+- [Phase 09-scale-and-auth]: initSocketIO made async; Socket.IO Redis adapter conditionally wired (isRedisAvailable guard); connectionStateRecovery works single-instance only with Pub/Sub adapter
+- [Phase 09]: Redis-backed conversationStore: async API surface with 7-day TTL, in-memory fallback, and TTL refresh on read
+- [Phase 09]: 503 backpressure before SSE headers in chat route — allows clean JSON error response when Bedrock queue overloaded
+- [Phase 09]: room:create handler made async — required for await getOrCreate(); Socket.IO supports async event handlers natively
+- [Phase 09-03]: optionalAuth globally (not requireAuth) — existing unauthenticated gameplay preserved; auth is additive
+- [Phase 09-03]: bcrypt 12 rounds — industry standard; balances security with registration latency
+- [Phase 09-03]: Redis hashes at user:{username} — fast hGetAll lookup by username; in-memory fallback when Redis unavailable
+- [Phase 09-03]: Constant-time user-not-found with dummy bcrypt.compare — prevents timing side-channel username enumeration
+- [Phase 09-03]: narrateRateLimiter on both /api/narrate and /narrate — covers both paths registered in app.ts
+- [Phase 11]: MusicResult typed union exported from musicService — route switch-matches on status for exhaustive HTTP translation
+- [Phase 11]: getMusicCacheStats re-exported from routes/music.ts to preserve usage.ts import contract
+- [Phase 11]: IConversationStore and IRoomStore interfaces with .bind() singleton free function exports enable Redis swap as one-line class substitution
+- [Phase 11]: usageTracker lazy eviction at record-time (not timer): 24h TTL + 10k hard cap prevents unbounded memory at 1000-user scale
+- [Phase 11-01]: helmet CSP connect-src: self preserves SSE EventSource connections on /api/chat
+- [Phase 11-01]: ALLOWED_ORIGINS exported from security.ts — single source of truth shared by Express CORS and Socket.IO CORS
+- [Phase 11-01]: musicLimiter (20/min) added to /api/music and /music — previously unprotected route
+- [Phase 11-02]: bedrock.ts re-exports DM_SYSTEM_PROMPT and buildMultiplayerSystemPrompt from promptBuilder.ts for zero-change backward compatibility
+- [Phase 11-02]: p-queue concurrency gate in separate bedrockQueue.ts module (not inline in bedrock.ts) — better separation of concerns, fulfills concurrency-20 requirement
+- [Phase 11]: vitest 2.x pinned (not 4.x): yarn engine check rejected 4.x on Node 23; --ignore-engines + ^2.0.0 resolves correctly
+- [Phase 11]: _testInternals pattern in usageTracker.ts: exports module-level entries + reset() for test isolation; never used in production
+- [Phase 11]: vi.mock for redis.js in conversationStore tests: forces in-memory path, zero network dependency in tests
+- [Phase 11-06]: Dead chatLimiter and narrateLimiter deleted from rateLimits.ts — neither imported anywhere; Phase 09 Redis-backed equivalents in rateLimiter.ts are authoritative
+- [Phase 11-06]: rateLimits.ts architecture split documented via JSDoc: music uses conversationId key + MemoryStore (no auth); chat/narrate use userId key + Redis (authenticated)
+- [Phase 12-01]: registerLimiter and loginLimiter use req.ip (not userId) — auth endpoints are unauthenticated by definition, userId not yet available
+- [Phase 12-01]: Distinct Redis prefixes rl:register: and rl:login: keep counters independent — exhausting login limit won't block register and vice versa
+- [Phase 12-01]: DEV_SECRET constant in auth.ts mirrors inline string in routes/auth.ts jwt.sign — consistent dev-mode behavior, auth works without JWT_SECRET env var
+- [Phase 12-01]: Auth limiters mounted at step 5, authRouter at step 6 — Express middleware ordering guarantees rate limit fires before route handler
+- [Phase 12-production-hardening]: try/catch in public methods (not private helpers) so catch falls through to in-memory block; console.error consistent with redis.ts error handler; identical message string across all 5 catch blocks for grep-based log alerting
+- [Phase 13-01]: Dead DI scaffolding (container.ts, tokens.ts, transport/, domain/, adapters/) was untracked in git — filesystem-only deletion, ~2237 lines removed
+- [Phase 13-01]: Local stripTTSTags in useMultiplayerRoom.ts was missing scene tag regex — replacing with @ai-dm/shared-types import is a bug fix
+- [Phase 14-01]: Promise.allSettled fan-out in generateMultiVoiceTTS: each segment concurrent, fallback inside closure, results collected in index order — reduces 7-segment narration from ~15s to ~3s
+- [Phase 14-01]: Fallback test scoped to single segment: parallel execution makes multi-segment mock ordering nondeterministic; single segment isolates fallback behavior cleanly
+- [Phase 14-01]: tts.multi_voice_completed timing log placed after collection loop to capture true wall-clock latency including slowest segment
+- [Phase 16]: progressTimer declared in function scope (not try scope) so finally block can clearInterval — avoids timer leak on success and failure paths
+- [Phase 16]: Redis skip uses logEvent info level (not warn) — expected behavior in dev, not an alarm condition
+- [Phase 16]: Only Redis and JWT warnOnBlankConfig guarded by production check; AWS/Datadog/MiniMax/Neo4j warnings remain unconditional
+- [Phase 15]: backgroundMusic INITIAL_POLL_DELAY_MS=10s + 2s base backoff capped 30s; sceneVideo INITIAL_POLL_DELAY_MS=15s + 2s base backoff capped 30s; RETRY_INTERVAL_MS unchanged
+- [Phase 17-01]: requireAuth before rate limiters on all game routes — 401 returned before rate limit state modified; override Phase 09-03 optionalAuth-globally; algorithms plural array for jwt.verify vs algorithm singular string for jwt.sign
+- [Phase 17-03]: io.close() must precede server.close() in shutdown — Socket.IO needs HTTP transport alive briefly to send WebSocket disconnect packets to clients
+- [Phase 17-03]: room.phase assignment placed immediately after idempotency guard check with no await gap — ensures atomicity in Node.js event loop for DM trigger deduplication
+- [Phase 17-03]: No AbortController added for Bedrock stream on room deletion (H-13 scoped to easy effort) — Bedrock call naturally times out at 45s when deleted room properties are gone
+- [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
+- [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
+- [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 18-02]: bcrypt dummy hash uses $2b$12$ prefix (bcryptjs standard), not $2a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+- [Phase 18]: executeDmTurn() is transport-agnostic with onText/onMoodChange callbacks for SSE (chat.ts) or Socket.IO (turnHandlers.ts) — eliminates ~60% duplicate DM orchestration code
+a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+a$ — correct format for constant-time user-not-found comparison
+- [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
+- [Phase 18]: executeDmTurn() is transport-agnostic with onText/onMoodChange callbacks for SSE (chat.ts) or Socket.IO (turnHandlers.ts) — eliminates ~60% duplicate DM orchestration code
+- [Phase 18]: getPresignedUrl returns null on error/unconfigured S3 — callers fall back to base64/Express without crashing; scene video uses 302 redirect to S3 (criterion 28); TTS uses 5-min presigned URL instead of base64 inflation
 
 ### Roadmap Evolution
 
@@ -263,5 +2021,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 18-09-PLAN.md (MessageBubble memoization, TTS Object URL cleanup, React.lazy code-splitting, shared CHARACTER_CLASS_IDS)
-Resume context: Phase 18 complete. All 10 plans executed. Plan 09: React.memo on MessageBubble with useMemo for content transformation, TTS Object URLs tracked in useRef and revoked on ended/unmount, React.lazy + Suspense for MultiplayerLobby/Game, CHARACTER_CLASS_IDS in @ai-dm/shared-types imported by both ClassSelect.tsx and inputSanitizer.ts. TypeScript compiles clean in both server/ and client/.
+Stopped at: Completed 18-06-PLAN.md (DmTurnService extraction, S3 presigned URLs for multiplayer TTS and scene video)
+Resume context: Phase 18 plan 06 complete. executeDmTurn() extracted to server/src/services/dmTurn.ts — transport-agnostic DM turn orchestration shared by chat.ts and turnHandlers.ts. Multiplayer TTS now uploads to S3 and emits presigned URL (5-min expiry) instead of base64. Scene video serves via 302 redirect to S3 presigned URL (10-min expiry, criterion 28). Base64/Express fallback preserved when S3 unconfigured. getPresignedUrl() added to mediaCache.ts using @aws-sdk/s3-request-presigner. 53 tests pass. Plans 08 and 09 still pending.

@@ -243,6 +243,7 @@ export function useSSEChat() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ text: ttsPayload, conversationId: conversationId.current }),
+        signal: controller.signal,
       });
 
       if (ttsRes.ok && generation === generationRef.current) {
@@ -264,8 +265,10 @@ export function useSSEChat() {
       } else if (!ttsRes.ok) {
         pushError("Voice", `Narration failed (HTTP ${ttsRes.status})`);
       }
-    } catch {
-      pushError("Voice", "Network error during narration");
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        pushError("Voice", "Network error during narration");
+      }
     }
 
     // TTS unavailable: reveal text without audio

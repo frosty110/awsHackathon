@@ -27,7 +27,11 @@ const router = Router();
 router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
   const parsed = chatBodySchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors });
+    logEvent("warn", "chat.validation_failed", {
+      route: "/api/chat",
+      errors: parsed.error.flatten().fieldErrors,
+    });
+    res.status(400).json({ error: "Invalid request body" });
     return;
   }
   const body = parsed.data;

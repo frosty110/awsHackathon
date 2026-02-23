@@ -35,6 +35,12 @@ export function evictStaleEntries(): void {
   }
 }
 
+// Periodic backup cleanup — prevents stale entry accumulation during idle periods.
+// Lazy eviction at record-time is the primary mechanism; this timer is a safety net.
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const _cleanupTimer = setInterval(evictStaleEntries, CLEANUP_INTERVAL_MS);
+if (typeof _cleanupTimer.unref === 'function') _cleanupTimer.unref();
+
 export function recordBedrockUsage(
   conversationId: string | null,
   feature: string,

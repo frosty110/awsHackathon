@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import tracer from "dd-trace";
 import type { Driver } from "neo4j-driver";
+import { LRUCache } from "lru-cache";
 import { queryLore, type LoreRecord } from "./neo4j.js";
 import { logEvent } from "./logger.js";
 
@@ -23,12 +24,15 @@ export function initRag(driver: Driver | null): void {
 interface LoreCacheEntry {
   context: string;
   records: LoreRecord[];
-  createdAt: number;
 }
 
-const loreCache = new Map<string, LoreCacheEntry>();
 const LORE_CACHE_MAX_SIZE = 100;
 const LORE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const loreCache = new LRUCache<string, LoreCacheEntry>({
+  max: LORE_CACHE_MAX_SIZE,
+  ttl: LORE_CACHE_TTL_MS,
+  allowStale: false,
+});
 
 let loreCacheHits = 0;
 let loreCacheMisses = 0;
@@ -39,15 +43,6 @@ function buildLoreCacheKey(entities: string[]): string {
 
 function hashLoreKey(preHashKey: string): string {
   return createHash("sha256").update(preHashKey).digest("hex").slice(0, 16);
-}
-
-function evictStaleLoreEntries(): void {
-  const now = Date.now();
-  for (const [key, entry] of loreCache) {
-    if (now - entry.createdAt > LORE_CACHE_TTL_MS) {
-      loreCache.delete(key);
-    }
-  }
 }
 
 export function getLoreCacheStats() {
@@ -186,7 +181,7 @@ export async function buildLoreContext(message: string): Promise<string> {
   const cacheKey = hashLoreKey(preHashKey);
   const cached = loreCache.get(cacheKey);
 
-  if (cached && Date.now() - cached.createdAt < LORE_CACHE_TTL_MS) {
+  if (cached) {
     loreCacheHits++;
     tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'lore', source: 'memory' });
     logEvent("info", "rag.cache_hit", {
@@ -210,7 +205,7 @@ export async function buildLoreContext(message: string): Promise<string> {
     cacheHits: loreCacheHits,
     cacheMisses: loreCacheMisses,
     cacheSize: loreCache.size,
-    reason: cached ? "expired" : "not_found",
+    reason: "not_found",
   });
 
   // ── Neo4j query (cache miss) ───────────────────────────────────────────
@@ -219,12 +214,7 @@ export async function buildLoreContext(message: string): Promise<string> {
     const context = assembleLoreContext(records);
 
     // Store in cache
-    evictStaleLoreEntries();
-    if (loreCache.size >= LORE_CACHE_MAX_SIZE) {
-      const oldestKey = loreCache.keys().next().value;
-      if (oldestKey) loreCache.delete(oldestKey);
-    }
-    loreCache.set(cacheKey, { context, records, createdAt: Date.now() });
+    loreCache.set(cacheKey, { context, records });
 
     if (context) {
       logEvent("info", "rag.lore_injected", {

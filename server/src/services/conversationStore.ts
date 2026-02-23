@@ -272,5 +272,3 @@ export { conversationStore };
 export const getOrCreate = conversationStore.getOrCreate.bind(conversationStore);
 export const appendMessage = conversationStore.appendMessage.bind(conversationStore);
 export const getWindowedHistory = conversationStore.getWindowedHistory.bind(conversationStore);
-export const getCharacterClass = conversationStore.getCharacterClass.bind(conversationStore);
-export const getPronouns = conversationStore.getPronouns.bind(conversationStore);

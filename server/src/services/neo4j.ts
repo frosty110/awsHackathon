@@ -24,7 +24,7 @@ export async function queryLore(
     async (span) => {
       const { records } = await driver.executeQuery(
         `MATCH (n)
-         WHERE n.name IN $entities
+         WHERE n.name IN $entities AND any(l IN labels(n) WHERE l IN ['Character','Location','Item','Quest','Faction'])
          OPTIONAL MATCH (n)-[r]->(related)
          RETURN n.name AS name, n.description AS description,
                 type(r) AS relationship, related.name AS relatedName

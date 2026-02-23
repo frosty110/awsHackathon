@@ -14,7 +14,7 @@ import { redisClient, isRedisAvailable } from "../services/redis.js";
 import { ALLOWED_ORIGINS } from "../middleware/security.js";
 import { getJwtSecret } from "../middleware/auth.js";
 import { logEvent } from "../services/logger.js";
-import { config } from "../services/config.js";
+import { config, SOCKET_RATE_LIMIT, SOCKET_RATE_WINDOW_MS } from "../services/config.js";
 
 export type { ClientToServerEvents, ServerToClientEvents, SocketData };
 
@@ -27,8 +27,6 @@ interface RateCounter {
   windowStart: number;
 }
 const socketRateMap = new Map<string, RateCounter>();
-const SOCKET_RATE_LIMIT = 30; // max events per window
-const SOCKET_RATE_WINDOW_MS = 10_000; // 10 seconds
 
 function checkSocketRate(socketId: string): boolean {
   const now = Date.now();
@@ -87,12 +85,12 @@ export async function initSocketIO(
   }
 
   // H1: Socket.IO JWT auth middleware
-  // - In production: rejects unauthenticated connections (no token → 401)
+  // - In non-dev: rejects unauthenticated connections (no token → 401)
   // - In dev: allows unauthenticated connections (matches optionalAuth HTTP pattern)
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token as string | undefined;
     if (!token) {
-      if (config.NODE_ENV === 'production') {
+      if (config.NODE_ENV !== 'development') {
         return next(new Error("Authentication required"));
       }
       // Dev mode: allow unauthenticated connections

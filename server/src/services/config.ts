@@ -25,7 +25,6 @@ const envDefaults: Record<string, string> = {
   S3_MEDIA_CACHE_BUCKET: "ai-dm-media-cache",
   REDIS_URL: "",
   JWT_SECRET: "",
-  SESSION_SECRET: "",
 };
 
 const envSchema = z.object({
@@ -60,7 +59,6 @@ const envSchema = z.object({
 
   REDIS_URL: z.string(),
   JWT_SECRET: z.string(),
-  SESSION_SECRET: z.string(),
 });
 
 const result = envSchema.safeParse({ ...envDefaults, ...process.env });
@@ -76,6 +74,11 @@ export type Config = typeof config;
 
 export const BEDROCK_MODEL_ID =
   config.BEDROCK_MODEL_ID || "global.anthropic.claude-3-haiku-20240307-v1:0";
+
+/** Socket.IO rate limit: max events per window */
+export const SOCKET_RATE_LIMIT = 30;
+/** Socket.IO rate limit: window duration in ms */
+export const SOCKET_RATE_WINDOW_MS = 10_000; // 10 seconds
 
 export function warnOnBlankConfig(
   keys: Array<keyof Config>,

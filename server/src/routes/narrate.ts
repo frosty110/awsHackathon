@@ -9,6 +9,7 @@ import { recordBedrockUsage, recordTtsUsage } from "../services/usageTracker.js"
 import { queueBedrockCall } from "../services/bedrockQueue.js";
 import { sanitizeUserInput, validateCharacterClass, sanitizePronouns } from "../services/inputSanitizer.js";
 import { PHRASE_BANK } from "@ai-dm/shared-types";
+import { getRandomBundle } from "../services/openingBundleService.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 
 const narrateBodySchema = z.object({
@@ -38,14 +39,15 @@ router.post("/api/narrate", async (req: AuthenticatedRequest, res) => {
 
   const parsedBody = narrateBodySchema.safeParse(req.body);
   if (!parsedBody.success) {
-    res.status(400).json({ error: "Invalid request body", details: parsedBody.error.flatten().fieldErrors });
+    logEvent("warn", "narrate.validation_failed", {
+      requestId,
+      route: "/api/narrate",
+      errors: parsedBody.error.flatten().fieldErrors,
+    });
+    res.status(400).json({ error: "Invalid request body" });
     return;
   }
   const rawBody = parsedBody.data;
-
-  // 60-second overall request timeout — covers Bedrock generation + TTS + S3 operations
-  const abortController = new AbortController();
-  const timeoutId = setTimeout(() => abortController.abort(), 60_000);
 
   const textInput = sanitizeUserInput(typeof rawBody.text === "string" ? rawBody.text : "", 5000);
   const bodyConversationId = rawBody.conversationId ?? null;
@@ -90,13 +92,57 @@ router.post("/api/narrate", async (req: AuthenticatedRequest, res) => {
         err
       );
       res.status(500).json({ error: "TTS generation failed", requestId });
-    } finally {
-      clearTimeout(timeoutId);
     }
     return;
   }
 
-  // No text — try pre-cached opening phrase first, Bedrock as fallback
+  // No text — opening monologue flow (priority cascade)
+
+  // Priority 1: S3 bundle (zero cost, instant)
+  const bundle = getRandomBundle();
+  if (bundle) {
+    try {
+      const conversation = await getOrCreate(undefined, req.userId, characterClass, pronouns);
+      await appendMessage(conversation.id, { role: "assistant", content: bundle.display });
+
+      res.json({
+        audio: bundle.audioBuffer.toString("base64"),
+        text: bundle.display,
+        conversationId: conversation.id,
+        usage: {
+          bedrockInputTokens: 0,
+          bedrockOutputTokens: 0,
+          bedrockCostUsd: 0,
+          ttsCharacters: 0,
+          ttsCostUsd: 0,
+          totalCostUsd: 0,
+        },
+      });
+      logEvent("info", "narrate.opening_bundle_served", {
+        requestId,
+        route: "/api/narrate",
+        conversationId: conversation.id,
+        phraseId: bundle.phraseId,
+        textLength: bundle.display.length,
+        byteLength: bundle.audioBuffer.length,
+      });
+      return;
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        res.status(504).json({ error: "Request timed out", requestId });
+        return;
+      }
+      // Bundle serve failed — fall through to phrase path
+      logEvent("warn", "narrate.opening_bundle_serve_failed", {
+        requestId,
+        route: "/api/narrate",
+        phraseId: bundle.phraseId,
+        error: String(err),
+      });
+    }
+  }
+
+  // Priority 2: Pre-cached opening phrase + TTS
   const openingPhrase = OPENING_PHRASES.length > 0
     ? OPENING_PHRASES[Math.floor(Math.random() * OPENING_PHRASES.length)]
     : null;
@@ -131,11 +177,9 @@ router.post("/api/narrate", async (req: AuthenticatedRequest, res) => {
         textLength: openingPhrase.display.length,
         byteLength: audioBuffer.length,
       });
-      clearTimeout(timeoutId);
       return;
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
-        clearTimeout(timeoutId);
         res.status(504).json({ error: "Request timed out", requestId });
         return;
       }
@@ -165,7 +209,6 @@ router.post("/api/narrate", async (req: AuthenticatedRequest, res) => {
     bedrockOutputTokens = result.outputTokens;
     bedrockCostUsd = recordBedrockUsage(null, "narrate-opening", result.inputTokens, result.outputTokens);
   } catch (err) {
-    clearTimeout(timeoutId);
     if (err instanceof Error && err.name === "AbortError") {
       res.status(504).json({ error: "Request timed out", requestId });
       return;
@@ -217,7 +260,6 @@ router.post("/api/narrate", async (req: AuthenticatedRequest, res) => {
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
       res.status(504).json({ error: "Request timed out", requestId });
-      clearTimeout(timeoutId);
       return;
     }
     logEvent(
@@ -247,8 +289,6 @@ router.post("/api/narrate", async (req: AuthenticatedRequest, res) => {
         totalCostUsd: bedrockCostUsd,
       },
     });
-  } finally {
-    clearTimeout(timeoutId);
   }
 });
 

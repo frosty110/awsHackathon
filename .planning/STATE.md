@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 18 (Code Review Bug Fixes Wave 2) — Plans 04 complete; plans 05, 06, 08, 09 pending.
+**Current focus:** Phase 18 (Code Review Bug Fixes Wave 2) — Plans 05 complete; plans 06, 08, 09 pending.
 
 ## Current Position
 
 Phase: Phase 18 (Code Review Bug Fixes Wave 2)
-Plan: 18-04 complete. Next: 18-05.
-Status: Plan 04 done: GETEX optimization (GET+EXPIRE -> GETEX in conversationStore), withLock on in-memory fallback paths, SSE checkedWrite with backpressure logging, local conversation variable reducing per-turn Redis calls from ~8 to ~3. 53 tests pass.
-Last activity: 2026-02-23 — Completed Phase 18-04: Redis optimization + SSE backpressure
+Plan: 18-05 complete. Next: 18-06.
+Status: Plan 05 done: 15m access tokens, refresh token endpoint with rotation (Redis + in-memory fallback), client auth utility with localStorage, LoginForm, Bearer headers on /api/chat and /api/narrate, 401 retry, Socket.IO auth handshake. 53 tests pass.
+Last activity: 2026-02-23 — Completed Phase 18-05: Client auth integration + JWT refresh rotation
 
 Progress: [██████████] 100%
 
@@ -204,6 +204,10 @@ Recent decisions affecting current work:
 - [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
 - [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
 - [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
+- [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
+- [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
+- [Phase 18-05]: Socket.IO auth callback form cb({ token: getAuthToken() }) — reads token at connection time, avoids stale module-load closure
 - [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
 - [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
 - [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
@@ -254,5 +258,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 18-04-PLAN.md (GETEX optimization, withLock in-memory fallback, SSE backpressure, local conversation variable)
-Resume context: Phase 18 plan 04 complete. GETEX replaces GET+EXPIRE in conversationStore._getFromRedis with graceful fallback via _getexSupported flag. In-memory fallback paths in getOrCreate/appendMessage wrapped in withLock. chat.ts uses checkedWrite helper for all SSE writes. Local conversation object used for history/characterClass/pronouns instead of extra Redis calls. Redis per-turn round-trips reduced from ~8 to ~3. TypeScript compiles clean, 53 tests pass. Plans 05, 06, 08, 09 still pending.
+Stopped at: Completed 18-05-PLAN.md (client auth integration, JWT refresh rotation, login form, Bearer headers)
+Resume context: Phase 18 plan 05 complete. Server: 15m JWT access tokens, POST /api/auth/refresh with rotation (Redis + in-memory fallback), register auto-issues tokens. Client: auth.ts utility with localStorage persistence, LoginForm component, authHeaders() on /api/chat + /api/narrate, 401 retry with refreshAccessToken(), Socket.IO auth callback. App gated behind login form. TypeScript compiles clean in both server/ and client/. 53 tests pass. Plans 06, 08, 09 still pending.

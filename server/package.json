@@ -25,6 +25,7 @@
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "lru-cache": "^11.2.6",
     "nanoid": "^5.1.6",
     "neo4j-driver": "^6.0.0",
     "p-queue": "^9.1.0",

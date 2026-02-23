@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { LRUCache } from "lru-cache";
 import tracer from "dd-trace";
 import { config } from "./config.js";
 import { logEvent } from "./logger.js";
@@ -59,9 +60,14 @@ interface TTSCacheEntry {
   createdAt: number;
 }
 
-const ttsCache = new Map<string, TTSCacheEntry>();
-const TTS_CACHE_MAX_SIZE = 200;
 const TTS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+const ttsCache = new LRUCache<string, TTSCacheEntry>({
+  maxSize: 100 * 1024 * 1024, // 100MB byte budget
+  sizeCalculation: (entry) => entry.result.audioBuffer.byteLength,
+  ttl: TTS_CACHE_TTL_MS,
+  allowStale: false,
+});
 
 let ttsCacheHits = 0;
 let ttsCacheMisses = 0;
@@ -74,17 +80,13 @@ function hashKey(preHashKey: string): string {
   return createHash("sha256").update(preHashKey).digest("hex").slice(0, 16);
 }
 
-function evictStaleTTSEntries(): void {
-  const now = Date.now();
-  for (const [key, entry] of ttsCache) {
-    if (now - entry.createdAt > TTS_CACHE_TTL_MS) {
-      ttsCache.delete(key);
-    }
-  }
-}
-
 export function getTTSCacheStats() {
-  return { hits: ttsCacheHits, misses: ttsCacheMisses, size: ttsCache.size };
+  return {
+    hits: ttsCacheHits,
+    misses: ttsCacheMisses,
+    size: ttsCache.size,
+    byteSize: ttsCache.calculatedSize,
+  };
 }
 
 export async function generateTTS(text: string, options: TTSOptions = {}): Promise<TTSResult> {
@@ -101,9 +103,9 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
   const cacheKey = hashKey(preHashKey);
   const s3Key = buildKey("tts/v1", `${model}|${voice}|${options.mood ?? "none"}|${emotion ?? "auto"}|${cleanText}`, "mp3");
 
-  // L1: in-memory Map (zero latency for recently generated audio)
+  // L1: in-memory LRU cache (zero latency for recently generated audio)
   const l1Cached = ttsCache.get(cacheKey);
-  if (l1Cached && Date.now() - l1Cached.createdAt < TTS_CACHE_TTL_MS) {
+  if (l1Cached) {
     ttsCacheHits++;
     tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'tts', source: 'memory' });
     logEvent("info", "tts.cache_hit", {
@@ -166,7 +168,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
     cacheHits: ttsCacheHits,
     cacheMisses: ttsCacheMisses,
     cacheSize: ttsCache.size,
-    reason: l1Cached ? "expired" : "not_found",
+    reason: "not_found",
   });
 
   // ── API call (cache miss) ─────────────────────────────────────────────
@@ -240,13 +242,7 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
       });
 
       // ── Store in cache ──────────────────────────────────────────────────
-      // L1: store in memory
-      evictStaleTTSEntries();
-      if (ttsCache.size >= TTS_CACHE_MAX_SIZE) {
-        // Evict oldest entry
-        const oldestKey = ttsCache.keys().next().value;
-        if (oldestKey) ttsCache.delete(oldestKey);
-      }
+      // L1: store in LRU memory cache (byte-budget eviction handled automatically)
       ttsCache.set(cacheKey, { result, createdAt: Date.now() });
 
       // L2: store in S3 (fire-and-forget, non-blocking — does NOT add latency to TTS response)

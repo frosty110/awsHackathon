@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 18 (Code Review Bug Fixes Wave 2) COMPLETE — All 10 plans done (10/10). Verified 44/44 must-haves.
+**Current focus:** Phase 19 (Code Review Bug Fixes Wave 3) — Plans 01-02 complete (2/2). All 10 findings fixed.
 
 ## Current Position
 
-Phase: Phase 18 (Code Review Bug Fixes Wave 2) — ALL plans complete (01-10). Verified.
-Plan: Phase 18 complete.
-Status: All 42 code review findings fixed across 10 plans in 3 waves: IDOR ownership (18-01), prompt injection hardening (18-02), LRU memory safety (18-03), Redis optimization (18-04), client auth integration (18-05), DmTurnService extraction + S3 signed URLs (18-06), server hardening P2 (18-07), validation hardening (18-08), frontend performance (18-09), P3 cleanup (18-10). TypeScript compiles clean, all 53 tests pass. 44/44 must-haves verified.
-Last activity: 2026-02-22 — Completed Phase 18: Code Review Bug Fixes Wave 2
+Phase: Phase 19 (Code Review Bug Fixes Wave 3) — ALL plans complete (01-02). Verified.
+Plan: Phase 19 complete.
+Status: All 10 code review findings fixed in 2 plans: auth hardening + in-memory duplicate check (19-01), codebase cleanup — Zod sanitization, Socket.IO auth flip, LRU cache, Neo4j labels, dead code removal, config cleanup, client TTS abort (19-02). TypeScript compiles clean, all 53 tests pass.
+Last activity: 2026-02-23 — Completed Phase 19: Code Review Bug Fixes Wave 3
 
 Progress: [██████████] 100%
 
@@ -45,6 +45,7 @@ Progress: [██████████] 100%
 | 16-generation-observability | 1/1 | ✅ Complete |
 | 17-code-review-bug-fixes-wave-1 | 3/3 | ✅ Complete |
 | 18-code-review-bug-fixes-wave-2 | 10/10 | ✅ Complete |
+| 19-code-review-bug-fixes-wave-3 | 2/2 | ✅ Complete |
 
 **Quick Tasks:** 5/5 complete (TTS optimization, chat styling, pronouns, gender, code review fixes)
 
@@ -91,6 +92,7 @@ Progress: [██████████] 100%
 | Phase 18 P06 | 4 | 2 tasks | 8 files |
 | Phase 18 P08 | 5 | 2 tasks | 4 files |
 | Phase 19 P01 | 3 | 2 tasks | 3 files |
+| Phase 19 P02 | 6 | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -31864,6 +31866,6 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 
 ## Session Continuity
 
-Last session: 2026-02-22
-Stopped at: Completed Phase 18 — all 10 plans executed, verified 44/44 must-haves.
-Resume context: Phase 18 complete. All 42 code review findings fixed. IDOR ownership, client auth with refresh tokens, LRU memory-bounded caches, DmTurnService extracted, S3 signed URLs, Zod validation, password complexity + lockout, frontend memoization + code splitting. TypeScript compiles clean. 53 tests pass. All 18 phases complete.
+Last session: 2026-02-23
+Stopped at: Completed Phase 19 Plan 02 — all 10 findings fixed, 2 tasks committed, SUMMARY created.
+Resume context: Phase 19 complete. All 10 code review findings fixed across 2 plans. Zod error sanitization (C-1), Socket.IO auth flip to non-dev (H-2), LRUCache lore cache (H-3), Neo4j label constraint (M-4), dead AbortController removed (M-8), usage tracker cleanup timer (M-3), dead exports removed (L-1), SESSION_SECRET deleted (L-3), socket rate constants centralized (L-5), client TTS abort signal (L-4). TypeScript compiles clean. 53 tests pass. All 19 phases complete.

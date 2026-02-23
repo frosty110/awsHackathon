@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { z } from "zod";
 import { redisClient, isRedisAvailable } from "./redis.js";
 import { logEvent } from "./logger.js";
 import type { ChatMessage } from "@ai-dm/shared-types";
@@ -12,6 +13,19 @@ export type Conversation = {
   pronouns?: string;
   userId?: string;
 };
+
+// Zod schema for validating conversation data retrieved from Redis.
+// Corrupt or tampered Redis data is treated as a cache miss rather than a runtime type error.
+const conversationSchema = z.object({
+  id: z.string(),
+  userId: z.string().optional(),
+  history: z.array(z.object({
+    role: z.enum(["user", "assistant"]),
+    content: z.string(),
+  })),
+  characterClass: z.string().optional(),
+  pronouns: z.string().optional(),
+});
 
 /**
  * Thrown when a user attempts to access a conversation owned by a different user.
@@ -226,7 +240,17 @@ export class InMemoryConversationStore implements IConversationStore {
     }
 
     if (!raw) return null;
-    return JSON.parse(raw) as Conversation;
+
+    // Validate parsed Redis data with Zod — treat corrupt data as a cache miss
+    const parsed = conversationSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) {
+      logEvent("warn", "conversationStore.invalid_redis_data", {
+        conversationId,
+        errors: parsed.error.flatten(),
+      });
+      return null; // Treat corrupt data as cache miss
+    }
+    return parsed.data;
   }
 
   private async _saveToRedis(convo: Conversation): Promise<void> {

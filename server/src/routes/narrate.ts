@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { generateMultiVoiceTTS, stripTTSTags } from "../services/tts.js";
 import { streamBedrockResponse } from "../services/bedrock.js";
 import type { ChatMessage } from "../services/bedrock.js";
@@ -9,6 +10,13 @@ import { queueBedrockCall } from "../services/bedrockQueue.js";
 import { sanitizeUserInput, validateCharacterClass, sanitizePronouns } from "../services/inputSanitizer.js";
 import { PHRASE_BANK } from "@ai-dm/shared-types";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
+
+const narrateBodySchema = z.object({
+  text: z.string().max(5000).optional(),
+  conversationId: z.string().uuid().optional(),
+  characterClass: z.string().optional(),
+  pronouns: z.string().optional(),
+});
 
 const OPENING_PHRASES = PHRASE_BANK.filter((p) => p.id.startsWith("opening_"));
 
@@ -28,19 +36,21 @@ router.post("/api/narrate", async (req: AuthenticatedRequest, res) => {
   const requestId = buildRequestId(req.get("x-request-id"));
   res.setHeader("x-request-id", requestId);
 
+  const parsedBody = narrateBodySchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    res.status(400).json({ error: "Invalid request body", details: parsedBody.error.flatten().fieldErrors });
+    return;
+  }
+  const rawBody = parsedBody.data;
+
   // 60-second overall request timeout — covers Bedrock generation + TTS + S3 operations
   const abortController = new AbortController();
   const timeoutId = setTimeout(() => abortController.abort(), 60_000);
 
-  const textInput = sanitizeUserInput(typeof req.body?.text === "string" ? req.body.text : "", 5000);
-  const bodyConversationId = typeof req.body?.conversationId === "string" ? req.body.conversationId : null;
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (bodyConversationId && !UUID_RE.test(bodyConversationId)) {
-    res.status(400).json({ error: "Invalid conversationId format" });
-    return;
-  }
-  const characterClass = validateCharacterClass(req.body?.characterClass);
-  const pronouns = sanitizePronouns(req.body?.pronouns);
+  const textInput = sanitizeUserInput(typeof rawBody.text === "string" ? rawBody.text : "", 5000);
+  const bodyConversationId = rawBody.conversationId ?? null;
+  const characterClass = validateCharacterClass(rawBody.characterClass);
+  const pronouns = sanitizePronouns(rawBody.pronouns);
   const hasText = textInput.length > 0;
   logEvent("info", "narrate.request_received", {
     requestId,

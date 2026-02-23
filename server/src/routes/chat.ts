@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import {
   getOrCreate,
   appendMessage,
@@ -14,23 +15,24 @@ import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { activeSSEStreams } from "../services/activeStreams.js";
 import { executeDmTurn } from "../services/dmTurn.js";
 
+const chatBodySchema = z.object({
+  conversationId: z.string().uuid().optional(),
+  message: z.string().min(1).max(2000),
+  characterClass: z.string().optional(),
+  pronouns: z.string().optional(),
+});
+
 const router = Router();
 
 router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
-  const body = req.body as {
-    conversationId?: string;
-    message?: unknown;
-    characterClass?: string;
-    pronouns?: string;
-  };
-  const message = sanitizeUserInput(typeof body.message === "string" ? body.message : "");
-
-  // M4: Validate conversationId format (must be UUID if provided)
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (body.conversationId && !UUID_RE.test(body.conversationId)) {
-    res.status(400).json({ error: "Invalid conversationId format" });
+  const parsed = chatBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors });
     return;
   }
+  const body = parsed.data;
+
+  const message = sanitizeUserInput(body.message);
 
   const characterClass = validateCharacterClass(body.characterClass);
   // If characterClass was provided but failed validation, reject the request

@@ -20,6 +20,7 @@ import {
 } from "../services/roomStore.js";
 import { getOrCreate } from "../services/conversationStore.js";
 import { sanitizeUserInput } from "../services/inputSanitizer.js";
+import { logEvent } from "../services/logger.js";
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -86,7 +87,7 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
 
     void socket.join(code);
 
-    console.log(`[room:create] code="${code}" socket=${socket.id}`);
+    logEvent("info", "room.created", { code, socketId: socket.id });
     socket.emit("room:created", { code });
 
     const statePayload = getRoomStatePayload(code);
@@ -105,11 +106,11 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
 
     const normalizedCode = code.toUpperCase();
     const room = getRoom(normalizedCode);
-    console.log(`[room:join] code="${normalizedCode}" socket=${socket.id} found=${!!room}`);
+    logEvent("info", "room.join_attempt", { code: normalizedCode, socketId: socket.id, found: !!room });
 
     if (!room) {
       const active = getActiveRoomCodes(5);
-      console.log(`[room:join] FAILED — no room "${normalizedCode}". Active rooms (${active.length}): [${active.join(", ")}]`);
+      logEvent("warn", "room.join_failed_not_found", { code: normalizedCode, activeRoomCount: active.length });
       socket.emit("room:error", { message: "Room not found" });
       return;
     }
@@ -197,7 +198,7 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
           triggerDMOpening(io, roomCode);
         })
         .catch((err: unknown) => {
-          console.error("[roomHandlers] Failed to trigger DM opening:", err);
+          logEvent("error", "roomHandlers.dm_opening_failed", {}, err);
         });
     }
   });
@@ -249,7 +250,7 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
               triggerDMResponse(io, roomCode);
             })
             .catch((err: unknown) => {
-              console.error("[roomHandlers] Failed to trigger DM response after disconnect:", err);
+              logEvent("error", "roomHandlers.dm_response_after_disconnect_failed", {}, err);
             });
         } else if (timerNotStarted) {
           // Auto-fill was the first submission — start countdown for remaining players
@@ -258,7 +259,7 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
               startCountdownTimer(io, roomCode);
             })
             .catch((err: unknown) => {
-              console.error("[roomHandlers] Failed to start countdown after disconnect:", err);
+              logEvent("error", "roomHandlers.countdown_start_after_disconnect_failed", {}, err);
             });
         }
       }

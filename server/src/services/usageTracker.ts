@@ -150,11 +150,14 @@ export function getConversationUsage(conversationId: string): UsageSummary {
 
 /**
  * Test internals — exposes module-level state for unit tests only.
+ * Gated behind NODE_ENV=test; returns undefined in production/staging.
  * Never call from production code.
  */
-export const _testInternals = {
-  entries,
-  reset() {
-    entries.splice(0, entries.length);
-  },
-};
+export const _testInternals = process.env.NODE_ENV === "test"
+  ? {
+      entries,
+      reset() {
+        entries.splice(0, entries.length);
+      },
+    }
+  : undefined;

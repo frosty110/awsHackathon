@@ -9,9 +9,13 @@ import {
   _testInternals,
 } from '../../services/usageTracker.js';
 
+// _testInternals is defined when NODE_ENV=test (which vitest sets by default).
+// Use non-null assertion — these tests only run in test environment.
+const internals = _testInternals!;
+
 // Reset module-level entries before each test for isolation
 beforeEach(() => {
-  _testInternals.reset();
+  internals.reset();
 });
 
 describe('recordBedrockUsage', () => {
@@ -19,26 +23,26 @@ describe('recordBedrockUsage', () => {
     const cost = recordBedrockUsage('conv-1', 'chat', 1000, 500);
     expect(typeof cost).toBe('number');
     expect(cost).toBeGreaterThan(0);
-    expect(_testInternals.entries).toHaveLength(1);
-    expect(_testInternals.entries[0].feature).toBe('chat');
-    expect(_testInternals.entries[0].model).toBe('bedrock-haiku');
+    expect(internals.entries).toHaveLength(1);
+    expect(internals.entries[0].feature).toBe('chat');
+    expect(internals.entries[0].model).toBe('bedrock-haiku');
   });
 
   it('stores input and output token counts', () => {
     recordBedrockUsage('conv-1', 'chat', 200, 100);
-    const entry = _testInternals.entries[0];
+    const entry = internals.entries[0];
     expect(entry.inputTokens).toBe(200);
     expect(entry.outputTokens).toBe(100);
   });
 
   it('stores the conversationId', () => {
     recordBedrockUsage('my-conv', 'chat', 10, 10);
-    expect(_testInternals.entries[0].conversationId).toBe('my-conv');
+    expect(internals.entries[0].conversationId).toBe('my-conv');
   });
 
   it('allows null conversationId for system calls', () => {
     recordBedrockUsage(null, 'system', 50, 50);
-    expect(_testInternals.entries[0].conversationId).toBeNull();
+    expect(internals.entries[0].conversationId).toBeNull();
   });
 });
 
@@ -47,13 +51,13 @@ describe('recordTtsUsage', () => {
     const cost = recordTtsUsage('conv-2', 500);
     expect(typeof cost).toBe('number');
     expect(cost).toBeGreaterThan(0);
-    expect(_testInternals.entries).toHaveLength(1);
-    expect(_testInternals.entries[0].model).toBe('minimax-tts');
+    expect(internals.entries).toHaveLength(1);
+    expect(internals.entries[0].model).toBe('minimax-tts');
   });
 
   it('stores the character count', () => {
     recordTtsUsage('conv-2', 300);
-    expect(_testInternals.entries[0].characters).toBe(300);
+    expect(internals.entries[0].characters).toBe(300);
   });
 });
 
@@ -107,7 +111,7 @@ describe('evictStaleEntries', () => {
     const oldTimestamp = Date.now() - oneDayMs - 1000; // 24h + 1s ago
 
     // Manually insert stale entries bypassing record functions
-    _testInternals.entries.push(
+    internals.entries.push(
       {
         timestamp: oldTimestamp,
         conversationId: 'old',
@@ -130,16 +134,16 @@ describe('evictStaleEntries', () => {
       }
     );
 
-    expect(_testInternals.entries).toHaveLength(2);
+    expect(internals.entries).toHaveLength(2);
     evictStaleEntries();
-    expect(_testInternals.entries).toHaveLength(0);
+    expect(internals.entries).toHaveLength(0);
   });
 
   it('preserves recent entries during eviction', () => {
     const oneDayMs = 24 * 60 * 60 * 1000;
     const oldTimestamp = Date.now() - oneDayMs - 1000;
 
-    _testInternals.entries.push({
+    internals.entries.push({
       timestamp: oldTimestamp,
       conversationId: 'old',
       feature: 'chat',
@@ -157,15 +161,15 @@ describe('evictStaleEntries', () => {
     evictStaleEntries();
 
     // Only the recent entry should remain
-    expect(_testInternals.entries).toHaveLength(1);
-    expect(_testInternals.entries[0].conversationId).toBe('new');
+    expect(internals.entries).toHaveLength(1);
+    expect(internals.entries[0].conversationId).toBe('new');
   });
 
   it('is called automatically on each record invocation', () => {
     const oneDayMs = 24 * 60 * 60 * 1000;
     const oldTimestamp = Date.now() - oneDayMs - 1000;
 
-    _testInternals.entries.push({
+    internals.entries.push({
       timestamp: oldTimestamp,
       conversationId: 'stale',
       feature: 'chat',
@@ -180,7 +184,7 @@ describe('evictStaleEntries', () => {
     recordTtsUsage('fresh', 100);
 
     // Stale entry should be gone; only the fresh one remains
-    expect(_testInternals.entries).toHaveLength(1);
-    expect(_testInternals.entries[0].conversationId).toBe('fresh');
+    expect(internals.entries).toHaveLength(1);
+    expect(internals.entries[0].conversationId).toBe('fresh');
   });
 });

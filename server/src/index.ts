@@ -76,7 +76,7 @@ async function main(): Promise<void> {
   // Initialize RAG pipeline with Neo4j driver (graceful no-op if null)
   initRag(driver);
 
-  const app = createApp({ driver });
+  const app = createApp();
   const server = createServer(app);
 
   // Attach Socket.IO to the http.Server (must be done before server.listen)

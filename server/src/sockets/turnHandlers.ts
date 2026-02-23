@@ -21,6 +21,7 @@ import { buildLoreContext } from "../services/rag.js";
 import { queueBedrockCall } from "../services/bedrockQueue.js";
 import { createMoodStreamDetector } from "../services/moodStreamDetector.js";
 import { sanitizeUserInput } from "../services/inputSanitizer.js";
+import { logEvent } from "../services/logger.js";
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -199,7 +200,7 @@ export async function triggerDMOpening(io: IO, roomCode: string): Promise<void> 
         });
       })
       .catch((err) => {
-        console.error("[turnHandlers] DM opening TTS failed:", err);
+        logEvent("error", "turnHandlers.dm_tts_failed", { stage: "opening" }, err);
       });
 
     // 3-second pause after DM narration before the first turn timer starts
@@ -207,7 +208,7 @@ export async function triggerDMOpening(io: IO, roomCode: string): Promise<void> 
       startCollectingActions(io, roomCode);
     }, 3_000);
   } catch (err) {
-    console.error("[turnHandlers] DM opening failed:", err);
+    logEvent("error", "turnHandlers.dm_opening_failed", {}, err);
     io.to(roomCode).emit("dm:error", {
       message: "The Dungeon Master was lost to the void.",
     });
@@ -288,7 +289,7 @@ export async function triggerDMResponse(io: IO, roomCode: string): Promise<void>
         });
       })
       .catch((err) => {
-        console.error("[turnHandlers] DM turn TTS failed:", err);
+        logEvent("error", "turnHandlers.dm_tts_failed", { stage: "turn" }, err);
       });
 
     resetActions(roomCode);
@@ -299,7 +300,7 @@ export async function triggerDMResponse(io: IO, roomCode: string): Promise<void>
       startCollectingActions(io, roomCode);
     }, 3_000);
   } catch (err) {
-    console.error("[turnHandlers] DM response failed:", err);
+    logEvent("error", "turnHandlers.dm_response_failed", {}, err);
     io.to(roomCode).emit("dm:error", {
       message: "The Dungeon Master was lost to the void.",
     });

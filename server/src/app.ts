@@ -44,6 +44,7 @@ export function createApp(): Express {
   app.use("/api/narrate", requireAuth, narrateRateLimiter);
   app.use("/api/music", requireAuth, musicLimiter);
   app.use("/api/scene-video", requireAuth);
+  app.use("/api/usage", requireAuth);
 
   // 8. Route handlers
   app.use(chatRouter);

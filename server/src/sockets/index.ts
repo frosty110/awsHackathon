@@ -13,6 +13,8 @@ import { registerTurnHandlers } from "./turnHandlers.js";
 import { redisClient, isRedisAvailable } from "../services/redis.js";
 import { ALLOWED_ORIGINS } from "../middleware/security.js";
 import { getJwtSecret } from "../middleware/auth.js";
+import { logEvent } from "../services/logger.js";
+import { config } from "../services/config.js";
 
 export type { ClientToServerEvents, ServerToClientEvents, SocketData };
 
@@ -81,14 +83,19 @@ export async function initSocketIO(
     const subClient = redisClient.duplicate();
     await subClient.connect();
     io.adapter(createAdapter(redisClient, subClient));
-    console.log("[socket.io] Redis adapter attached");
+    logEvent("info", "socketio.redis_adapter_attached", {});
   }
 
-  // H1: Socket.IO JWT auth middleware (optional auth — matches HTTP optionalAuth pattern)
+  // H1: Socket.IO JWT auth middleware
+  // - In production: rejects unauthenticated connections (no token → 401)
+  // - In dev: allows unauthenticated connections (matches optionalAuth HTTP pattern)
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token as string | undefined;
     if (!token) {
-      // Allow unauthenticated connections in dev (matches optionalAuth pattern)
+      if (config.NODE_ENV === 'production') {
+        return next(new Error("Authentication required"));
+      }
+      // Dev mode: allow unauthenticated connections
       return next();
     }
     try {
@@ -105,7 +112,7 @@ export async function initSocketIO(
     // H2: Per-socket rate limiting middleware — intercepts all events before handlers fire
     socket.use((_packet, next) => {
       if (!checkSocketRate(socket.id)) {
-        console.warn(`[socket.io] Rate limit exceeded for socket ${socket.id}, disconnecting`);
+        logEvent("warn", "socketio.rate_limit_exceeded", { socketId: socket.id });
         socket.disconnect(true);
         return;
       }

@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 18 (Code Review Bug Fixes Wave 2) IN PROGRESS — Plan 03/10 complete.
+**Current focus:** Phase 18 (Code Review Bug Fixes Wave 2) COMPLETE — All 10 plans done (10/10).
 
 ## Current Position
 
-Phase: Phase 18 (Code Review Bug Fixes Wave 2) — Plan 03 complete.
-Plan: 18-03 complete (LRU byte-budget caches for TTS/video/music).
-Status: Phase 18 in progress. Plan 03 done: TTS cache (100MB LRU, 30-min TTL), video cache (500MB LRU, 1-hr TTL), music cache (200MB LRU, 1-hr TTL). Server memory bounded. 53 tests pass.
-Last activity: 2026-02-22 — Completed Phase 18-03: LRU byte-budget caches
+Phase: Phase 18 (Code Review Bug Fixes Wave 2) — ALL plans complete (01-10). Verified.
+Plan: Phase 18 complete.
+Status: All Phase 18 code review findings fixed. Plan 10 done: HSTS 1-year, CSP ws:/blob:, O(1) socket rate limiter, logEvent in all sockets, _deps removed, tsyringe/reflect-metadata removed, _testInternals NODE_ENV gate, tsbuildinfo in .gitignore. 53 tests pass.
+Last activity: 2026-02-22 — Completed Phase 18-10: P3 cleanup (security headers, logging, dead code)
 
 Progress: [██████████] 100%
 
@@ -44,7 +44,7 @@ Progress: [██████████] 100%
 | 15-client-polling-optimization | 1/1 | ✅ Complete |
 | 16-generation-observability | 1/1 | ✅ Complete |
 | 17-code-review-bug-fixes-wave-1 | 3/3 | ✅ Complete |
-| 18-code-review-bug-fixes-wave-2 | 3/10 | 🔄 In Progress |
+| 18-code-review-bug-fixes-wave-2 | 10/10 | ✅ Complete |
 
 **Quick Tasks:** 5/5 complete (TTS optimization, chat styling, pronouns, gender, code review fixes)
 
@@ -84,6 +84,7 @@ Progress: [██████████] 100%
 | Phase 17-code-review-bug-fixes-wave-1 P02 | 2 | 2 tasks | 8 files |
 | Phase 18-code-review-bug-fixes-wave-2 P03 | 8 | 2 tasks | 5 files |
 | Phase 18 P10 | 6 | 2 tasks | 12 files |
+| Phase 18 P01 | 7 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -196,6 +197,7 @@ Recent decisions affecting current work:
 - [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
 - [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
 - [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
+- [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
 
 ### Roadmap Evolution
 
@@ -242,5 +244,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 18-03-PLAN.md (TTS 100MB LRU, video 500MB LRU, music 200MB LRU — all three services use byte-budget eviction)
-Resume context: Phase 18 plan 03 complete. TTS cache replaced with LRUCache (100MB, 30-min TTL, evictStaleTTSEntries removed). Video and music services use dual-structure: LRUCache for Buffers + plain Map for generation state. sceneVideo route uses getVideoBuffer/hasVideoBuffer API. lru-cache@11.2.6 installed. 53 tests pass.
+Stopped at: Completed 18-10-PLAN.md (HSTS 1-yr, CSP ws:/blob:, O(1) socket rate limiter, logEvent in all sockets, tsyringe/reflect-metadata removed, _deps removed, _testInternals NODE_ENV gate, tsbuildinfo in .gitignore)
+Resume context: Phase 18 complete. All 10 plans done. Final plan 10: security headers hardened (HSTS + CSP), socket rate limiter now O(1), all socket handlers use logEvent, dead code removed, _testInternals gated. Also fixed pre-existing bug: narrate.ts was passing characterClass as userId to getOrCreate; conversationStore tests updated to 4-param API. 53 tests pass.

@@ -1,3 +1,4 @@
+import { LRUCache } from "lru-cache";
 import tracer from "dd-trace";
 import { config } from "./config.js";
 import { logEvent } from "./logger.js";
@@ -29,7 +30,6 @@ function buildMusicS3Key(mood: SceneMood, variant: number): string {
 // ── Per-variant in-memory cache ──────────────────────────────────────────────
 
 interface MoodCacheEntry {
-  audio: Buffer | null;
   generating: boolean;
   error: string | null;
   lastFailedAt: number | null;
@@ -37,8 +37,16 @@ interface MoodCacheEntry {
   generationStartedAt: number | null;
 }
 
-/** Keyed by `{mood}-{variant}` e.g. "combat-3" */
+/** Metadata map: tracks generation state per mood-variant key e.g. "combat-3" */
 const moodCache = new Map<string, MoodCacheEntry>();
+
+/** LRU buffer cache: stores actual audio Buffers with 200MB byte budget and 1-hour TTL */
+const musicBufferCache = new LRUCache<string, Buffer>({
+  maxSize: 200 * 1024 * 1024, // 200MB byte budget
+  sizeCalculation: (buf) => buf.byteLength,
+  ttl: 60 * 60 * 1000, // 1 hour TTL
+  allowStale: false,
+});
 
 const RETRY_COOLDOWN_MS = 30_000;
 const MAX_SERVER_RETRIES = 3;
@@ -53,11 +61,16 @@ export function getMusicCacheStats() {
   for (const mood of VALID_MOODS) {
     let cached = 0;
     for (let v = 1; v <= MAX_VARIANTS; v++) {
-      if (moodCache.get(`${mood}-${v}`)?.audio) cached++;
+      if (musicBufferCache.has(`${mood}-${v}`)) cached++;
     }
     moods[mood] = { cached, total: MAX_VARIANTS };
   }
-  return { hits: musicCacheHits, misses: musicCacheMisses, moods };
+  return {
+    hits: musicCacheHits,
+    misses: musicCacheMisses,
+    moods,
+    byteSize: musicBufferCache.calculatedSize,
+  };
 }
 
 // ── Random pool ──────────────────────────────────────────────────────────────
@@ -74,7 +87,7 @@ function variantKey(mood: SceneMood, variant: number): string {
 function getOrCreateEntry(key: string): MoodCacheEntry {
   let entry = moodCache.get(key);
   if (!entry) {
-    entry = { audio: null, generating: false, error: null, lastFailedAt: null, retryCount: 0, generationStartedAt: null };
+    entry = { generating: false, error: null, lastFailedAt: null, retryCount: 0, generationStartedAt: null };
     moodCache.set(key, entry);
   }
   return entry;
@@ -83,7 +96,7 @@ function getOrCreateEntry(key: string): MoodCacheEntry {
 function startGeneration(mood: SceneMood, variant: number) {
   const key = variantKey(mood, variant);
   const entry = getOrCreateEntry(key);
-  if (entry.generating || entry.audio) return;
+  if (entry.generating || musicBufferCache.has(key)) return;
   if (entry.retryCount >= MAX_SERVER_RETRIES) return;
   if (entry.error && entry.lastFailedAt && Date.now() - entry.lastFailedAt < RETRY_COOLDOWN_MS) return;
   if (entry.error) {
@@ -172,16 +185,17 @@ async function runGeneration(mood: SceneMood, variant: number) {
     });
     if (!audioRes.ok) throw new Error(`CDN fetch failed: ${audioRes.status}`);
 
-    entry.audio = Buffer.from(await audioRes.arrayBuffer());
+    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
+    musicBufferCache.set(key, audioBuffer);
     cdnDownloadDurationMs = Date.now() - cdnStart;
 
     // L2: fire-and-forget S3 persist with readable key
     const s3Key = buildMusicS3Key(mood, variant);
-    s3Put(s3Key, entry.audio, "audio/mpeg", { mood, variant: String(variant), model: "music-2.5" })
+    s3Put(s3Key, audioBuffer, "audio/mpeg", { mood, variant: String(variant), model: "music-2.5" })
       .catch((err) => logEvent("warn", "music.s3_cache_put_failed", { mood, variant, error: String(err) }));
 
     const generationDurationMs = Date.now() - overallStart;
-    const audioSizeBytes = entry.audio.length;
+    const audioSizeBytes = audioBuffer.length;
     recordMusicUsage();
 
     try {
@@ -394,7 +408,8 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
   const entry = getOrCreateEntry(key);
 
   // L1: in-memory hit for chosen variant
-  if (entry.audio) {
+  const cachedAudio = musicBufferCache.get(key);
+  if (cachedAudio) {
     musicCacheHits++;
     tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'music', source: 'memory' });
     logEvent("info", "music.cache_hit", {
@@ -402,11 +417,11 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
       mood,
       variant,
       source: "memory",
-      audioSizeBytes: entry.audio.length,
+      audioSizeBytes: cachedAudio.length,
       cacheHits: musicCacheHits,
       cacheMisses: musicCacheMisses,
     });
-    return { status: "ready", audio: entry.audio };
+    return { status: "ready", audio: cachedAudio };
   }
 
   // L2: check S3 for chosen variant (cold start)
@@ -414,7 +429,7 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
     try {
       const s3Buf = await s3Get(buildMusicS3Key(mood, variant));
       if (s3Buf) {
-        entry.audio = s3Buf;
+        musicBufferCache.set(key, s3Buf);
         musicCacheHits++;
         tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'music', source: 's3' });
         logEvent("info", "music.cache_hit", {
@@ -426,7 +441,7 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
           cacheHits: musicCacheHits,
           cacheMisses: musicCacheMisses,
         });
-        return { status: "ready", audio: entry.audio };
+        return { status: "ready", audio: s3Buf };
       }
     } catch (err) {
       logEvent("warn", "music.s3_cache_get_failed", { mood, variant, error: String(err) });
@@ -436,8 +451,9 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
   // Fallback: try any other cached variant for this mood (L1 only for speed)
   for (let v = 1; v <= MAX_VARIANTS; v++) {
     if (v === variant) continue;
-    const fallbackEntry = moodCache.get(variantKey(mood, v));
-    if (fallbackEntry?.audio) {
+    const fallbackKey = variantKey(mood, v);
+    const fallbackAudio = musicBufferCache.get(fallbackKey);
+    if (fallbackAudio) {
       musicCacheHits++;
       tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'music', source: 'memory_fallback' });
       logEvent("info", "music.cache_hit", {
@@ -446,11 +462,11 @@ export async function getMusicForMood(mood: SceneMood): Promise<MusicResult> {
         variant: v,
         source: "memory_fallback",
         requestedVariant: variant,
-        audioSizeBytes: fallbackEntry.audio.length,
+        audioSizeBytes: fallbackAudio.length,
         cacheHits: musicCacheHits,
         cacheMisses: musicCacheMisses,
       });
-      return { status: "ready", audio: fallbackEntry.audio };
+      return { status: "ready", audio: fallbackAudio };
     }
   }
 

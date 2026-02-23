@@ -1,5 +1,4 @@
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
-import type { Driver } from "neo4j-driver";
 
 import healthRouter from "./routes/health.js";
 import chatRouter from "./routes/chat.js";
@@ -14,12 +13,11 @@ import { chatRateLimiter, narrateRateLimiter, registerLimiter, loginLimiter } fr
 import { helmetMiddleware, corsMiddleware } from "./middleware/security.js";
 import { musicLimiter } from "./middleware/rateLimits.js";
 
-interface AppDeps {
-  driver: Driver | null;
-}
-
-export function createApp(_deps: AppDeps): Express {
+export function createApp(): Express {
   const app = express();
+
+  // Trust first proxy (ALB/nginx/CloudFront) so req.ip reflects real client IP for rate limiting
+  app.set('trust proxy', 1);
 
   // 1. Security headers (helmet) and CORS — must come first before any route handling
   app.use(helmetMiddleware);
@@ -44,9 +42,7 @@ export function createApp(_deps: AppDeps): Express {
   // 7. Auth enforcement + rate limiters applied before their respective route handlers
   app.use("/api/chat", requireAuth, chatRateLimiter);
   app.use("/api/narrate", requireAuth, narrateRateLimiter);
-  app.use("/narrate", requireAuth, narrateRateLimiter);
   app.use("/api/music", requireAuth, musicLimiter);
-  app.use("/music", requireAuth, musicLimiter);
   app.use("/api/scene-video", requireAuth);
 
   // 8. Route handlers

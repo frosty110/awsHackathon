@@ -9,7 +9,18 @@ export type Conversation = {
   history: ChatMessage[];
   characterClass?: string;
   pronouns?: string;
+  userId?: string;
 };
+
+/**
+ * Thrown when a user attempts to access a conversation owned by a different user.
+ */
+export class ConversationOwnershipError extends Error {
+  constructor(conversationId: string) {
+    super(`Access denied: conversation ${conversationId} belongs to another user`);
+    this.name = "ConversationOwnershipError";
+  }
+}
 
 // Conversations expire after 7 days idle (refresh on every access)
 const CONVERSATION_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -23,7 +34,7 @@ function redisKey(conversationId: string): string {
 // by replacing the singleton below.
 // ---------------------------------------------------------------------------
 export interface IConversationStore {
-  getOrCreate(conversationId?: string, characterClass?: string, pronouns?: string): Promise<Conversation>;
+  getOrCreate(conversationId?: string, userId?: string, characterClass?: string, pronouns?: string): Promise<Conversation>;
   appendMessage(conversationId: string, message: ChatMessage): Promise<void>;
   getWindowedHistory(conversationId: string, maxTurns?: number): Promise<ChatMessage[]>;
   getCharacterClass(conversationId: string): Promise<string | undefined>;
@@ -54,6 +65,7 @@ export class InMemoryConversationStore implements IConversationStore {
 
   async getOrCreate(
     conversationId?: string,
+    userId?: string,
     characterClass?: string,
     pronouns?: string
   ): Promise<Conversation> {
@@ -64,8 +76,17 @@ export class InMemoryConversationStore implements IConversationStore {
         return await this.withLock(id, async () => {
           let convo = await this._getFromRedis(id);
           if (!convo) {
-            convo = { id, history: [], characterClass, pronouns };
+            convo = { id, history: [], userId, characterClass, pronouns };
           } else {
+            // IDOR ownership check: if conversation already has an owner,
+            // reject requests from a different user.
+            if (convo.userId && userId && convo.userId !== userId) {
+              throw new ConversationOwnershipError(id);
+            }
+            // Migration path: claim ownership for legacy conversations (no userId set)
+            if (!convo.userId && userId) {
+              convo.userId = userId;
+            }
             if (characterClass && !convo.characterClass) {
               convo.characterClass = characterClass;
             }
@@ -77,15 +98,24 @@ export class InMemoryConversationStore implements IConversationStore {
           return convo;
         });
       } catch (err) {
+        if (err instanceof ConversationOwnershipError) throw err;
         console.error("[conversationStore] Redis error, falling back to in-memory:", err);
       }
     }
 
     // In-memory fallback
     if (!this.store.has(id)) {
-      this.store.set(id, { id, history: [], characterClass, pronouns });
+      this.store.set(id, { id, history: [], userId, characterClass, pronouns });
     }
     const convo = this.store.get(id)!;
+    // IDOR ownership check
+    if (convo.userId && userId && convo.userId !== userId) {
+      throw new ConversationOwnershipError(id);
+    }
+    // Migration path: claim ownership for legacy conversations
+    if (!convo.userId && userId) {
+      convo.userId = userId;
+    }
     if (characterClass && !convo.characterClass) {
       convo.characterClass = characterClass;
     }

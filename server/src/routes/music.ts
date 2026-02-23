@@ -8,7 +8,7 @@ export { getMusicCacheStats };
 
 const router = Router();
 
-router.get(["/music/random", "/api/music/random"], async (req, res) => {
+router.get("/api/music/random", async (req, res) => {
   const audio = await getRandomMusic();
   if (!audio) {
     res.status(404).json({ error: "No cached music available" });
@@ -20,7 +20,7 @@ router.get(["/music/random", "/api/music/random"], async (req, res) => {
   res.send(audio);
 });
 
-router.get(["/music", "/api/music"], async (req, res) => {
+router.get("/api/music", async (req, res) => {
   if (!config.MINIMAX_MUSIC_API_KEY && !config.MINIMAX_API_KEY) {
     logEvent("warn", "music.not_configured", { route: "/api/music" });
     res.status(503).json({ error: "Music not configured" });

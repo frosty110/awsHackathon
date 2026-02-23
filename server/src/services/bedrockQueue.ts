@@ -8,7 +8,13 @@ import PQueue from "p-queue";
  * quotas are per-account; check Service Quotas console for actual limits.
  */
 // Explicit type avoids "inferred type cannot be named" TS2742 error with p-queue ESM package
-export const bedrockQueue: InstanceType<typeof PQueue> = new PQueue({ concurrency: 20 });
+// timeout: 15s execution budget per task (throws TimeoutError if task takes >15s once started)
+// Note: p-queue v9 timeout applies to task execution time, not queue wait time.
+// Queue wait backpressure is handled via isBedrockQueueOverloaded() -> 503 before enqueue.
+export const bedrockQueue: InstanceType<typeof PQueue> = new PQueue({
+  concurrency: 20,
+  timeout: 15_000, // Reject task if it takes >15s to execute (throws TimeoutError)
+});
 
 /**
  * Wrap a Bedrock call in the concurrency queue.

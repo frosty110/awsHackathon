@@ -1,3 +1,4 @@
+import { LRUCache } from "lru-cache";
 import tracer from "dd-trace";
 import { config } from "./config.js";
 import { logEvent } from "./logger.js";
@@ -7,7 +8,6 @@ import type { SceneId } from "@ai-dm/shared-types";
 import { SCENE_PROMPTS } from "../content/scenePrompts.js";
 
 interface SceneCacheEntry {
-  video: Buffer | null;
   generating: boolean;
   error: string | null;
   lastFailedAt: number | null;
@@ -15,7 +15,16 @@ interface SceneCacheEntry {
   generationStartedAt: number | null;
 }
 
+/** Metadata map: tracks generation state per scene */
 const sceneVideoCache = new Map<SceneId, SceneCacheEntry>();
+
+/** LRU buffer cache: stores actual video Buffers with 500MB byte budget and 1-hour TTL */
+const videoBufferCache = new LRUCache<string, Buffer>({
+  maxSize: 500 * 1024 * 1024, // 500MB byte budget
+  sizeCalculation: (buf) => buf.byteLength,
+  ttl: 60 * 60 * 1000, // 1 hour TTL
+  allowStale: false,
+});
 
 const RETRY_COOLDOWN_MS = 60_000;
 const MAX_RETRIES = 2;
@@ -28,10 +37,15 @@ let videoCacheMisses = 0;
 
 export function getSceneVideoStats() {
   const scenes: Record<string, boolean> = {};
-  for (const [scene, entry] of sceneVideoCache) {
-    scenes[scene] = entry.video !== null;
+  for (const [scene] of sceneVideoCache) {
+    scenes[scene] = videoBufferCache.has(scene);
   }
-  return { hits: videoCacheHits, misses: videoCacheMisses, scenes };
+  return {
+    hits: videoCacheHits,
+    misses: videoCacheMisses,
+    scenes,
+    byteSize: videoBufferCache.calculatedSize,
+  };
 }
 
 function buildVideoS3Key(scene: SceneId): string {
@@ -44,11 +58,11 @@ function buildVideoS3Key(scene: SceneId): string {
  */
 export async function tryLoadFromS3(scene: SceneId): Promise<boolean> {
   const entry = getOrCreateEntry(scene);
-  if (entry.video || entry.generating) return false;
+  if (videoBufferCache.has(scene) || entry.generating) return false;
   try {
     const s3Buf = await s3Get(buildVideoS3Key(scene));
     if (s3Buf) {
-      entry.video = s3Buf;
+      videoBufferCache.set(scene, s3Buf);
       tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'video', source: 's3' });
       logEvent("info", "video.s3_cache_hit", { scene, bytes: s3Buf.length });
       return true;
@@ -59,10 +73,25 @@ export async function tryLoadFromS3(scene: SceneId): Promise<boolean> {
   return false;
 }
 
+/**
+ * Get the video buffer for a scene from the LRU cache, if available.
+ * Returns undefined if the video is not in the cache.
+ */
+export function getVideoBuffer(scene: SceneId): Buffer | undefined {
+  return videoBufferCache.get(scene);
+}
+
+/**
+ * Check whether a scene video is in the LRU cache.
+ */
+export function hasVideoBuffer(scene: SceneId): boolean {
+  return videoBufferCache.has(scene);
+}
+
 export function getOrCreateEntry(scene: SceneId): SceneCacheEntry {
   let entry = sceneVideoCache.get(scene);
   if (!entry) {
-    entry = { video: null, generating: false, error: null, lastFailedAt: null, retryCount: 0, generationStartedAt: null };
+    entry = { generating: false, error: null, lastFailedAt: null, retryCount: 0, generationStartedAt: null };
     sceneVideoCache.set(scene, entry);
   }
   return entry;
@@ -70,7 +99,7 @@ export function getOrCreateEntry(scene: SceneId): SceneCacheEntry {
 
 export function startGeneration(scene: SceneId) {
   const entry = getOrCreateEntry(scene);
-  if (entry.generating || entry.video) return;
+  if (entry.generating || videoBufferCache.has(scene)) return;
   if (entry.retryCount >= MAX_RETRIES) return;
   if (entry.error && entry.lastFailedAt && Date.now() - entry.lastFailedAt < RETRY_COOLDOWN_MS) return;
   if (entry.error) {
@@ -211,14 +240,15 @@ async function runGeneration(scene: SceneId) {
 
     if (!videoRes.ok) throw new Error(`Video download failed: ${videoRes.status}`);
 
-    entry.video = Buffer.from(await videoRes.arrayBuffer());
+    const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
+    videoBufferCache.set(scene, videoBuffer);
 
     // L2: fire-and-forget S3 persist
-    s3Put(buildVideoS3Key(scene), entry.video, "video/mp4", { scene, model: "video-01" })
+    s3Put(buildVideoS3Key(scene), videoBuffer, "video/mp4", { scene, model: "video-01" })
       .catch((err) => logEvent("warn", "video.s3_cache_put_failed", { scene, error: String(err) }));
 
     const generationDurationMs = Date.now() - overallStart;
-    const videoSizeBytes = entry.video.length;
+    const videoSizeBytes = videoBuffer.length;
     recordVideoUsage();
 
     try {

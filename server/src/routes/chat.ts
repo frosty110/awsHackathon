@@ -6,6 +6,7 @@ import {
   getWindowedHistory,
   getCharacterClass,
   getPronouns,
+  ConversationOwnershipError,
 } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage } from "../services/usageTracker.js";
@@ -13,20 +14,19 @@ import { stripTTSTags, extractMood, extractScene, expandPhrases } from "../servi
 import { buildLoreContext } from "../services/rag.js";
 import { queueBedrockCall, isBedrockQueueOverloaded } from "../services/bedrockQueue.js";
 import { createMoodStreamDetector } from "../services/moodStreamDetector.js";
-import { sanitizeUserInput } from "../services/inputSanitizer.js";
+import { sanitizeUserInput, validateCharacterClass, sanitizePronouns } from "../services/inputSanitizer.js";
+import type { AuthenticatedRequest } from "../middleware/auth.js";
 
 const router = Router();
 
-router.post("/api/chat", async (req, res) => {
+router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
   const body = req.body as {
     conversationId?: string;
     message?: unknown;
-    isSystemTrigger?: boolean;
     characterClass?: string;
     pronouns?: string;
   };
   const message = sanitizeUserInput(typeof body.message === "string" ? body.message : "");
-  const isSystemTrigger = Boolean(body.isSystemTrigger);
 
   // M4: Validate conversationId format (must be UUID if provided)
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -35,15 +35,20 @@ router.post("/api/chat", async (req, res) => {
     return;
   }
 
-  const characterClass = typeof body.characterClass === "string" ? body.characterClass.trim() : undefined;
-  const pronouns = typeof body.pronouns === "string" ? body.pronouns.trim() : undefined;
+  const characterClass = validateCharacterClass(body.characterClass);
+  // If characterClass was provided but failed validation, reject the request
+  if (body.characterClass && !characterClass) {
+    res.status(400).json({ error: "Invalid characterClass" });
+    return;
+  }
+
+  const pronouns = sanitizePronouns(body.pronouns);
   const requestId = buildRequestId(req.get("x-request-id"));
   res.setHeader("x-request-id", requestId);
   logEvent("info", "chat.request_received", {
     requestId,
     route: "/api/chat",
     conversationId: body.conversationId ?? null,
-    isSystemTrigger,
     messageLength: message.length,
   });
 
@@ -67,13 +72,19 @@ router.post("/api/chat", async (req, res) => {
     return;
   }
 
-  const conversation = await getOrCreate(body.conversationId, characterClass, pronouns);
-
-  // System triggers (opening monologue) are sent to Bedrock but not stored
-  // in history as player messages — keeps conversation context clean
-  if (!isSystemTrigger) {
-    await appendMessage(conversation.id, { role: "user", content: message });
+  let conversation;
+  try {
+    conversation = await getOrCreate(body.conversationId, req.userId, characterClass, pronouns);
+  } catch (err) {
+    if (err instanceof ConversationOwnershipError) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+    throw err;
   }
+
+  // Always store user message in conversation history
+  await appendMessage(conversation.id, { role: "user", content: message });
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -88,11 +99,6 @@ router.post("/api/chat", async (req, res) => {
   res.write(`data: ${JSON.stringify({ conversationId: conversation.id })}\n\n`);
 
   const history = await getWindowedHistory(conversation.id);
-  // System triggers aren't stored in history, so we must include the message
-  // directly in the Bedrock call so there's at least one user turn.
-  const bedrockMessages = isSystemTrigger
-    ? [...history, { role: "user" as const, content: message }]
-    : history;
 
   let fullText = "";
   let streamErrored = false;
@@ -110,7 +116,7 @@ router.post("/api/chat", async (req, res) => {
     );
     const result = await queueBedrockCall(() =>
       streamBedrockResponse(
-        bedrockMessages,
+        history,
         (chunk) => detector(chunk),
         { characterClass: resolvedClass, pronouns: resolvedPronouns, loreContext }
       )
@@ -128,7 +134,6 @@ router.post("/api/chat", async (req, res) => {
         route: "/api/chat",
         conversationId: conversation.id,
         messageLength: message.length,
-        isSystemTrigger: Boolean(isSystemTrigger),
         failureType: "recoverable_stream_error",
       },
       err

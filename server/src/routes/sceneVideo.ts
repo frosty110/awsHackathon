@@ -2,7 +2,7 @@ import { Router } from "express";
 import tracer from "dd-trace";
 import { config } from "../services/config.js";
 import { logEvent } from "../services/logger.js";
-import { getOrCreateEntry, startGeneration, tryLoadFromS3 } from "../services/videoGenerator.js";
+import { getOrCreateEntry, startGeneration, tryLoadFromS3, getVideoBuffer, hasVideoBuffer } from "../services/videoGenerator.js";
 import { type SceneId, VALID_SCENES } from "@ai-dm/shared-types";
 
 const router = Router();
@@ -10,7 +10,7 @@ const router = Router();
 const MAX_RETRIES = 2;
 const RETRY_COOLDOWN_MS = 60_000;
 
-router.get(["/scene-video", "/api/scene-video"], async (req, res) => {
+router.get("/api/scene-video", async (req, res) => {
   if (!config.MINIMAX_API_KEY) {
     logEvent("warn", "video.not_configured", { route: "/api/scene-video" });
     res.status(503).json({ error: "Video not configured" });
@@ -27,21 +27,22 @@ router.get(["/scene-video", "/api/scene-video"], async (req, res) => {
   const entry = getOrCreateEntry(scene);
 
   // L2: check S3 on cold start (no L1 and not currently generating)
-  if (!entry.video && !entry.generating) {
+  if (!hasVideoBuffer(scene) && !entry.generating) {
     await tryLoadFromS3(scene);
   }
 
-  if (entry.video) {
+  const videoBuffer = getVideoBuffer(scene);
+  if (videoBuffer) {
     tracer.dogstatsd.increment('cache.hit', 1, { cache_type: 'video', source: 'memory' });
     logEvent("info", "video.cache_hit", {
       route: "/api/scene-video",
       scene,
-      videoSizeBytes: entry.video.length,
+      videoSizeBytes: videoBuffer.length,
     });
     res.setHeader("Content-Type", "video/mp4");
-    res.setHeader("Content-Length", entry.video.length);
+    res.setHeader("Content-Length", videoBuffer.length);
     res.setHeader("Cache-Control", "public, max-age=86400");
-    res.send(entry.video);
+    res.send(videoBuffer);
     return;
   }
 

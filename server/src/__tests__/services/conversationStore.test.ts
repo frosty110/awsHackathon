@@ -8,7 +8,7 @@ vi.mock('../../services/redis.js', () => ({
   connectRedis: async () => {},
 }));
 
-import { InMemoryConversationStore } from '../../services/conversationStore.js';
+import { InMemoryConversationStore, ConversationOwnershipError } from '../../services/conversationStore.js';
 
 describe('InMemoryConversationStore', () => {
   let store: InMemoryConversationStore;
@@ -52,6 +52,39 @@ describe('InMemoryConversationStore', () => {
     it('starts with empty message history', async () => {
       const convo = await store.getOrCreate('cid-4');
       expect(convo.history).toHaveLength(0);
+    });
+
+    it('sets userId on new conversation', async () => {
+      const convo = await store.getOrCreate('cid-owned', 'user-abc');
+      expect(convo.userId).toBe('user-abc');
+    });
+
+    it('allows the same user to access their own conversation', async () => {
+      await store.getOrCreate('cid-shared', 'user-abc');
+      const convo = await store.getOrCreate('cid-shared', 'user-abc');
+      expect(convo.userId).toBe('user-abc');
+    });
+
+    it('throws ConversationOwnershipError when a different user accesses an owned conversation', async () => {
+      await store.getOrCreate('cid-private', 'user-abc');
+      await expect(
+        store.getOrCreate('cid-private', 'user-xyz')
+      ).rejects.toThrow(ConversationOwnershipError);
+    });
+
+    it('claims ownership of legacy conversations (no userId set)', async () => {
+      // Create without userId (legacy session)
+      await store.getOrCreate('cid-legacy');
+      // First authenticated access claims ownership
+      const convo = await store.getOrCreate('cid-legacy', 'user-abc');
+      expect(convo.userId).toBe('user-abc');
+    });
+
+    it('allows unauthenticated access to unauthenticated conversations', async () => {
+      await store.getOrCreate('cid-anon');
+      // Unauthenticated access (no userId) does not throw
+      const convo = await store.getOrCreate('cid-anon');
+      expect(convo.userId).toBeUndefined();
     });
   });
 

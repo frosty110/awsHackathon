@@ -32,9 +32,12 @@ graph TB
         BedrockSvc[Bedrock Service<br/>Claude 3 Haiku]
         TTSSvc[TTS Service<br/>MiniMax speech-2.8]
         RAGSvc[RAG Service<br/>Entity Extraction]
-        ConvStore[Conversation Store<br/>In-Memory]
+        ConvStore[Conversation Store<br/>Redis + In-Memory Fallback]
         RoomStore[Room Store<br/>In-Memory]
         UsageTracker[Usage Tracker]
+        BedrockQ[Bedrock Queue<br/>p-queue concurrency:20]
+        MediaCache[Media Cache<br/>S3 L2 Cache]
+        AuthSvc[Auth Middleware<br/>JWT + bcrypt]
     end
 
     subgraph "External Services"
@@ -300,16 +303,17 @@ graph LR
 - Centralizes token budget management (windowed history: last 12 turns)
 - Enables server-side lore injection without exposing RAG internals
 
-### 3. In-Memory Stores (Not Redis)
+### 3. Hybrid Storage (Redis + In-Memory Fallback)
 
-**Decision:** Conversation and room state stored in-memory (`Map` objects) rather than Redis.
+**Decision:** Conversation state backed by Redis with automatic in-memory fallback. Room state remains in-memory.
 
 **Rationale:**
-- Sufficient for ~1000 concurrent users on a single instance
-- Zero infrastructure dependency for development
-- Redis planned for Phase 9 (Scale & Auth) for multi-instance deployment
+- Redis provides persistence across server restarts and supports multi-instance deployment
+- In-memory fallback ensures the app works without Redis (development, single-instance)
+- Room state is ephemeral by nature (games don't survive restarts) so in-memory is appropriate
+- Conversation store uses 7-day TTL in Redis, auto-refreshed on access
 
-**Trade-off:** State is lost on server restart. Acceptable for current scope.
+**Trade-off:** Room state is still lost on server restart. Acceptable since multiplayer sessions are inherently ephemeral.
 
 ### 4. Keyword-Based Entity Extraction (Not LLM)
 
@@ -359,23 +363,28 @@ graph LR
 | **TTS non-blocking** | TTS failures return text-only response; audio is optional |
 | **Connection recovery** | Socket.IO `maxDisconnectionDuration: 120000` (2min auto-reconnect) |
 | **Music retry** | 3 max retries, 30s cooldown between failures per mood |
-| **Cache layers** | TTS cache (sha256, 30min TTL, 200 max), Lore cache (sha256, 10min TTL, 100 max) |
+| **Bedrock queue** | p-queue concurrency:20, 503 backpressure at 100 pending calls |
+| **Cache layers** | L1 in-memory + L2 S3 for TTS/music/video; Lore cache (sha256, 10min TTL, 100 max) |
+| **Redis resilience** | All Redis calls wrapped in try/catch with in-memory fallback |
 | **Windowed history** | Last 12 turns sent to Bedrock (~500 tokens/turn budget) |
 | **Auto-fill actions** | Players who don't submit in 30s get "waits and observes" |
+| **Parallel TTS** | Promise.allSettled fan-out for multi-voice segments (~5x latency reduction) |
+| **Exponential backoff** | Client polling: 2s->4s->8s->16s->30s cap with initial delays (10s music, 15s video) |
 
 ---
 
 ## Security Considerations
 
-| Concern | Status | Plan |
-|---------|--------|------|
-| Authentication | Not implemented | Phase 9: login/session management |
-| CORS | Dev: Vite proxy (all origins) | Production: strict allowlist |
-| Body size limits | Configured in Express | Prevents payload abuse |
-| Rate limiting | Not implemented | Phase 9: per-user on `/chat` and `/narrate` |
-| Secrets | Server-side only (`.env`) | Never exposed to client |
-| Prompt injection | System prompt hardening | Input sanitization on user messages |
-| Socket auth | Not implemented | Phase 9: token-based socket auth |
+| Concern | Status | Implementation |
+|---------|--------|---------------|
+| Authentication | ✅ Implemented | JWT auth (register/login), `optionalAuth` global middleware, `requireAuth` for protected routes |
+| CORS | ✅ Implemented | Strict allowlist via `ALLOWED_ORIGINS` env var; defaults to `localhost:5173` |
+| Body size limits | ✅ Implemented | Configured in Express |
+| Rate limiting | ✅ Implemented | Per-user Redis-backed: chat 20/min, narrate 10/min, register 3/min, login 10/min, music 20/min |
+| Security headers | ✅ Implemented | Helmet with CSP (`default-src 'self'`, `connect-src 'self'` for SSE) |
+| Secrets | ✅ Implemented | Server-side only (`.env`), never exposed to client |
+| Prompt injection | ✅ Implemented | System prompt hardening + input sanitization on user messages |
+| Password security | ✅ Implemented | bcrypt (12 rounds), constant-time comparison to prevent timing attacks |
 
 ---
 

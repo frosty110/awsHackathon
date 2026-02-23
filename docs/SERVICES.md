@@ -209,34 +209,34 @@ Uses `driver.executeQuery()` (preferred over manual session management) which ha
 
 ---
 
-## conversationStore.ts -- Single-Player Conversation History
+## conversationStore.ts -- Conversation History (Redis + In-Memory)
 
-In-memory conversation state for single-player sessions.
+Hybrid conversation state with Redis primary storage and automatic in-memory fallback.
 
-### Data Structure
+### Interface: `IConversationStore`
 
 ```typescript
-Map<conversationId, {
-  id: string;
-  history: ChatMessage[];
-  characterClass?: string;
-  pronouns?: string;
-}>
+interface IConversationStore {
+  getOrCreate(id?, class?, pronouns?): Promise<Conversation>;
+  appendMessage(id, message): Promise<void>;
+  getWindowedHistory(id, maxTurns?): Promise<ChatMessage[]>;
+  getCharacterClass(id): Promise<string | undefined>;
+  getPronouns(id): Promise<string | undefined>;
+}
 ```
 
-### Functions
+### Storage Strategy
 
-| Function | Description |
-|----------|-------------|
-| `getOrCreate(id?, class?, pronouns?)` | Get existing or create new conversation |
-| `appendMessage(id, message)` | Add a message to conversation history |
-| `getWindowedHistory(id, maxTurns?)` | Get last N turns (default: 12) |
-| `getCharacterClass(id)` | Get stored character class |
-| `getPronouns(id)` | Get stored pronouns |
+| Layer | Backend | TTL | Use Case |
+|-------|---------|-----|----------|
+| Primary | Redis (`conv:{id}` keys) | 7 days (refreshed on access) | Production, multi-instance |
+| Fallback | In-memory `Map` | Process lifetime | Development, Redis unavailable |
+
+All Redis calls are wrapped in try/catch — mid-run Redis failures fall back to in-memory transparently.
 
 ### Token Budget
 
-`getWindowedHistory` returns only the last 12 turns to stay within Bedrock's token budget (~500 tokens per turn average).
+`getWindowedHistory` returns only the last 12 turns to stay within Bedrock's token budget (~500 tokens per turn average). History truncates to 100 messages max on append.
 
 ---
 
@@ -304,7 +304,10 @@ Variables are validated at usage time, not at module load. This allows the serve
 | Neo4j | `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` | No (graceful degradation) |
 | Datadog | `DD_API_KEY`, `DD_SITE`, `DD_LLMOBS_*` vars | No (tracing disabled) |
 | MiniMax | `MINIMAX_API_KEY`, `MINIMAX_GROUP_ID`, `MINIMAX_MUSIC_API_KEY` | No (text-only mode) |
-| Server | `PORT` (default: 3001), `NODE_ENV` | No (defaults provided) |
+| Redis | `REDIS_URL` | No (in-memory fallback) |
+| Auth | `JWT_SECRET` | Required in production (dev-secret fallback in development) |
+| S3 Cache | `S3_MEDIA_CACHE_BUCKET`, `S3_AUDIO_CACHE_BUCKET` | No (caching disabled) |
+| Server | `PORT` (default: 3001), `NODE_ENV`, `ALLOWED_ORIGINS` | No (defaults provided) |
 
 ---
 
@@ -346,9 +349,16 @@ Structured logging with request tracking.
 
 ---
 
-## system-prompt.ts -- DM System Prompt
+## promptBuilder.ts -- DM System Prompt
 
-Template functions for building the DM's system prompt.
+Extracted from `bedrock.ts` (Phase 11) for architectural separation.
+
+### Exports
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `DM_SYSTEM_PROMPT` | `string` | Complete single-player system prompt |
+| `buildMultiplayerSystemPrompt(players)` | `function` | Extends base prompt with party roster |
 
 ### Template Variables
 
@@ -357,5 +367,122 @@ The system prompt includes dynamic sections for:
 - Lore context from Neo4j RAG
 - Player pronouns
 - Party roster (multiplayer)
-- Mood/emotion tag instructions
-- Voice casting instructions
+- MiniMax TTS emotion tags (`[excited]`, `[whisper]`, `[angry]`, `[fearful]`, `[sad]`, `[shouting]`)
+- Mood tags (`{{mood:combat|tavern|mystery|dramatic|danger}}`)
+- Voice casting tags (`{{voice:barkeep}}...{{/voice}}`, `{{voice:goblin}}...{{/voice}}`)
+- Scene video tags (`{{scene:tavern_idle}}`, etc.)
+
+---
+
+## redis.ts -- Redis Client
+
+Singleton Redis client for session storage and rate limiting.
+
+### Exports
+
+| Export | Description |
+|--------|-------------|
+| `redisClient` | `node-redis` client instance |
+| `connectRedis()` | Explicitly connect (called at startup) |
+| `isRedisAvailable()` | Check if Redis is connected and open |
+
+### Configuration
+
+- **URL:** `REDIS_URL` env var or default `redis://localhost:6379`
+- Requires explicit `connectRedis()` call at startup (not auto-connecting)
+- Gracefully skips connection if `REDIS_URL` is blank
+
+### Graceful Degradation
+
+If Redis is unavailable, all consumers (conversationStore, rateLimiter, auth) fall back to in-memory alternatives. No hard failures.
+
+---
+
+## bedrockQueue.ts -- Bedrock Concurrency Control
+
+Controls concurrent Bedrock API calls via `p-queue`.
+
+### Exports
+
+| Export | Description |
+|--------|-------------|
+| `bedrockQueue` | PQueue instance (concurrency: 20) |
+| `queueBedrockCall(fn)` | Wrap a Bedrock call in the queue |
+| `isBedrockQueueOverloaded()` | `true` if pending > 100 (early 503 response) |
+
+### Backpressure
+
+The chat route checks `isBedrockQueueOverloaded()` before SSE headers are sent, returning a clean `503` JSON error when the queue is saturated.
+
+---
+
+## mediaCache.ts -- S3 Media Cache
+
+Two-tier cache: L1 in-memory (zero-latency) + L2 S3 (durable, cross-instance).
+
+### Functions
+
+| Function | Description |
+|----------|-------------|
+| `buildKey(prefix, hashInput, ext)` | Deterministic S3 key via SHA-256 |
+| `get(key)` | Retrieve media from S3 (`Buffer \| null`) |
+| `put(key, buffer, contentType, metadata?)` | Fire-and-forget S3 upload |
+| `listKeys(prefix)` | List all keys under prefix |
+
+### Configuration
+
+- **Bucket:** `S3_MEDIA_CACHE_BUCKET` (preferred) or `S3_AUDIO_CACHE_BUCKET` (fallback)
+- Returns `null` gracefully if bucket is unconfigured
+- S3 put is fire-and-forget (does not add latency to TTS responses)
+
+### Datadog Tracing
+
+All operations traced via `dd-trace` with tags: `cache.type`, `cache.result`, `cache.bytes`.
+
+---
+
+## musicService.ts -- Background Music
+
+Extracted from `routes/music.ts` (Phase 11). Manages mood-based music generation and caching.
+
+### Functions
+
+| Function | Description |
+|----------|-------------|
+| `getMusicForMood(mood)` | Get music with L1->L2 cache fallback; returns `MusicResult` |
+| `getRandomMusic()` | Random cached track from S3 pool |
+| `getMusicCacheStats()` | Cache hit/miss stats by mood |
+
+### Supported Moods
+
+`tavern`, `combat`, `mystery`, `dramatic`, `danger`, `exploration`
+
+### Cache Strategy
+
+- **L1:** In-memory per-variant (5 variants per mood)
+- **L2:** S3 (`music/v1/{mood}-{variant}.mp3`)
+- Max retries: 3, with 30s cooldown between failures
+
+---
+
+## videoGenerator.ts -- Scene Video
+
+MiniMax-powered scene video generation with async polling.
+
+### Functions
+
+| Function | Description |
+|----------|-------------|
+| `getOrCreateEntry(scene)` | Get or initialize cache entry |
+| `tryLoadFromS3(scene)` | Load video from S3 into L1 cache |
+| `startGeneration(scene)` | Trigger async generation |
+| `getSceneVideoStats()` | Cache stats per scene |
+
+### Generation Workflow
+
+1. Submit task to MiniMax API (video-01 model)
+2. Poll every 10s for up to 180s
+3. Download MP4 on success
+4. Store in S3 (fire-and-forget)
+
+Max 2 retries with 60s cooldown.

@@ -225,14 +225,144 @@ Cost tracking and usage statistics.
 | 400 | Bad request (missing required fields, validation error) |
 | 500 | Internal server error (Bedrock timeout, TTS failure, etc.) |
 
+### POST /api/auth/register
+
+Register a new user account.
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `username` | `string` | Yes | 3-20 chars, alphanumeric + underscores |
+| `password` | `string` | Yes | Minimum 6 characters |
+
+**Response:** `201 Created`
+
+```json
+{
+  "message": "registered",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "username": "shadowmere"
+}
+```
+
+**Error Responses:**
+
+| Code | Body | Reason |
+|------|------|--------|
+| 400 | `{ "error": "..." }` | Validation failed (username/password requirements) |
+| 409 | `{ "error": "..." }` | Username already taken |
+| 429 | `{ "error": "Too many requests" }` | Rate limited (3 req/min per IP) |
+
+---
+
+### POST /api/auth/login
+
+Authenticate and receive a JWT token.
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `username` | `string` | Yes | Registered username |
+| `password` | `string` | Yes | Account password |
+
+**Response:** `200 OK`
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "username": "shadowmere"
+}
+```
+
+**Error Responses:**
+
+| Code | Body | Reason |
+|------|------|--------|
+| 401 | `{ "error": "..." }` | Invalid credentials |
+| 429 | `{ "error": "Too many requests" }` | Rate limited (10 req/min per IP) |
+
+**Token Usage:** Include in subsequent requests as `Authorization: Bearer <token>`. Tokens expire in 7 days.
+
+---
+
+### GET /api/scene-video
+
+Fetch mood-based scene video. Uses async generation with S3 + in-memory caching.
+
+**Query Parameters:**
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `scene` | `string` | Yes | Valid scene ID (e.g., `tavern_idle`, `combat_melee`, `forest_path`) |
+
+**Response States:**
+
+**202 Accepted** -- Video is being generated:
+
+```json
+{ "status": "generating", "scene": "tavern_idle", "startedAt": 1708531800000 }
+```
+
+**200 OK** -- Video is ready:
+
+`Content-Type: video/mp4` with `Cache-Control: public, max-age=86400`
+
+Returns binary MP4 video data.
+
+**Error Responses:**
+
+| Code | Body | Reason |
+|------|------|--------|
+| 400 | `{ "error": "Invalid scene" }` | Unknown scene ID |
+| 500 | `{ "error": "Video generation failed" }` | Generation failed (`terminal: true` = retries exhausted) |
+| 503 | `{ "error": "Video not configured" }` | MINIMAX_API_KEY not set |
+
+---
+
+## Common Response Codes
+
+| Code | Meaning |
+|------|---------|
+| 200 | Success |
+| 201 | Created (registration) |
+| 202 | Accepted (async generation in progress) |
+| 400 | Bad request (missing required fields, validation error) |
+| 401 | Unauthorized (missing or invalid token) |
+| 429 | Too many requests (rate limited) |
+| 500 | Internal server error (Bedrock timeout, TTS failure, etc.) |
+| 503 | Service unavailable (queue overloaded or service not configured) |
+
 ## Authentication
 
-No authentication is currently required (development mode). Production deployment will require authentication per the security posture in CLAUDE.md.
+JWT-based authentication via `Authorization: Bearer <token>` header. Tokens are issued by `POST /api/auth/login` and expire in 7 days.
+
+**Middleware modes:**
+- `optionalAuth` (global) -- Populates `req.userId` if token is present; never rejects. Enables per-user rate limiting even for unauthenticated users.
+- `requireAuth` -- Rejects with 401 if token is missing or invalid. Currently not applied to gameplay routes (additive auth model).
+
+**Development mode:** If `JWT_SECRET` is not set, a built-in dev secret is used automatically.
 
 ## Rate Limiting
 
-Not yet implemented. Production will enforce per-user rate limiting on `/chat` and `/narrate`.
+Per-route rate limiting is enforced with Redis-backed counters (falls back to in-memory if Redis unavailable).
+
+| Route | Limit | Key | Purpose |
+|-------|-------|-----|---------|
+| `POST /api/chat` | 20 req/min | userId or IP | Prevents LLM abuse |
+| `POST /api/narrate` | 10 req/min | userId or IP | Stricter limit for expensive TTS |
+| `GET /api/music` | 20 req/min | IP | Music generation requests |
+| `POST /api/auth/register` | 3 req/min | IP | Prevents account farming |
+| `POST /api/auth/login` | 10 req/min | IP | Prevents credential stuffing |
+
+Rate limit responses return `429 Too Many Requests`.
 
 ## CORS
 
-Development mode allows all origins via Vite proxy. Production will enforce a strict CORS allowlist.
+Strict CORS allowlist enforced via `ALLOWED_ORIGINS` environment variable (comma-separated). Defaults to `http://localhost:5173` for development. Vite dev proxy forwards `/api/*` and `/socket.io` requests to the backend.
+
+## Security Headers
+
+Helmet middleware provides standard security headers including Content Security Policy (`default-src 'self'`, `connect-src 'self'` for SSE).

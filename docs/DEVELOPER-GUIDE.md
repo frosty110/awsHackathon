@@ -85,12 +85,32 @@ NODE_ENV=development
 | `MINIMAX_GROUP_ID` | MiniMax group ID | -- |
 | `MINIMAX_MUSIC_API_KEY` | MiniMax music generation API key | -- |
 
+#### Redis (optional -- in-memory fallback)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
+
+#### Authentication (optional in development)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `JWT_SECRET` | Secret for JWT signing/verification | Dev-secret fallback in development |
+
+#### S3 Cache (optional -- caching disabled without)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `S3_MEDIA_CACHE_BUCKET` | S3 bucket for TTS/music/video cache | -- |
+| `S3_AUDIO_CACHE_BUCKET` | Legacy S3 bucket name (fallback) | -- |
+
 #### Server
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | `3001` |
 | `NODE_ENV` | Environment | `development` |
+| `ALLOWED_ORIGINS` | CORS allowlist (comma-separated) | `http://localhost:5173` |
 
 ### 3. Verify Bedrock Access
 
@@ -204,6 +224,14 @@ awsHackathon/
 
 ### Testing
 
+#### Unit Tests
+
+```bash
+npm test -w server
+```
+
+Runs Vitest tests covering promptBuilder, conversationStore, usageTracker, and TTS parallel processing.
+
 #### Bedrock Connectivity
 
 ```bash
@@ -293,6 +321,7 @@ Server logs are structured JSON. Key log events:
 | `npm run dev -w server` | Start server with hot reload |
 | `npm run build -w server` | Compile TypeScript |
 | `npm run start -w server` | Run compiled server |
+| `npm test -w server` | Run Vitest unit tests |
 | `npm run test:bedrock -w server` | Test Bedrock API connectivity |
 
 ### Client

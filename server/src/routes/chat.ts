@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { streamBedrockResponse } from "../services/bedrock.js";
 import {
   getOrCreate,
   appendMessage,
@@ -8,13 +7,12 @@ import {
 } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage } from "../services/usageTracker.js";
-import { stripTTSTags, extractMood, extractScene, expandPhrases } from "../services/tts.js";
-import { buildLoreContext } from "../services/rag.js";
-import { queueBedrockCall, isBedrockQueueOverloaded } from "../services/bedrockQueue.js";
-import { createMoodStreamDetector } from "../services/moodStreamDetector.js";
+import { extractMood, extractScene } from "../services/tts.js";
+import { isBedrockQueueOverloaded } from "../services/bedrockQueue.js";
 import { sanitizeUserInput, validateCharacterClass, sanitizePronouns } from "../services/inputSanitizer.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { activeSSEStreams } from "../services/activeStreams.js";
+import { executeDmTurn } from "../services/dmTurn.js";
 
 const router = Router();
 
@@ -131,26 +129,23 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
   let outputTokens = 0;
 
   try {
-    // RAG: extract entities from user message and retrieve matching lore
-    const loreContext = await buildLoreContext(message);
     // Read characterClass and pronouns from local conversation object instead
     // of making separate Redis calls (saves 2 round-trips per chat turn).
     const resolvedClass = characterClass || conversation.characterClass;
     const resolvedPronouns = pronouns || conversation.pronouns;
-    const detector = createMoodStreamDetector(
-      (mood) => { checkedWrite({ moodChange: mood }); },
-      (text) => { checkedWrite({ text }); },
+    const turnResult = await executeDmTurn(
+      conversation,
+      message,
+      history,
+      {
+        onText: (text) => { checkedWrite({ text }); },
+        onMoodChange: (mood) => { checkedWrite({ moodChange: mood }); },
+      },
+      { characterClass: resolvedClass, pronouns: resolvedPronouns }
     );
-    const result = await queueBedrockCall(() =>
-      streamBedrockResponse(
-        history,
-        (chunk) => detector(chunk),
-        { characterClass: resolvedClass, pronouns: resolvedPronouns, loreContext }
-      )
-    );
-    fullText = result.text;
-    inputTokens = result.inputTokens;
-    outputTokens = result.outputTokens;
+    fullText = turnResult.fullText;
+    inputTokens = turnResult.inputTokens;
+    outputTokens = turnResult.outputTokens;
   } catch (err) {
     streamErrored = true;
     logEvent(
@@ -200,13 +195,8 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
     res.end();
   }
 
-  // Persist assistant response after stream completes (stripped of TTS tags)
+  // Note: assistant message persistence is handled by executeDmTurn
   if (fullText) {
-    try {
-      await appendMessage(conversation.id, { role: "assistant", content: stripTTSTags(expandPhrases(fullText)) });
-    } catch (err) {
-      logEvent("error", "chat.persist_assistant_failed", { conversationId: conversation.id }, err);
-    }
     logEvent("info", "chat.stream_completed", {
       requestId,
       route: "/api/chat",

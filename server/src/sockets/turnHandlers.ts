@@ -12,16 +12,15 @@ import {
   appendMessage,
   getWindowedHistory,
 } from "../services/conversationStore.js";
-import {
-  streamBedrockResponse,
-  buildMultiplayerSystemPrompt,
-} from "../services/bedrock.js";
+import { buildMultiplayerSystemPrompt } from "../services/bedrock.js";
 import { generateMultiVoiceTTS, extractMood } from "../services/tts.js";
-import { buildLoreContext } from "../services/rag.js";
-import { queueBedrockCall } from "../services/bedrockQueue.js";
-import { createMoodStreamDetector } from "../services/moodStreamDetector.js";
 import { sanitizeUserInput } from "../services/inputSanitizer.js";
 import { logEvent } from "../services/logger.js";
+import { executeDmTurn } from "../services/dmTurn.js";
+import { buildLoreContext } from "../services/rag.js";
+import { createMoodStreamDetector } from "../services/moodStreamDetector.js";
+import { queueBedrockCall } from "../services/bedrockQueue.js";
+import { streamBedrockResponse } from "../services/bedrock.js";
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -158,42 +157,33 @@ export async function triggerDMOpening(io: IO, roomCode: string): Promise<void> 
   };
   await appendMessage(room.conversationId, openingMessage);
 
-  const loreContext = await buildLoreContext(openingMessage.content).catch(() => "");
-
   io.to(roomCode).emit("dm:stream-start");
 
   let dmText = "";
 
   try {
     const history = await getWindowedHistory(room.conversationId);
-    const openingDetector = createMoodStreamDetector(
-      (mood) => io.to(roomCode).emit("dm:mood-change", { mood }),
-      (text) => {
-        dmText += text;
-        room.currentDmText = dmText;
-        io.to(roomCode).emit("dm:chunk", { text });
+    const turnResult = await executeDmTurn(
+      { id: room.conversationId, history: [] },
+      openingMessage.content,
+      history,
+      {
+        onText: (text) => {
+          dmText += text;
+          room.currentDmText = dmText;
+          io.to(roomCode).emit("dm:chunk", { text });
+        },
+        onMoodChange: (mood) => io.to(roomCode).emit("dm:mood-change", { mood }),
       },
-    );
-    const result = await queueBedrockCall(() =>
-      streamBedrockResponse(
-        history,
-        (chunk: string) => openingDetector(chunk),
-        { multiplayerPrompt, loreContext }
-      )
+      { multiplayerPrompt, loreQuery: openingMessage.content }
     );
 
-    await appendMessage(room.conversationId, {
-      role: "assistant",
-      content: result.text,
-    });
-
-    const [openingMood] = extractMood(result.text);
-    io.to(roomCode).emit("dm:stream-end", { fullText: result.text, mood: openingMood ?? undefined });
+    io.to(roomCode).emit("dm:stream-end", { fullText: turnResult.fullText, mood: turnResult.mood });
     room.currentDmText = "";
     room.phase = "playing";
 
     // Async TTS — don't block game flow
-    generateMultiVoiceTTS(result.text, { model: "speech-2.8-hd" })
+    generateMultiVoiceTTS(turnResult.fullText, { model: "speech-2.8-hd" })
       .then(({ audioBuffer }) => {
         io.to(roomCode).emit("dm:tts-ready", {
           audio: audioBuffer.toString("base64"),
@@ -248,41 +238,32 @@ export async function triggerDMResponse(io: IO, roomCode: string): Promise<void>
     content: combinedMessage,
   });
 
-  const loreContext = await buildLoreContext(combinedMessage).catch(() => "");
-
   io.to(roomCode).emit("dm:stream-start");
 
   let dmText = "";
 
   try {
     const history = await getWindowedHistory(room.conversationId);
-    const turnDetector = createMoodStreamDetector(
-      (mood) => io.to(roomCode).emit("dm:mood-change", { mood }),
-      (text) => {
-        dmText += text;
-        room.currentDmText = dmText;
-        io.to(roomCode).emit("dm:chunk", { text });
+    const turnResult = await executeDmTurn(
+      { id: room.conversationId, history: [] },
+      combinedMessage,
+      history,
+      {
+        onText: (text) => {
+          dmText += text;
+          room.currentDmText = dmText;
+          io.to(roomCode).emit("dm:chunk", { text });
+        },
+        onMoodChange: (mood) => io.to(roomCode).emit("dm:mood-change", { mood }),
       },
-    );
-    const result = await queueBedrockCall(() =>
-      streamBedrockResponse(
-        history,
-        (chunk: string) => turnDetector(chunk),
-        { multiplayerPrompt, loreContext }
-      )
+      { multiplayerPrompt, loreQuery: combinedMessage }
     );
 
-    await appendMessage(room.conversationId, {
-      role: "assistant",
-      content: result.text,
-    });
-
-    const [turnMood] = extractMood(result.text);
-    io.to(roomCode).emit("dm:stream-end", { fullText: result.text, mood: turnMood ?? undefined });
+    io.to(roomCode).emit("dm:stream-end", { fullText: turnResult.fullText, mood: turnResult.mood });
     room.currentDmText = "";
 
     // Async TTS — don't block game flow
-    generateMultiVoiceTTS(result.text, { model: "speech-2.8-turbo" })
+    generateMultiVoiceTTS(turnResult.fullText, { model: "speech-2.8-turbo" })
       .then(({ audioBuffer }) => {
         io.to(roomCode).emit("dm:tts-ready", {
           audio: audioBuffer.toString("base64"),

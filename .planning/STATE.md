@@ -201,6 +201,8 @@ Recent decisions affecting current work:
 - [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
 - [Phase 18-02]: bcrypt dummy hash uses $2b$12$ prefix (bcryptjs standard), not $2a$ — correct format for constant-time user-not-found comparison
 - [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
+- [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
+- [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
 
 ### Roadmap Evolution
 
@@ -247,5 +249,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 18-02-PLAN.md (prompt injection hardening, socket.io production auth, bcrypt timing dummy)
-Resume context: Phase 18 plan 02 complete. Prompt injection hardening: expanded inputSanitizer with XML role tag stripping, full unicode control char range, invisible/zero-width char removal, VALID_CHARACTER_CLASSES Set, validateCharacterClass() and sanitizePronouns() exports. Socket.IO production auth: NODE_ENV=production rejects unauthenticated connections. bcrypt dummy hash replaced with valid 60-char $2b$12$ pre-computed hash. TypeScript clean, 53 tests pass.
+Stopped at: Completed 18-07-PLAN.md (narrate 60s timeout, SSE stream drain, trust proxy + route standardization verified)
+Resume context: Phase 18 plan 07 complete. Express trust proxy + /api/-only routes verified in prior commits (18-01/18-03/18-10). New: narrate 60s AbortController timeout with 504 on expiry, activeSSEStreams Set in activeStreams.ts for tracking live SSE connections, graceful shutdown drains all SSE clients before io.close(). TypeScript compiles clean, 53 tests pass.

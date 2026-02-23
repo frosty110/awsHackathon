@@ -1,13 +1,17 @@
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
 import { config } from "../services/config.js";
 
+// Random dev secret generated once at module load — per-process, not source-readable.
+// Tokens will be invalidated on server restart in dev mode, which is acceptable.
+const DEV_SECRET = crypto.randomBytes(32).toString("hex");
 let devSecretWarned = false;
 
 /**
  * Get the JWT secret for signing/verifying tokens.
  * - In production: requires JWT_SECRET to be set, throws fatal error if missing.
- * - In development: falls back to a dev-only secret with a one-time warning.
+ * - In development: falls back to a random per-process secret with a one-time warning.
  */
 export function getJwtSecret(): string {
   if (config.JWT_SECRET) {
@@ -17,10 +21,10 @@ export function getJwtSecret(): string {
     throw new Error("FATAL: JWT_SECRET must be set in production");
   }
   if (!devSecretWarned) {
-    console.warn("[auth] WARNING: Using dev-only JWT secret. Set JWT_SECRET for production.");
+    console.warn("[auth] WARNING: Using random dev secret. Tokens invalidate on restart.");
     devSecretWarned = true;
   }
-  return "dev-secret-do-not-use-in-production";
+  return DEV_SECRET;
 }
 
 export interface AuthenticatedRequest extends Request {

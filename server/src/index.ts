@@ -13,6 +13,7 @@ import { config, warnOnBlankConfig } from "./services/config.js";
 import { connectRedis, redisClient, isRedisAvailable } from "./services/redis.js";
 import { initSocketIO } from "./sockets/index.js";
 import { initRag } from "./services/rag.js";
+import { activeSSEStreams } from "./services/activeStreams.js";
 
 async function main(): Promise<void> {
   warnOnBlankConfig(
@@ -89,6 +90,15 @@ async function main(): Promise<void> {
   // M3: Graceful shutdown — close Socket.IO, HTTP server, Neo4j, and Redis in correct order
   const shutdown = async (signal: string) => {
     console.log(`[shutdown] ${signal} received, closing gracefully...`);
+    // 0. Notify active SSE clients and drain streams before closing
+    for (const stream of activeSSEStreams) {
+      try {
+        stream.write('data: {"error":"Server shutting down"}\n\n');
+        stream.write('data: [DONE]\n\n');
+        stream.end();
+      } catch { /* stream already closed */ }
+    }
+    activeSSEStreams.clear();
     // 1. Close Socket.IO first — sends disconnect packets while HTTP is still up
     io.close();
     // 2. Stop accepting new HTTP connections

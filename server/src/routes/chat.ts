@@ -16,6 +16,7 @@ import { queueBedrockCall, isBedrockQueueOverloaded } from "../services/bedrockQ
 import { createMoodStreamDetector } from "../services/moodStreamDetector.js";
 import { sanitizeUserInput, validateCharacterClass, sanitizePronouns } from "../services/inputSanitizer.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
+import { activeSSEStreams } from "../services/activeStreams.js";
 
 const router = Router();
 
@@ -91,9 +92,15 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
 
+  // Track this SSE response for graceful shutdown notification
+  activeSSEStreams.add(res);
+
   // M1: Detect client disconnect to abort SSE writes
   let clientDisconnected = false;
-  req.on("close", () => { clientDisconnected = true; });
+  req.on("close", () => {
+    clientDisconnected = true;
+    activeSSEStreams.delete(res);
+  });
 
   // First event sends conversationId so client can track the session
   res.write(`data: ${JSON.stringify({ conversationId: conversation.id })}\n\n`);
@@ -160,6 +167,7 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
 
   // M1: If client disconnected during streaming, skip final writes
   if (clientDisconnected) {
+    activeSSEStreams.delete(res);
     res.end();
   } else {
     // Emit tagged text for client TTS consumption, then usage, before [DONE]
@@ -175,6 +183,7 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
     }
 
     res.write("data: [DONE]\n\n");
+    activeSSEStreams.delete(res);
     res.end();
   }
 

@@ -6,6 +6,7 @@ import { playAudio, stopAudio as stopGlobalAudio } from '../services/audioContro
 import { changeMood } from '../services/backgroundMusic';
 import { changeScene, resetScenes } from '../services/sceneVideo';
 import { pushError } from '../services/errorStore';
+import { authHeaders, refreshAccessToken } from '../services/auth';
 import { MINIMAX_TTS_PER_CHAR, stripTTSTags, expandPhrasesForDisplay } from '@ai-dm/shared-types';
 
 export interface UsageBreakdown {
@@ -79,18 +80,33 @@ export function useSSEChat() {
 
     // --- 1. Stream Bedrock response, accumulate silently ---
     try {
-      const res = await fetch('/api/chat', {
+      const chatBody = JSON.stringify({
+        conversationId: conversationId.current,
+        message,
+        ...(diceResult != null ? { diceResult } : {}),
+        ...(characterClassRef.current ? { characterClass: characterClassRef.current.name } : {}),
+        ...(pronounsRef.current ? { pronouns: pronounsRef.current } : {}),
+      });
+
+      let res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId: conversationId.current,
-          message,
-          ...(diceResult != null ? { diceResult } : {}),
-          ...(characterClassRef.current ? { characterClass: characterClassRef.current.name } : {}),
-          ...(pronounsRef.current ? { pronouns: pronounsRef.current } : {}),
-        }),
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: chatBody,
         signal: controller.signal,
       });
+
+      // If 401, attempt token refresh and retry once
+      if (res.status === 401) {
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: chatBody,
+            signal: controller.signal,
+          });
+        }
+      }
 
       if (!res.ok) {
         let requestId: string | undefined;
@@ -225,7 +241,7 @@ export function useSSEChat() {
     try {
       const ttsRes = await fetch('/api/narrate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ text: ttsPayload, conversationId: conversationId.current }),
       });
 

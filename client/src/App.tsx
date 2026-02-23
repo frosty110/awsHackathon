@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSSEChat } from './hooks/useSSEChat';
 import { startBackgroundMusic, startRandomMusic, stopBackgroundMusic } from './services/backgroundMusic';
 import { SceneBackground } from './components/SceneBackground';
@@ -13,16 +13,28 @@ import { ErrorNotification } from './components/ErrorNotification';
 import { ModeSelect } from './components/ModeSelect';
 import { MultiplayerLobby } from './components/MultiplayerLobby';
 import { MultiplayerGame } from './components/MultiplayerGame';
+import { LoginForm } from './components/LoginForm';
 import { socket } from './services/socket';
+import { restoreAuth, clearAuth, getUsername } from './services/auth';
 import type { RoomState } from './types/multiplayer';
 import type { AppState } from './types/chat';
 
 export default function App() {
-  const [appState, setAppState] = useState<AppState>('modeSelect');
+  const [appState, setAppState] = useState<AppState>('login');
   const [multiplayerRoomCode, setMultiplayerRoomCode] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<CharacterClass | null>(null);
   const [selectedPronouns, setSelectedPronouns] = useState<string>('They/Them');
   const { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, replayMessageAudio, sessionCost, usageBreakdown } = useSSEChat();
+
+  // On mount, attempt to restore auth from localStorage.
+  // If successful, skip login and go to mode select. Otherwise, show login form.
+  useEffect(() => {
+    if (restoreAuth()) {
+      setAppState('modeSelect');
+    } else {
+      setAppState('login');
+    }
+  }, []);
 
   // ----- Single-player handlers -----
 
@@ -49,6 +61,17 @@ export default function App() {
     setSelectedPronouns('They/Them');
     setMultiplayerRoomCode(null);
     setAppState('modeSelect');
+  }
+
+  function handleLogout() {
+    reset();
+    stopBackgroundMusic();
+    socket.disconnect();
+    clearAuth();
+    setSelectedClass(null);
+    setSelectedPronouns('They/Them');
+    setMultiplayerRoomCode(null);
+    setAppState('login');
   }
 
   function handleRollDice(result: number) {
@@ -114,6 +137,11 @@ export default function App() {
             <span className="font-sans text-sm text-parchment/60">
               Powered by AWS Bedrock
             </span>
+            {appState !== 'login' && getUsername() && (
+              <span className="font-cinzel text-xs text-parchment/50 tracking-wider">
+                {getUsername()}
+              </span>
+            )}
             {showReset && (
               <button
                 onClick={onResetClick}
@@ -122,12 +150,22 @@ export default function App() {
                 {appState === 'multiplayerGame' ? 'Leave Room' : 'Reset'}
               </button>
             )}
+            {appState !== 'login' && (
+              <button
+                onClick={handleLogout}
+                className="font-cinzel text-xs text-parchment/50 hover:text-blood-light"
+              >
+                Logout
+              </button>
+            )}
           </div>
         </header>
 
         {/* Main area */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          {appState === 'modeSelect' ? (
+          {appState === 'login' ? (
+            <LoginForm onSuccess={() => setAppState('modeSelect')} />
+          ) : appState === 'modeSelect' ? (
             <ModeSelect onSinglePlayer={handleSinglePlayer} onMultiplayer={handleMultiplayer} onFirstInteraction={startRandomMusic} />
           ) : appState === 'idle' ? (
             <ClassSelect onSelect={handleClassSelected} />

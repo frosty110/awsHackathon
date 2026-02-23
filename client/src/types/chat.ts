@@ -8,4 +8,4 @@ export interface Message {
   audioUrl?: string;   // blob URL for TTS audio — kept alive for replay
 }
 
-export type AppState = 'idle' | 'classSelect' | 'adventure' | 'modeSelect' | 'multiplayerLobby' | 'multiplayerGame';
+export type AppState = 'login' | 'idle' | 'classSelect' | 'adventure' | 'modeSelect' | 'multiplayerLobby' | 'multiplayerGame';

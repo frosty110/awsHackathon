@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 18 (Code Review Bug Fixes Wave 2) COMPLETE — All 10 plans done (10/10).
+**Current focus:** Phase 18 (Code Review Bug Fixes Wave 2) — Plans 04 complete; plans 05, 06, 08, 09 pending.
 
 ## Current Position
 
-Phase: Phase 18 (Code Review Bug Fixes Wave 2) — ALL plans complete (01-10). Verified.
-Plan: Phase 18 complete.
-Status: All Phase 18 code review findings fixed. Plan 10 done: HSTS 1-year, CSP ws:/blob:, O(1) socket rate limiter, logEvent in all sockets, _deps removed, tsyringe/reflect-metadata removed, _testInternals NODE_ENV gate, tsbuildinfo in .gitignore. 53 tests pass.
-Last activity: 2026-02-22 — Completed Phase 18-10: P3 cleanup (security headers, logging, dead code)
+Phase: Phase 18 (Code Review Bug Fixes Wave 2)
+Plan: 18-04 complete. Next: 18-05.
+Status: Plan 04 done: GETEX optimization (GET+EXPIRE -> GETEX in conversationStore), withLock on in-memory fallback paths, SSE checkedWrite with backpressure logging, local conversation variable reducing per-turn Redis calls from ~8 to ~3. 53 tests pass.
+Last activity: 2026-02-23 — Completed Phase 18-04: Redis optimization + SSE backpressure
 
 Progress: [██████████] 100%
 
@@ -86,6 +86,7 @@ Progress: [██████████] 100%
 | Phase 18 P10 | 6 | 2 tasks | 12 files |
 | Phase 18 P01 | 7 | 2 tasks | 7 files |
 | Phase 18 P02 | 7 | 2 tasks | 3 files |
+| Phase 18-code-review-bug-fixes-wave-2 P04 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -203,6 +204,10 @@ Recent decisions affecting current work:
 - [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
 - [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
 - [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-04]: GETEX fallback uses _getexSupported module-level flag (flips once on failure) — subsequent reads use GET+EXPIRE directly, no per-call try/catch overhead
+- [Phase 18-04]: checkedWrite logs backpressure but continues streaming — moodStreamDetector uses sync callbacks, Bedrock streams are short-lived enough for kernel buffering
+- [Phase 18-04]: Local conversation.history updated in-place after appendMessage(user) so history.slice(-12) includes user message for Bedrock
+- [Phase 18-04]: withLock applied to in-memory fallback paths only — Redis paths were already protected in getOrCreate/appendMessage
 
 ### Roadmap Evolution
 
@@ -249,5 +254,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 18-07-PLAN.md (narrate 60s timeout, SSE stream drain, trust proxy + route standardization verified)
-Resume context: Phase 18 plan 07 complete. Express trust proxy + /api/-only routes verified in prior commits (18-01/18-03/18-10). New: narrate 60s AbortController timeout with 504 on expiry, activeSSEStreams Set in activeStreams.ts for tracking live SSE connections, graceful shutdown drains all SSE clients before io.close(). TypeScript compiles clean, 53 tests pass.
+Stopped at: Completed 18-04-PLAN.md (GETEX optimization, withLock in-memory fallback, SSE backpressure, local conversation variable)
+Resume context: Phase 18 plan 04 complete. GETEX replaces GET+EXPIRE in conversationStore._getFromRedis with graceful fallback via _getexSupported flag. In-memory fallback paths in getOrCreate/appendMessage wrapped in withLock. chat.ts uses checkedWrite helper for all SSE writes. Local conversation object used for history/characterClass/pronouns instead of extra Redis calls. Redis per-turn round-trips reduced from ~8 to ~3. TypeScript compiles clean, 53 tests pass. Plans 05, 06, 08, 09 still pending.

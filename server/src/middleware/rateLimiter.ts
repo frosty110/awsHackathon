@@ -78,3 +78,18 @@ export const loginLimiter = rateLimit({
   store: createStore("rl:login:"),
   message: { error: "Too many login attempts, slow down" },
 });
+
+/**
+ * refreshLimiter — 5 requests per minute per IP.
+ * Prevents token refresh abuse / replay attempts.
+ * Auth endpoints are IP-keyed because auth hasn't happened yet.
+ */
+export const refreshLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
+  store: createStore("rl:refresh:"),
+  message: { error: "Too many token refresh attempts, slow down" },
+});

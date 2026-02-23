@@ -9,7 +9,7 @@ import usageRouter from "./routes/usage.js";
 import authRouter from "./routes/auth.js";
 import { buildRequestId, logEvent } from "./services/logger.js";
 import { optionalAuth, requireAuth } from "./middleware/auth.js";
-import { chatRateLimiter, narrateRateLimiter, registerLimiter, loginLimiter } from "./middleware/rateLimiter.js";
+import { chatRateLimiter, narrateRateLimiter, registerLimiter, loginLimiter, refreshLimiter } from "./middleware/rateLimiter.js";
 import { helmetMiddleware, corsMiddleware } from "./middleware/security.js";
 import { musicLimiter } from "./middleware/rateLimits.js";
 
@@ -35,6 +35,7 @@ export function createApp(): Express {
   // 5. Auth route rate limiting — IP-keyed to prevent spam/stuffing
   app.use("/api/auth/register", registerLimiter);
   app.use("/api/auth/login", loginLimiter);
+  app.use("/api/auth/refresh", refreshLimiter);
 
   // 6. Auth routes
   app.use(authRouter);

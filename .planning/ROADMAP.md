@@ -405,6 +405,42 @@ Plans:
 - [x] 18-09-PLAN.md — Frontend performance: React.memo MessageBubble, TTS Object URL cleanup, React.lazy code splitting, shared CHARACTER_CLASS_IDS
 - [x] 18-10-PLAN.md — P3 cleanup: HSTS + CSP update, O(1) socket rate limiter, logEvent everywhere, remove _deps/tsyringe, .gitignore tsbuildinfo, gate _testInternals
 
+### Phase 19: Code Review Wave 3 (Reduced) — Auth hardening, schema leakage, LRU cache, cleanup
+
+**Goal:** Fix remaining actionable findings from the 2026-02-22 AI-powered code review. Scope reduced from 20 to 15 items by cutting YAGNI (distributed locks — single instance only, refresh token families — enterprise-grade for community game, consistent error envelope — cosmetic), absorbing M-7 into H-3, and simplifying M-8 to dead code removal.
+**Depends on:** Phase 18
+**Source:** AI-powered code review (Claude Opus 4.6) — 2026-02-22. Items C-2, H-1, L-2 deferred as YAGNI for ~1000-user single-instance deployment.
+**Success Criteria** (what must be TRUE):
+  CRITICAL (P0):
+  1. Zod validation errors on `/api/chat` and `/api/narrate` return generic message only — field error details logged server-side via `logEvent`, never sent to client (C-1)
+  2. User registration uses atomic Redis `HSETNX` — concurrent registrations with same username cannot both succeed (C-3)
+  HIGH (P1):
+  3. Socket.IO auth defaults to required unless `NODE_ENV === 'development'` explicitly — flip `=== 'production'` to `!== 'development'` (H-2)
+  4. Lore cache uses `LRUCache` from `lru-cache` package (already used in tts.ts, musicService.ts, videoGenerator.ts) instead of plain `Map` with O(n) FIFO eviction — also resolves M-7 (H-3)
+  5. `/api/auth/logout` endpoint exists — deletes refresh token from Redis/in-memory (H-4)
+  6. In-memory login lockout counter expires after `LOCKOUT_DURATION_S` elapsed — store `{count, firstAttemptAt}` instead of bare number (H-5)
+  MEDIUM (P2):
+  7. `/api/auth/refresh` rate-limited to 5 req/min per IP — copy `registerLimiter` pattern (M-6)
+  8. Narrate route dead AbortController removed — signal was never wired to any downstream call (M-8)
+  9. Usage tracker has periodic `setInterval` cleanup timer as backup to lazy eviction (M-3)
+  10. Neo4j query uses label constraint (e.g., `MATCH (n:Character)`) for index-eligible scans (M-4)
+  LOW (P3):
+  11. `getCharacterClass`/`getPronouns` verified unused after Phase 18 optimization, removed from public API if confirmed (L-1)
+  12. `SESSION_SECRET` removed from config.ts and `.env.example` — dead config, app uses JWT_SECRET (L-3)
+  13. Client TTS fetch uses abort signal for skip cancellation — add `signal: controller.signal` to one fetch call (L-4)
+  14. Socket rate limit constants moved to config.ts (L-5)
+  15. In-memory user store uses `Map<string, UserRecord>` instead of `Array` for O(1) lookup (L-6)
+  16. TypeScript compiles clean (`npx tsc --noEmit`) and all existing tests pass
+**Deferred (YAGNI for single-instance ~1000 users):**
+  - C-2: Distributed locks — only needed for multi-instance deployment (not yet planned)
+  - H-1: Refresh token family tracking — enterprise-grade; current rotation is sufficient
+  - L-2: Consistent error envelope — cosmetic, high file churn, zero user value
+**Plans:** 2 plans
+
+Plans:
+- [ ] 19-01-PLAN.md — Auth hardening: HSETNX registration atomicity (C-3), logout endpoint (H-4), lockout expiry TTL (H-5), refresh rate limiter (M-6), Map-based user store (L-6)
+- [ ] 19-02-PLAN.md — Codebase cleanup: Zod error sanitization (C-1), Socket.IO auth default flip (H-2), lore cache LRU swap (H-3), usage tracker timer (M-3), Neo4j label constraint (M-4), remove dead AbortController (M-8), remove unused getCharacterClass/getPronouns (L-1), delete SESSION_SECRET (L-3), client TTS abort signal (L-4), socket rate config (L-5)
+
 ---
 
 ## Progress
@@ -434,3 +470,4 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 | 16. Generation Observability & Log Hygiene | 1/1 | Complete | 2026-02-22 |
 | 17. Code Review Bug Fixes Wave 1 | 3/3 | Complete | 2026-02-22 |
 | 18. Code Review Bug Fixes Wave 2 | 10/10 | Complete | 2026-02-22 |
+| 19. Code Review Bug Fixes Wave 3 | 0/2 | Planned | -- |

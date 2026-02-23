@@ -33,18 +33,19 @@ describe('InMemoryConversationStore', () => {
     });
 
     it('sets characterClass on first call when provided', async () => {
-      const convo = await store.getOrCreate('cid-1', 'Warrior');
+      // Signature: getOrCreate(conversationId?, userId?, characterClass?, pronouns?)
+      const convo = await store.getOrCreate('cid-1', undefined, 'Warrior');
       expect(convo.characterClass).toBe('Warrior');
     });
 
     it('does not overwrite characterClass on subsequent calls', async () => {
-      await store.getOrCreate('cid-2', 'Warrior');
-      const convo = await store.getOrCreate('cid-2', 'Mage');
+      await store.getOrCreate('cid-2', undefined, 'Warrior');
+      const convo = await store.getOrCreate('cid-2', undefined, 'Mage');
       expect(convo.characterClass).toBe('Warrior');
     });
 
     it('sets pronouns on first call when provided', async () => {
-      const convo = await store.getOrCreate('cid-3', undefined, 'She/Her');
+      const convo = await store.getOrCreate('cid-3', undefined, undefined, 'She/Her');
       expect(convo.pronouns).toBe('She/Her');
     });
 
@@ -109,7 +110,7 @@ describe('InMemoryConversationStore', () => {
 
   describe('getCharacterClass', () => {
     it('returns the stored character class', async () => {
-      await store.getOrCreate('cid-9', 'Rogue');
+      await store.getOrCreate('cid-9', undefined, 'Rogue');
       const cls = await store.getCharacterClass('cid-9');
       expect(cls).toBe('Rogue');
     });
@@ -122,13 +123,13 @@ describe('InMemoryConversationStore', () => {
 
   describe('getPronouns', () => {
     it('returns the stored pronouns', async () => {
-      await store.getOrCreate('cid-10', undefined, 'They/Them');
+      await store.getOrCreate('cid-10', undefined, undefined, 'They/Them');
       const pronouns = await store.getPronouns('cid-10');
       expect(pronouns).toBe('They/Them');
     });
 
     it('returns undefined when no pronouns were set', async () => {
-      await store.getOrCreate('cid-11', 'Mage');
+      await store.getOrCreate('cid-11', undefined, 'Mage');
       const pronouns = await store.getPronouns('cid-11');
       expect(pronouns).toBeUndefined();
     });

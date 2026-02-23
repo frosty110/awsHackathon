@@ -2,12 +2,13 @@ import { Router } from "express";
 import { generateMultiVoiceTTS, stripTTSTags } from "../services/tts.js";
 import { streamBedrockResponse } from "../services/bedrock.js";
 import type { ChatMessage } from "../services/bedrock.js";
-import { getOrCreate, appendMessage } from "../services/conversationStore.js";
+import { getOrCreate, appendMessage, ConversationOwnershipError } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage, recordTtsUsage } from "../services/usageTracker.js";
 import { queueBedrockCall } from "../services/bedrockQueue.js";
-import { sanitizeUserInput } from "../services/inputSanitizer.js";
+import { sanitizeUserInput, validateCharacterClass, sanitizePronouns } from "../services/inputSanitizer.js";
 import { PHRASE_BANK } from "@ai-dm/shared-types";
+import type { AuthenticatedRequest } from "../middleware/auth.js";
 
 const OPENING_PHRASES = PHRASE_BANK.filter((p) => p.id.startsWith("opening_"));
 
@@ -23,7 +24,7 @@ function buildOpeningPrompt(characterClass?: string, pronouns?: string): string 
 
 const router = Router();
 
-router.post(["/narrate", "/api/narrate"], async (req, res) => {
+router.post("/api/narrate", async (req: AuthenticatedRequest, res) => {
   const requestId = buildRequestId(req.get("x-request-id"));
   res.setHeader("x-request-id", requestId);
   const textInput = sanitizeUserInput(typeof req.body?.text === "string" ? req.body.text : "", 5000);
@@ -33,8 +34,8 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
     res.status(400).json({ error: "Invalid conversationId format" });
     return;
   }
-  const characterClass = typeof req.body?.characterClass === "string" ? req.body.characterClass.trim() : undefined;
-  const pronouns = typeof req.body?.pronouns === "string" ? req.body.pronouns.trim() : undefined;
+  const characterClass = validateCharacterClass(req.body?.characterClass);
+  const pronouns = sanitizePronouns(req.body?.pronouns);
   const hasText = textInput.length > 0;
   logEvent("info", "narrate.request_received", {
     requestId,
@@ -84,7 +85,7 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
     try {
       const model = openingPhrase.models[0] ?? "speech-2.8-hd";
       const { audioBuffer } = await generateMultiVoiceTTS(openingPhrase.text, { model, mood: "tavern" });
-      const conversation = await getOrCreate(undefined, characterClass, pronouns);
+      const conversation = await getOrCreate(undefined, req.userId, characterClass, pronouns);
       await appendMessage(conversation.id, { role: "assistant", content: openingPhrase.display });
       const ttsCostUsd = recordTtsUsage(conversation.id, openingPhrase.text.length);
 
@@ -153,7 +154,7 @@ router.post(["/narrate", "/api/narrate"], async (req, res) => {
   }
 
   // Create conversation and store the assistant opening (stripped of TTS tags)
-  const conversation = await getOrCreate(undefined, characterClass, pronouns);
+  const conversation = await getOrCreate(undefined, req.userId, characterClass, pronouns);
   const cleanText = stripTTSTags(text);
   await appendMessage(conversation.id, { role: "assistant", content: cleanText });
 

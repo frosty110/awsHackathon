@@ -23,9 +23,15 @@ export const helmetMiddleware = helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "ws:", "wss:"],  // Allow WebSocket connections
       imgSrc: ["'self'", "data:"],
+      mediaSrc: ["'self'", "blob:"],           // Allow blob: URLs for audio/video
+      workerSrc: ["'self'", "blob:"],          // Allow blob: for web workers if any
     },
+  },
+  hsts: {
+    maxAge: 31536000,  // 1 year
+    includeSubDomains: true,
   },
 });
 

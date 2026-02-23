@@ -19,31 +19,24 @@ export type { ClientToServerEvents, ServerToClientEvents, SocketData };
 // Module-level io instance — set once during server init, used by route handlers
 let io: Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 
-// ─── H2: Per-socket sliding window rate limiter ──────────────────────────────
-const socketRateMap = new Map<string, number[]>();
+// ─── H2: Per-socket O(1) fixed-window rate limiter ───────────────────────────
+interface RateCounter {
+  count: number;
+  windowStart: number;
+}
+const socketRateMap = new Map<string, RateCounter>();
 const SOCKET_RATE_LIMIT = 30; // max events per window
 const SOCKET_RATE_WINDOW_MS = 10_000; // 10 seconds
 
 function checkSocketRate(socketId: string): boolean {
   const now = Date.now();
-  const cutoff = now - SOCKET_RATE_WINDOW_MS;
-  let timestamps = socketRateMap.get(socketId);
-  if (!timestamps) {
-    timestamps = [];
-    socketRateMap.set(socketId, timestamps);
+  let counter = socketRateMap.get(socketId);
+  if (!counter || now - counter.windowStart >= SOCKET_RATE_WINDOW_MS) {
+    counter = { count: 0, windowStart: now };
+    socketRateMap.set(socketId, counter);
   }
-  // Evict timestamps outside the window
-  let staleCount = 0;
-  while (staleCount < timestamps.length && timestamps[staleCount] < cutoff) {
-    staleCount++;
-  }
-  if (staleCount > 0) timestamps.splice(0, staleCount);
-  // Check limit
-  if (timestamps.length >= SOCKET_RATE_LIMIT) {
-    return false; // Over limit
-  }
-  timestamps.push(now);
-  return true;
+  counter.count++;
+  return counter.count <= SOCKET_RATE_LIMIT;
 }
 
 /**

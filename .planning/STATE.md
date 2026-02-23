@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-20)
+See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 19 (Code Review Bug Fixes Wave 3) — Plans 01-02 complete (2/2). All 10 findings fixed.
+**Current focus:** v1.0 MVP shipped. Planning next milestone.
 
 ## Current Position
 
-Phase: Phase 19 (Code Review Bug Fixes Wave 3) — ALL plans complete (01-02). Verified.
-Plan: Phase 19 complete.
-Status: All 10 code review findings fixed in 2 plans: auth hardening + in-memory duplicate check (19-01), codebase cleanup — Zod sanitization, Socket.IO auth flip, LRU cache, Neo4j labels, dead code removal, config cleanup, client TTS abort (19-02). TypeScript compiles clean, all 53 tests pass.
-Last activity: 2026-02-23 — Completed Phase 19: Code Review Bug Fixes Wave 3
+Phase: v1.0 complete — all 19 phases shipped.
+Plan: Milestone archived. Next: `/gsd:new-milestone`
+Status: v1.0 MVP shipped 2026-02-23. 19 phases, 52 plans, 288 commits, 16,722 LOC TypeScript.
+Last activity: 2026-02-23 — Completed v1.0 MVP milestone
 
-Progress: [██████████] 100%
+Progress: [██████████] 100% (v1.0)
 
 ## Performance Metrics
 

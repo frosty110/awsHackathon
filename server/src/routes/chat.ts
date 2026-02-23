@@ -3,10 +3,8 @@ import { streamBedrockResponse } from "../services/bedrock.js";
 import {
   getOrCreate,
   appendMessage,
-  getWindowedHistory,
-  getCharacterClass,
-  getPronouns,
   ConversationOwnershipError,
+  type Conversation,
 } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
 import { recordBedrockUsage } from "../services/usageTracker.js";
@@ -73,7 +71,7 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
     return;
   }
 
-  let conversation;
+  let conversation: Conversation;
   try {
     conversation = await getOrCreate(body.conversationId, req.userId, characterClass, pronouns);
   } catch (err) {
@@ -84,8 +82,12 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
     throw err;
   }
 
-  // Always store user message in conversation history
-  await appendMessage(conversation.id, { role: "user", content: message });
+  // Always store user message in conversation history (Redis + local object)
+  const userMessage = { role: "user" as const, content: message };
+  await appendMessage(conversation.id, userMessage);
+  // Also update local copy so conversation.history.slice() below is accurate
+  conversation.history.push(userMessage);
+  if (conversation.history.length > 100) conversation.history = conversation.history.slice(-100);
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -102,10 +104,26 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
     activeSSEStreams.delete(res);
   });
 
-  // First event sends conversationId so client can track the session
-  res.write(`data: ${JSON.stringify({ conversationId: conversation.id })}\n\n`);
+  // SSE helper: checks res.write() return value for backpressure.
+  // Returns false when the TCP send buffer is full (slow client).
+  // The Bedrock stream is short-lived enough that kernel buffering handles
+  // temporary backup — we log but continue rather than doing a risky async
+  // callback refactor of the moodStreamDetector sync callback chain.
+  function checkedWrite(data: unknown): boolean {
+    if (clientDisconnected) return false;
+    const ok = res.write(`data: ${JSON.stringify(data)}\n\n`);
+    if (!ok) {
+      logEvent("warn", "chat.sse_backpressure", { conversationId: conversation.id });
+    }
+    return ok;
+  }
 
-  const history = await getWindowedHistory(conversation.id);
+  // First event sends conversationId so client can track the session
+  checkedWrite({ conversationId: conversation.id });
+
+  // Use local conversation object for windowed history — we already have the full
+  // history from getOrCreate + appendMessage(user), so no extra Redis read needed.
+  const history = conversation.history.slice(-12);
 
   let fullText = "";
   let streamErrored = false;
@@ -115,11 +133,13 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
   try {
     // RAG: extract entities from user message and retrieve matching lore
     const loreContext = await buildLoreContext(message);
-    const resolvedClass = characterClass || (await getCharacterClass(conversation.id));
-    const resolvedPronouns = pronouns || (await getPronouns(conversation.id));
+    // Read characterClass and pronouns from local conversation object instead
+    // of making separate Redis calls (saves 2 round-trips per chat turn).
+    const resolvedClass = characterClass || conversation.characterClass;
+    const resolvedPronouns = pronouns || conversation.pronouns;
     const detector = createMoodStreamDetector(
-      (mood) => { if (!clientDisconnected) res.write(`data: ${JSON.stringify({ moodChange: mood })}\n\n`); },
-      (text) => { if (!clientDisconnected) res.write(`data: ${JSON.stringify({ text })}\n\n`); },
+      (mood) => { checkedWrite({ moodChange: mood }); },
+      (text) => { checkedWrite({ text }); },
     );
     const result = await queueBedrockCall(() =>
       streamBedrockResponse(
@@ -157,12 +177,7 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
         userError = "Too many adventurers! The Dungeon Master is overwhelmed. Please try again shortly.";
       }
     }
-    res.write(
-      `data: ${JSON.stringify({
-        error: userError,
-        requestId,
-      })}\n\n`
-    );
+    checkedWrite({ error: userError, requestId });
   }
 
   // M1: If client disconnected during streaming, skip final writes
@@ -174,12 +189,10 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
     if (!streamErrored && fullText) {
       const [mood] = extractMood(fullText);
       const [scene] = extractScene(fullText);
-      res.write(`data: ${JSON.stringify({ ttsText: fullText, mood: mood ?? undefined, scene: scene ?? undefined })}\n\n`);
+      checkedWrite({ ttsText: fullText, mood: mood ?? undefined, scene: scene ?? undefined });
 
       const costUsd = recordBedrockUsage(conversation.id, "chat", inputTokens, outputTokens);
-      res.write(`data: ${JSON.stringify({
-        usage: { inputTokens, outputTokens, costUsd, model: "bedrock-haiku", feature: "chat" },
-      })}\n\n`);
+      checkedWrite({ usage: { inputTokens, outputTokens, costUsd, model: "bedrock-haiku", feature: "chat" } });
     }
 
     res.write("data: [DONE]\n\n");

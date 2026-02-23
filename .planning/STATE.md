@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 17 (Code Review Bug Fixes Wave 1) COMPLETE — All plans done (03/03). Verified 18/18.
+**Current focus:** Phase 18 (Code Review Bug Fixes Wave 2) IN PROGRESS — Plan 03/10 complete.
 
 ## Current Position
 
-Phase: Phase 17 (Code Review Bug Fixes Wave 1) — ALL plans complete (01, 02, 03). Verified.
-Plan: Phase 17 complete.
-Status: All 17 code review findings fixed: auth enforcement on 6 game routes (C-1), JWT HS256 pinning on sign+verify (H-1), Socket.IO reconnection auth (H-2), dice:roll validation (H-3), emoji Unicode allowlist (H-4), graceful shutdown (H-7), S3 null check (H-8), post-stream try/catch (H-9), DM idempotency (H-10), room deletion cleanup (H-13), narrate sanitization (H-15), password policy (M-3), health uptime removal (M-6), request-id validation (M-7), conversationId UUID validation (M-8), Bedrock threshold 50 (M-9), Neo4j 5s timeout (M-12). TypeScript compiles clean, all 48 tests pass.
-Last activity: 2026-02-22 — Completed Phase 17: Code Review Bug Fixes Wave 1
+Phase: Phase 18 (Code Review Bug Fixes Wave 2) — Plan 03 complete.
+Plan: 18-03 complete (LRU byte-budget caches for TTS/video/music).
+Status: Phase 18 in progress. Plan 03 done: TTS cache (100MB LRU, 30-min TTL), video cache (500MB LRU, 1-hr TTL), music cache (200MB LRU, 1-hr TTL). Server memory bounded. 53 tests pass.
+Last activity: 2026-02-22 — Completed Phase 18-03: LRU byte-budget caches
 
 Progress: [██████████] 100%
 
@@ -44,6 +44,7 @@ Progress: [██████████] 100%
 | 15-client-polling-optimization | 1/1 | ✅ Complete |
 | 16-generation-observability | 1/1 | ✅ Complete |
 | 17-code-review-bug-fixes-wave-1 | 3/3 | ✅ Complete |
+| 18-code-review-bug-fixes-wave-2 | 3/10 | 🔄 In Progress |
 
 **Quick Tasks:** 5/5 complete (TTS optimization, chat styling, pronouns, gender, code review fixes)
 
@@ -81,6 +82,8 @@ Progress: [██████████] 100%
 | Phase 17-01 P01 | 2 | 2 tasks | 4 files |
 | Phase 17-code-review-bug-fixes-wave-1 P03 | 5 | 2 tasks | 3 files |
 | Phase 17-code-review-bug-fixes-wave-1 P02 | 2 | 2 tasks | 8 files |
+| Phase 18-code-review-bug-fixes-wave-2 P03 | 8 | 2 tasks | 5 files |
+| Phase 18 P10 | 6 | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -188,6 +191,11 @@ Recent decisions affecting current work:
 - [Phase 17-02]: Neo4j timeout uses transactionConfig: { timeout: 5000 } inside QueryConfig (not a top-level timeout field)
 - [Phase 17-02]: Emoji allowlist uses Unicode escape form for crossed swords to avoid editor normalization of variation selector-16
 - [Phase 17-02]: Bedrock queue threshold lowered to 50 (2.5x concurrency) — code review recommended 40-60 range
+- [Phase 18-03]: lru-cache@11 used for byte-budget caching: maxSize+sizeCalculation API prevents server OOM at 1000 users; TTS 100MB, video 500MB, music 200MB budgets
+- [Phase 18-03]: Dual-cache separation pattern for video/music: LRUCache holds Buffers (byte-budget eviction), plain Map holds generation state metadata (generating/error/retryCount)
+- [Phase 18]: O(1) fixed-window counter for socket rate limiting: simpler, no array allocation, consistent O(1) per check
+- [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
+- [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
 
 ### Roadmap Evolution
 
@@ -198,6 +206,7 @@ Recent decisions affecting current work:
 - Phase 15 added: Client Polling Optimization — Exponential backoff and initial delays for music/video polling to reduce wasted requests by ~70%
 - Phase 16 added: Generation Observability & Log Hygiene — Progress logging for long-running generation tasks, dev-mode log noise reduction
 - Phase 17 added: Code Review Bug Fixes Wave 1 — Fix critical/high-severity bugs from comprehensive code review (auth enforcement, JWT pinning, input validation, error handling, graceful shutdown)
+- Phase 18 added: Code Review Bug Fixes Wave 2 — IDOR access control, client auth integration, memory safety, prompt injection hardening, Redis optimization, SSE backpressure, DmTurnService extraction, frontend memoization, and architectural improvements (42 findings from 4-agent comprehensive review)
 
 ### Pending Todos
 
@@ -233,5 +242,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 17-03-PLAN.md (graceful shutdown, DM idempotency, room deletion cleanup)
-Resume context: Phase 17 plan 03 complete. H-7 (graceful shutdown order: io.close first), H-10 (DM trigger idempotency guards), and H-13 (room deletion timer/stream cleanup) fixed in server/src/index.ts, server/src/sockets/turnHandlers.ts, and server/src/sockets/roomHandlers.ts. TypeScript clean, 48 tests pass.
+Stopped at: Completed 18-03-PLAN.md (TTS 100MB LRU, video 500MB LRU, music 200MB LRU — all three services use byte-budget eviction)
+Resume context: Phase 18 plan 03 complete. TTS cache replaced with LRUCache (100MB, 30-min TTL, evictStaleTTSEntries removed). Video and music services use dual-structure: LRUCache for Buffers + plain Map for generation state. sceneVideo route uses getVideoBuffer/hasVideoBuffer API. lru-cache@11.2.6 installed. 53 tests pass.

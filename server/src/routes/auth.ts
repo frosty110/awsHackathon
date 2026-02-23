@@ -9,17 +9,18 @@ import { getJwtSecret } from "../middleware/auth.js";
 const router = Router();
 
 // In-memory fallback when Redis is unavailable
-const inMemoryUsers: Array<{
-  userId: string;
-  username: string;
-  passwordHash: string;
-}> = [];
+type UserRecord = { userId: string; username: string; passwordHash: string };
+const inMemoryUsers = new Map<string, UserRecord>();
 
 // In-memory refresh token store (fallback when Redis is unavailable)
 const inMemoryRefreshTokens = new Map<string, { userId: string; username: string; expiresAt: number }>();
 
 // In-memory fallback for per-username login attempt tracking
-const inMemoryLoginAttempts = new Map<string, number>();
+interface LockoutRecord {
+  count: number;
+  firstAttemptAt: number;
+}
+const inMemoryLoginAttempts = new Map<string, LockoutRecord>();
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
 const PASSWORD_COMPLEXITY = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
@@ -71,36 +72,29 @@ router.post("/api/auth/register", async (req, res) => {
   }
 
   try {
-    // Check for existing username
-    if (isRedisAvailable()) {
-      const existing = await redisClient.hGetAll(`user:${username}`);
-      if (existing && existing.userId) {
-        res.status(409).json({ error: "Username already taken" });
-        return;
-      }
-    } else {
-      const existing = inMemoryUsers.find((u) => u.username === username);
-      if (existing) {
-        res.status(409).json({ error: "Username already taken" });
-        return;
-      }
-    }
-
     const passwordHash = await bcrypt.hash(password, 12);
     const userId = crypto.randomUUID();
 
     if (isRedisAvailable()) {
-      await redisClient.hSet(`user:${username}`, {
-        userId,
-        username,
-        passwordHash,
-      });
+      // Atomic: HSETNX returns false if the field already exists (another registration won the race)
+      const set = await redisClient.hSetNX(`user:${username}`, 'userId', userId);
+      if (!set) {
+        res.status(409).json({ error: "Username already taken" });
+        return;
+      }
+      // userId sentinel set successfully — write remaining fields
+      await redisClient.hSet(`user:${username}`, { username, passwordHash });
     } else {
+      // In-memory fallback: Map.has() check prevents silent overwrites
+      if (inMemoryUsers.has(username)) {
+        res.status(409).json({ error: "Username already taken" });
+        return;
+      }
       logEvent("warn", "auth.redis_unavailable", {
         fallback: "in-memory",
         action: "register",
       });
-      inMemoryUsers.push({ userId, username, passwordHash });
+      inMemoryUsers.set(username, { userId, username, passwordHash });
     }
 
     // Auto-login on registration: issue access + refresh tokens for immediate play
@@ -142,7 +136,16 @@ router.post("/api/auth/login", async (req, res) => {
       const raw = await redisClient.get(lockoutKey);
       attempts = raw ? parseInt(raw, 10) : 0;
     } else {
-      attempts = inMemoryLoginAttempts.get(username) ?? 0;
+      const record = inMemoryLoginAttempts.get(username);
+      if (record) {
+        const elapsed = (Date.now() - record.firstAttemptAt) / 1000;
+        if (elapsed >= LOCKOUT_DURATION_S) {
+          inMemoryLoginAttempts.delete(username);
+          attempts = 0;
+        } else {
+          attempts = record.count;
+        }
+      }
     }
 
     if (attempts >= MAX_LOGIN_ATTEMPTS) {
@@ -165,7 +168,7 @@ router.post("/api/auth/login", async (req, res) => {
         };
       }
     } else {
-      user = inMemoryUsers.find((u) => u.username === username);
+      user = inMemoryUsers.get(username);
     }
 
     if (!user) {
@@ -176,7 +179,11 @@ router.post("/api/auth/login", async (req, res) => {
         await redisClient.incr(lockoutKey);
         await redisClient.expire(lockoutKey, LOCKOUT_DURATION_S);
       } else {
-        inMemoryLoginAttempts.set(username, attempts + 1);
+        const existing = inMemoryLoginAttempts.get(username);
+        inMemoryLoginAttempts.set(username, {
+          count: (existing?.count ?? 0) + 1,
+          firstAttemptAt: existing?.firstAttemptAt ?? Date.now(),
+        });
       }
       res.status(401).json({ error: "Invalid credentials" });
       return;
@@ -189,7 +196,11 @@ router.post("/api/auth/login", async (req, res) => {
         await redisClient.incr(lockoutKey);
         await redisClient.expire(lockoutKey, LOCKOUT_DURATION_S);
       } else {
-        inMemoryLoginAttempts.set(username, attempts + 1);
+        const existing = inMemoryLoginAttempts.get(username);
+        inMemoryLoginAttempts.set(username, {
+          count: (existing?.count ?? 0) + 1,
+          firstAttemptAt: existing?.firstAttemptAt ?? Date.now(),
+        });
       }
       res.status(401).json({ error: "Invalid credentials" });
       return;
@@ -265,6 +276,31 @@ router.post("/api/auth/refresh", async (req, res) => {
   } catch (err) {
     logEvent("error", "auth.refresh_error", {}, err);
     res.status(500).json({ error: "Token refresh failed" });
+  }
+});
+
+/**
+ * POST /api/auth/logout
+ * Revoke a refresh token. No auth required (client may have expired access token).
+ * Idempotent — deleting a non-existent token is a no-op.
+ */
+router.post("/api/auth/logout", async (req, res) => {
+  const { refreshToken } = req.body ?? {};
+  if (typeof refreshToken !== "string" || !refreshToken) {
+    res.status(400).json({ error: "refreshToken required" });
+    return;
+  }
+
+  try {
+    if (isRedisAvailable()) {
+      await redisClient.del(`refresh:${refreshToken}`);
+    } else {
+      inMemoryRefreshTokens.delete(refreshToken);
+    }
+    res.status(200).json({ message: "logged out" });
+  } catch (err) {
+    logEvent("error", "auth.logout_error", {}, err);
+    res.status(500).json({ error: "Logout failed" });
   }
 });
 

@@ -243,6 +243,6 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 
 ## Session Continuity
 
-Last session: 2026-02-22
-Stopped at: Completed 18-10-PLAN.md (HSTS 1-yr, CSP ws:/blob:, O(1) socket rate limiter, logEvent in all sockets, tsyringe/reflect-metadata removed, _deps removed, _testInternals NODE_ENV gate, tsbuildinfo in .gitignore)
-Resume context: Phase 18 complete. All 10 plans done. Final plan 10: security headers hardened (HSTS + CSP), socket rate limiter now O(1), all socket handlers use logEvent, dead code removed, _testInternals gated. Also fixed pre-existing bug: narrate.ts was passing characterClass as userId to getOrCreate; conversationStore tests updated to 4-param API. 53 tests pass.
+Last session: 2026-02-23
+Stopped at: Completed 18-01-PLAN.md (IDOR conversation ownership, random dev JWT secret, /api/usage requireAuth)
+Resume context: Phase 18 plan 01 complete. P0 security fixes: userId ownership binding on Conversation type with ConversationOwnershipError (403 on cross-user access), migration path for legacy conversations, crypto.randomBytes(32) replaces hardcoded dev JWT secret, /api/usage enforced with requireAuth in both usage.ts and app.ts. 53 tests pass (5 new IDOR tests added).

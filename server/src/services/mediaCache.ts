@@ -1,4 +1,5 @@
 import { S3Client, GetObjectCommand, PutObjectCommand, ListObjectsV2Command, NoSuchKey } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createHash } from "node:crypto";
 import tracer from "dd-trace";
 import { config } from "./config.js";
@@ -84,6 +85,27 @@ export async function listKeys(prefix: string): Promise<string[]> {
   } while (continuationToken);
 
   return keys;
+}
+
+/**
+ * Generate a presigned URL for an S3 object.
+ * Returns null if the bucket is unconfigured or presigned URL generation fails.
+ * @param key - S3 object key
+ * @param expiresIn - URL expiry in seconds (default: 300 = 5 minutes)
+ */
+export async function getPresignedUrl(key: string, expiresIn = 300): Promise<string | null> {
+  if (!bucket) return null;
+  try {
+    const url = await getSignedUrl(
+      s3,
+      new GetObjectCommand({ Bucket: bucket, Key: key }),
+      { expiresIn }
+    );
+    return url;
+  } catch (err) {
+    console.error("[mediaCache] getPresignedUrl failed", err);
+    return null;
+  }
 }
 
 /**

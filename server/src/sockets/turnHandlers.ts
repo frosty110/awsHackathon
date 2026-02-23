@@ -13,14 +13,11 @@ import {
   getWindowedHistory,
 } from "../services/conversationStore.js";
 import { buildMultiplayerSystemPrompt } from "../services/bedrock.js";
-import { generateMultiVoiceTTS, extractMood } from "../services/tts.js";
+import { generateMultiVoiceTTS } from "../services/tts.js";
 import { sanitizeUserInput } from "../services/inputSanitizer.js";
 import { logEvent } from "../services/logger.js";
 import { executeDmTurn } from "../services/dmTurn.js";
-import { buildLoreContext } from "../services/rag.js";
-import { createMoodStreamDetector } from "../services/moodStreamDetector.js";
-import { queueBedrockCall } from "../services/bedrockQueue.js";
-import { streamBedrockResponse } from "../services/bedrock.js";
+import { put as s3Put, buildKey, getPresignedUrl } from "../services/mediaCache.js";
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -184,10 +181,17 @@ export async function triggerDMOpening(io: IO, roomCode: string): Promise<void> 
 
     // Async TTS — don't block game flow
     generateMultiVoiceTTS(turnResult.fullText, { model: "speech-2.8-hd" })
-      .then(({ audioBuffer }) => {
-        io.to(roomCode).emit("dm:tts-ready", {
-          audio: audioBuffer.toString("base64"),
-        });
+      .then(async ({ audioBuffer }) => {
+        // Upload to S3 and emit a presigned URL (5-minute expiry)
+        const ttsKey = buildKey("tts/multiplayer", `${roomCode}-${Date.now()}-opening`, "mp3");
+        await s3Put(ttsKey, audioBuffer, "audio/mpeg");
+        const audioUrl = await getPresignedUrl(ttsKey, 300);
+        if (audioUrl) {
+          io.to(roomCode).emit("dm:tts-ready", { audioUrl });
+        } else {
+          // S3 unconfigured — fall back to base64 (dev mode)
+          io.to(roomCode).emit("dm:tts-ready", { audio: audioBuffer.toString("base64") });
+        }
       })
       .catch((err) => {
         logEvent("error", "turnHandlers.dm_tts_failed", { stage: "opening" }, err);
@@ -264,10 +268,17 @@ export async function triggerDMResponse(io: IO, roomCode: string): Promise<void>
 
     // Async TTS — don't block game flow
     generateMultiVoiceTTS(turnResult.fullText, { model: "speech-2.8-turbo" })
-      .then(({ audioBuffer }) => {
-        io.to(roomCode).emit("dm:tts-ready", {
-          audio: audioBuffer.toString("base64"),
-        });
+      .then(async ({ audioBuffer }) => {
+        // Upload to S3 and emit a presigned URL (5-minute expiry)
+        const ttsKey = buildKey("tts/multiplayer", `${roomCode}-${Date.now()}-turn`, "mp3");
+        await s3Put(ttsKey, audioBuffer, "audio/mpeg");
+        const audioUrl = await getPresignedUrl(ttsKey, 300);
+        if (audioUrl) {
+          io.to(roomCode).emit("dm:tts-ready", { audioUrl });
+        } else {
+          // S3 unconfigured — fall back to base64 (dev mode)
+          io.to(roomCode).emit("dm:tts-ready", { audio: audioBuffer.toString("base64") });
+        }
       })
       .catch((err) => {
         logEvent("error", "turnHandlers.dm_tts_failed", { stage: "turn" }, err);

@@ -19,7 +19,7 @@ export interface ServerToClientEvents {
   "dm:chunk": (data: { text: string }) => void;
   "dm:stream-end": (data: { fullText: string; mood?: string }) => void;
   "dm:mood-change": (data: { mood: string }) => void;
-  "dm:tts-ready": (data: { audio: string }) => void;
+  "dm:tts-ready": (data: { audio?: string; audioUrl?: string }) => void;
   "dm:error": (data: { message: string }) => void;
   "chat:message": (data: ChatMessagePayload) => void;
   "chat:reaction": (data: {

@@ -2,7 +2,8 @@ import { Router } from "express";
 import tracer from "dd-trace";
 import { config } from "../services/config.js";
 import { logEvent } from "../services/logger.js";
-import { getOrCreateEntry, startGeneration, tryLoadFromS3, getVideoBuffer, hasVideoBuffer } from "../services/videoGenerator.js";
+import { getOrCreateEntry, startGeneration, tryLoadFromS3, getVideoBuffer, hasVideoBuffer, buildVideoS3Key } from "../services/videoGenerator.js";
+import { getPresignedUrl } from "../services/mediaCache.js";
 import { type SceneId, VALID_SCENES } from "@ai-dm/shared-types";
 
 const router = Router();
@@ -39,6 +40,15 @@ router.get("/api/scene-video", async (req, res) => {
       scene,
       videoSizeBytes: videoBuffer.length,
     });
+
+    // Serve via S3 presigned URL redirect to offload bandwidth from Express (criterion 28)
+    const videoUrl = await getPresignedUrl(buildVideoS3Key(scene), 600); // 10-minute URL for video
+    if (videoUrl) {
+      res.redirect(302, videoUrl);
+      return;
+    }
+
+    // Fallback: serve through Express if presigned URL fails (S3 unconfigured)
     res.setHeader("Content-Type", "video/mp4");
     res.setHeader("Content-Length", videoBuffer.length);
     res.setHeader("Cache-Control", "public, max-age=86400");

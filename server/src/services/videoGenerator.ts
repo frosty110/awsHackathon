@@ -48,7 +48,7 @@ export function getSceneVideoStats() {
   };
 }
 
-function buildVideoS3Key(scene: SceneId): string {
+export function buildVideoS3Key(scene: SceneId): string {
   return buildKey("video/v1", `video-01|${scene}|${SCENE_PROMPTS[scene]}`, "mp4");
 }
 

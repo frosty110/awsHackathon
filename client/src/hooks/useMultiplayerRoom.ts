@@ -178,23 +178,32 @@ export function useMultiplayerRoom(): UseMultiplayerRoomReturn {
       if (payload.mood) void changeMood(payload.mood);
     }
 
-    function onDmTtsReady(payload: { audio: string }) {
+    function onDmTtsReady(payload: { audio?: string; audioUrl?: string }) {
       try {
-        const binaryString = atob(payload.audio);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+        let audio: HTMLAudioElement;
+        if ('audioUrl' in payload && payload.audioUrl) {
+          // S3 presigned URL — fetch directly (no base64 inflation)
+          audio = new Audio(payload.audioUrl);
+        } else if ('audio' in payload && payload.audio) {
+          // Base64 fallback (dev mode without S3)
+          const binaryString = atob(payload.audio);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const blob = new Blob([bytes], { type: 'audio/mpeg' });
+          const url = URL.createObjectURL(blob);
+          // Track URL for cleanup on unmount
+          objectUrlsRef.current.push(url);
+          audio = new Audio(url);
+          audio.addEventListener('ended', () => {
+            URL.revokeObjectURL(url);
+            // Remove from tracking list since it was already revoked
+            objectUrlsRef.current = objectUrlsRef.current.filter(u => u !== url);
+          });
+        } else {
+          return;
         }
-        const blob = new Blob([bytes], { type: 'audio/mpeg' });
-        const url = URL.createObjectURL(blob);
-        // Track URL for cleanup on unmount
-        objectUrlsRef.current.push(url);
-        const audio = new Audio(url);
-        audio.addEventListener('ended', () => {
-          URL.revokeObjectURL(url);
-          // Remove from tracking list since it was already revoked
-          objectUrlsRef.current = objectUrlsRef.current.filter(u => u !== url);
-        });
         playAudio(audio);
       } catch (err) {
         console.error('[useMultiplayerRoom] failed to play TTS audio', err);

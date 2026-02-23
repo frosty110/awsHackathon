@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
@@ -14,12 +15,33 @@ const inMemoryUsers: Array<{
   passwordHash: string;
 }> = [];
 
+// In-memory refresh token store (fallback when Redis is unavailable)
+const inMemoryRefreshTokens = new Map<string, { userId: string; username: string; expiresAt: number }>();
+
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
+
+/** Issue a new refresh token and store it (Redis or in-memory fallback) */
+async function issueRefreshToken(userId: string, username: string): Promise<string> {
+  const refreshToken = crypto.randomBytes(32).toString("hex");
+  const refreshData = JSON.stringify({ userId, username });
+
+  if (isRedisAvailable()) {
+    await redisClient.set(`refresh:${refreshToken}`, refreshData, { EX: 7 * 24 * 60 * 60 }); // 7 days
+  } else {
+    inMemoryRefreshTokens.set(refreshToken, {
+      userId,
+      username,
+      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    });
+  }
+
+  return refreshToken;
+}
 
 /**
  * POST /api/auth/register
  * Register a new user with username/password.
- * Returns 201 { message, userId, username } on success.
+ * Returns 201 { message, token, refreshToken, userId, username } on success.
  */
 router.post("/api/auth/register", async (req, res) => {
   const { username, password } = req.body ?? {};
@@ -70,8 +92,16 @@ router.post("/api/auth/register", async (req, res) => {
       inMemoryUsers.push({ userId, username, passwordHash });
     }
 
+    // Auto-login on registration: issue access + refresh tokens for immediate play
+    const token = jwt.sign(
+      { userId, username },
+      getJwtSecret(),
+      { algorithm: "HS256", expiresIn: "15m" }
+    );
+    const refreshToken = await issueRefreshToken(userId, username);
+
     logEvent("info", "auth.register_success", { username });
-    res.status(201).json({ message: "registered", userId, username });
+    res.status(201).json({ message: "registered", token, refreshToken, userId, username });
   } catch (err) {
     logEvent("error", "auth.register_error", { username }, err);
     res.status(500).json({ error: "Registration failed" });
@@ -81,7 +111,7 @@ router.post("/api/auth/register", async (req, res) => {
 /**
  * POST /api/auth/login
  * Authenticate with username/password, returns JWT.
- * Returns 200 { token, userId, username } on success.
+ * Returns 200 { token, refreshToken, userId, username } on success.
  * Returns 401 { error } without leaking which field was wrong.
  */
 router.post("/api/auth/login", async (req, res) => {
@@ -126,14 +156,66 @@ router.post("/api/auth/login", async (req, res) => {
     const token = jwt.sign(
       { userId: user.userId, username: user.username },
       getJwtSecret(),
-      { algorithm: "HS256", expiresIn: "7d" }
+      { algorithm: "HS256", expiresIn: "15m" }
     );
+    const refreshToken = await issueRefreshToken(user.userId, user.username);
 
     logEvent("info", "auth.login_success", { username });
-    res.status(200).json({ token, userId: user.userId, username: user.username });
+    res.status(200).json({ token, refreshToken, userId: user.userId, username: user.username });
   } catch (err) {
     logEvent("error", "auth.login_error", { username }, err);
     res.status(500).json({ error: "Login failed" });
+  }
+});
+
+/**
+ * POST /api/auth/refresh
+ * Exchange a valid refresh token for a new access token + rotated refresh token.
+ * Returns 200 { token, refreshToken } on success.
+ * Returns 401 if the refresh token is invalid or expired.
+ */
+router.post("/api/auth/refresh", async (req, res) => {
+  const { refreshToken } = req.body ?? {};
+  if (typeof refreshToken !== "string" || !refreshToken) {
+    res.status(400).json({ error: "refreshToken required" });
+    return;
+  }
+
+  try {
+    let userData: { userId: string; username: string } | null = null;
+
+    if (isRedisAvailable()) {
+      const raw = await redisClient.get(`refresh:${refreshToken}`);
+      if (raw) {
+        userData = JSON.parse(raw) as { userId: string; username: string };
+        // Rotate: delete old refresh token
+        await redisClient.del(`refresh:${refreshToken}`);
+      }
+    } else {
+      const entry = inMemoryRefreshTokens.get(refreshToken);
+      if (entry && entry.expiresAt > Date.now()) {
+        userData = { userId: entry.userId, username: entry.username };
+        inMemoryRefreshTokens.delete(refreshToken);
+      }
+    }
+
+    if (!userData) {
+      res.status(401).json({ error: "Invalid or expired refresh token" });
+      return;
+    }
+
+    // Issue new access token + new refresh token (rotation)
+    const newAccessToken = jwt.sign(
+      { userId: userData.userId, username: userData.username },
+      getJwtSecret(),
+      { algorithm: "HS256", expiresIn: "15m" }
+    );
+    const newRefreshToken = await issueRefreshToken(userData.userId, userData.username);
+
+    res.json({ token: newAccessToken, refreshToken: newRefreshToken });
+  } catch (err) {
+    logEvent("error", "auth.refresh_error", {}, err);
+    res.status(500).json({ error: "Token refresh failed" });
   }
 });
 

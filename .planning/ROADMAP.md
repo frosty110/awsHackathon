@@ -337,6 +337,72 @@ Plans:
 - [x] 17-02-PLAN.md — Input validation and error handling: dice:roll (H-3), emoji allowlist (H-4), S3 null check (H-8), post-stream try/catch (H-9), narrate sanitization (H-15), health uptime (M-6), request-id validation (M-7), narrate conversationId (M-8), Bedrock threshold (M-9), Neo4j timeout (M-12)
 - [x] 17-03-PLAN.md — Graceful shutdown (H-7), DM trigger idempotency (H-10), room deletion cleanup (H-13)
 
+### Phase 18: Code Review Bug Fixes Wave 2 — IDOR, Client Auth, Memory Safety, Prompt Injection, Performance
+
+**Goal:** Fix all remaining findings from the comprehensive 4-agent code review (security, performance, architecture, code quality) not addressed by Phase 17. Covers IDOR access control, client auth integration, memory safety, prompt injection hardening, Redis optimization, and architectural improvements for ~1000 concurrent users.
+**Depends on:** Phase 17
+**Source:** Comprehensive 4-agent review (security auditor, performance engineer, architecture reviewer, code quality reviewer) — 2026-02-22
+**Success Criteria** (what must be TRUE):
+  CRITICAL (P0 — fix before any deployment):
+  1. Conversations bound to userId — accessing another user's conversationId returns 403 (IDOR fix)
+  2. Dev JWT secret is randomly generated at startup, not a hardcoded string in source
+  3. Client sends Authorization: Bearer token on all /api/chat and /api/narrate requests
+  4. Music and video in-memory caches have byte-size limits and LRU/TTL eviction
+  HIGH (P1 — fix before scale to 1000 users):
+  5. Socket.IO rejects unauthenticated connections in production
+  6. inputSanitizer strips unicode control chars, zero-width chars; characterClass/pronouns validated against allowlist
+  7. SSE stream respects backpressure (checks res.write() return, pauses on false)
+  8. Chat route holds conversation in local variable, writes to Redis once (not 9 round-trips)
+  9. JWT access token expiry reduced; refresh token flow implemented
+  10. Multiplayer TTS audio served via S3 signed URLs (not base64 over Socket.IO)
+  11. Shared DmTurnService extracted from chat.ts and turnHandlers.ts
+  12. /api/usage endpoint requires authentication
+  MEDIUM (P2):
+  13. Character class enums unified in @ai-dm/shared-types (client and server match)
+  14. Per-username account lockout after N failed login attempts
+  15. Express trust proxy configured for deployment behind reverse proxy
+  16. Conversation store in-memory fallback wrapped in withLock
+  17. /api/narrate has overall 60s request timeout
+  18. Graceful shutdown drains active SSE streams before closing
+  19. Zod request validation on route bodies
+  20. Dual route paths standardized to /api/ prefix only
+  21. MessageBubble wrapped in React.memo with useMemo for content
+  22. Multiplayer TTS Object URL cleanup on unmount/error
+  23. React.lazy code splitting for multiplayer components
+  24. isSystemTrigger removed from client control or restricted
+  25. Bedrock queue has 15s wait timeout
+  26. Redis conversation data validated with Zod after JSON.parse
+  27. Password complexity requirements beyond length
+  28. Large media (video) served from S3 via signed URLs, not through Express
+  LOW (P3):
+  29. All console.log/error calls replaced with logEvent()
+  30. UUID regex extracted to shared validation utility
+  31. Generic TieredCache<T> replaces 4 copy-pasted cache implementations
+  32. Unused _deps parameter removed from createApp()
+  33. Unused tsyringe + reflect-metadata removed from dependencies
+  34. Mixed lockfiles resolved (single package manager)
+  35. tsconfig.tsbuildinfo added to .gitignore
+  36. bcrypt timing attack dummy uses valid pre-computed hash
+  37. HSTS explicitly configured in Helmet
+  38. CSP updated for WebSocket and media blob URLs
+  39. DM_SYSTEM_PROMPT moved to dedicated content file
+  40. _testInternals removed from production exports
+  41. Client-side test infrastructure added (Vitest + Testing Library)
+  42. Socket rate limiter changed from O(n) splice to O(1) counter
+**Plans:** 10 plans
+
+Plans:
+- [ ] 18-01-PLAN.md — P0 security: IDOR conversation ownership binding, random dev JWT secret, /api/usage auth enforcement
+- [ ] 18-02-PLAN.md — Prompt injection hardening: inputSanitizer unicode/role-tag expansion, characterClass allowlist, Socket.IO production auth, isSystemTrigger removal, bcrypt dummy hash
+- [ ] 18-03-PLAN.md — Memory safety: lru-cache byte-budget LRU for TTS (100MB), video (500MB), and music (200MB) caches
+- [ ] 18-04-PLAN.md — Redis optimization + SSE backpressure: GETEX replacing GET+EXPIRE, local conversation variable, res.write() backpressure check
+- [ ] 18-05-PLAN.md — Client auth integration: server refresh token flow (15m access + 7d refresh), login/register UI, Bearer headers on all API calls, Socket.IO auth token
+- [ ] 18-06-PLAN.md — Architecture extraction: DmTurnService from chat.ts/turnHandlers.ts, S3 signed URLs for multiplayer TTS
+- [ ] 18-07-PLAN.md — Server hardening P2: trust proxy, /api/-only route standardization, Bedrock queue 15s timeout, narrate 60s timeout, SSE stream drain on shutdown
+- [ ] 18-08-PLAN.md — Validation hardening: password complexity, per-username lockout, Zod on chat/narrate bodies, Zod on Redis conversation data
+- [ ] 18-09-PLAN.md — Frontend performance: React.memo MessageBubble, TTS Object URL cleanup, React.lazy code splitting, shared CHARACTER_CLASS_IDS
+- [ ] 18-10-PLAN.md — P3 cleanup: HSTS + CSP update, O(1) socket rate limiter, logEvent everywhere, remove _deps/tsyringe, .gitignore tsbuildinfo, gate _testInternals
+
 ---
 
 ## Progress
@@ -348,20 +414,21 @@ Note: Phases 2 and 3 depend only on Phase 1 and can be worked on simultaneously 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Scaffold | 3/3 | ✅ Complete | 2026-02-20 |
-| 2. Chat UI | 2/2 | ✅ Complete | 2026-02-20 |
-| 3. Lore Graph Seed | 2/2 | ✅ Complete | 2026-02-20 |
-| 4. Bedrock Chat Core | 2/2 | ✅ Complete | 2026-02-20 |
-| 5. RAG Pipeline | 2/2 | ✅ Complete | 2026-02-20 |
-| 6. Datadog Observability | 2/2 | ✅ Complete | 2026-02-20 |
-| 7. Voice + Demo Polish | 3/3 | ✅ Complete | 2026-02-20 |
-| 8. Multiplayer Mode | 5/5 | ✅ Complete | 2026-02-21 |
-| 9. Scale & Auth | 3/3 | ✅ Complete | 2026-02-21 |
-| 10. S3 Audio Cache | 1/1 | ✅ Complete | 2026-02-21 |
-| 11. Architecture Audit | 6/6 | ✅ Complete | 2026-02-21 |
-| 12. Production Hardening | 2/2 | ✅ Complete | 2026-02-21 |
-| 13. Dead Code Cleanup | 1/1 | ✅ Complete | 2026-02-21 |
-| 14. Parallel TTS Processing | 1/1 | ✅ Complete | 2026-02-21 |
-| 15. Client Polling Optimization | 1/1 | ✅ Complete | 2026-02-22 |
-| 16. Generation Observability & Log Hygiene | 1/1 | ✅ Complete | 2026-02-22 |
-| 17. Code Review Bug Fixes Wave 1 | 3/3 | ✅ Complete | 2026-02-22 |
+| 1. Scaffold | 3/3 | Complete | 2026-02-20 |
+| 2. Chat UI | 2/2 | Complete | 2026-02-20 |
+| 3. Lore Graph Seed | 2/2 | Complete | 2026-02-20 |
+| 4. Bedrock Chat Core | 2/2 | Complete | 2026-02-20 |
+| 5. RAG Pipeline | 2/2 | Complete | 2026-02-20 |
+| 6. Datadog Observability | 2/2 | Complete | 2026-02-20 |
+| 7. Voice + Demo Polish | 3/3 | Complete | 2026-02-20 |
+| 8. Multiplayer Mode | 5/5 | Complete | 2026-02-21 |
+| 9. Scale & Auth | 3/3 | Complete | 2026-02-21 |
+| 10. S3 Audio Cache | 1/1 | Complete | 2026-02-21 |
+| 11. Architecture Audit | 6/6 | Complete | 2026-02-21 |
+| 12. Production Hardening | 2/2 | Complete | 2026-02-21 |
+| 13. Dead Code Cleanup | 1/1 | Complete | 2026-02-21 |
+| 14. Parallel TTS Processing | 1/1 | Complete | 2026-02-21 |
+| 15. Client Polling Optimization | 1/1 | Complete | 2026-02-22 |
+| 16. Generation Observability & Log Hygiene | 1/1 | Complete | 2026-02-22 |
+| 17. Code Review Bug Fixes Wave 1 | 3/3 | Complete | 2026-02-22 |
+| 18. Code Review Bug Fixes Wave 2 | 0/10 | Planned | -- |

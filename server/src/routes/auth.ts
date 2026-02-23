@@ -18,7 +18,14 @@ const inMemoryUsers: Array<{
 // In-memory refresh token store (fallback when Redis is unavailable)
 const inMemoryRefreshTokens = new Map<string, { userId: string; username: string; expiresAt: number }>();
 
+// In-memory fallback for per-username login attempt tracking
+const inMemoryLoginAttempts = new Map<string, number>();
+
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
+const PASSWORD_COMPLEXITY = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_S = 900; // 15 minutes
 
 /** Issue a new refresh token and store it (Redis or in-memory fallback) */
 async function issueRefreshToken(userId: string, username: string): Promise<string> {
@@ -56,6 +63,10 @@ router.post("/api/auth/register", async (req, res) => {
   }
   if (typeof password !== "string" || password.length < 8 || password.length > 128) {
     res.status(400).json({ error: "Password must be 8-128 characters" });
+    return;
+  }
+  if (!PASSWORD_COMPLEXITY.test(password)) {
+    res.status(400).json({ error: "Password must contain uppercase, lowercase, and a digit" });
     return;
   }
 
@@ -123,6 +134,23 @@ router.post("/api/auth/login", async (req, res) => {
   }
 
   try {
+    // Per-username lockout check — before any password validation
+    const lockoutKey = `login-attempts:${username}`;
+    let attempts = 0;
+
+    if (isRedisAvailable()) {
+      const raw = await redisClient.get(lockoutKey);
+      attempts = raw ? parseInt(raw, 10) : 0;
+    } else {
+      attempts = inMemoryLoginAttempts.get(username) ?? 0;
+    }
+
+    if (attempts >= MAX_LOGIN_ATTEMPTS) {
+      logEvent("warn", "auth.account_locked", { username });
+      res.status(429).json({ error: "Account temporarily locked. Try again later." });
+      return;
+    }
+
     let user:
       | { userId: string; username: string; passwordHash: string }
       | undefined;
@@ -143,14 +171,35 @@ router.post("/api/auth/login", async (req, res) => {
     if (!user) {
       // Valid pre-computed hash for constant-time comparison (prevents username enumeration)
       await bcrypt.compare(password, "$2b$12$eImiTXuWVxfM37uY4JANjQ.GCQPekzNaZMbLLCe6ib7TRF7bBm4TK");
+      // Increment lockout counter even for unknown usernames to prevent enumeration via lockout timing
+      if (isRedisAvailable()) {
+        await redisClient.incr(lockoutKey);
+        await redisClient.expire(lockoutKey, LOCKOUT_DURATION_S);
+      } else {
+        inMemoryLoginAttempts.set(username, attempts + 1);
+      }
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }
 
     const passwordMatch = await bcrypt.compare(password, user.passwordHash);
     if (!passwordMatch) {
+      // Increment lockout counter on failed password
+      if (isRedisAvailable()) {
+        await redisClient.incr(lockoutKey);
+        await redisClient.expire(lockoutKey, LOCKOUT_DURATION_S);
+      } else {
+        inMemoryLoginAttempts.set(username, attempts + 1);
+      }
       res.status(401).json({ error: "Invalid credentials" });
       return;
+    }
+
+    // Successful login — clear lockout counter
+    if (isRedisAvailable()) {
+      await redisClient.del(lockoutKey);
+    } else {
+      inMemoryLoginAttempts.delete(username);
     }
 
     const token = jwt.sign(

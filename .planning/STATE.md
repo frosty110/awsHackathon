@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 18 (Code Review Bug Fixes Wave 2) — Plans 05 complete; plans 06, 08, 09 pending.
+**Current focus:** Phase 18 (Code Review Bug Fixes Wave 2) — All 10 plans complete.
 
 ## Current Position
 
 Phase: Phase 18 (Code Review Bug Fixes Wave 2)
-Plan: 18-05 complete. Next: 18-06.
-Status: Plan 05 done: 15m access tokens, refresh token endpoint with rotation (Redis + in-memory fallback), client auth utility with localStorage, LoginForm, Bearer headers on /api/chat and /api/narrate, 401 retry, Socket.IO auth handshake. 53 tests pass.
-Last activity: 2026-02-23 — Completed Phase 18-05: Client auth integration + JWT refresh rotation
+Plan: 18-09 complete. All plans in Phase 18 done.
+Status: Plan 09 done: React.memo on MessageBubble, TTS Object URL lifecycle cleanup via useRef, React.lazy code-splitting for multiplayer components, CHARACTER_CLASS_IDS unified in shared-types for client and server.
+Last activity: 2026-02-23 — Completed Phase 18-09: Frontend performance + shared character class enums
 
 Progress: [██████████] 100%
 
@@ -87,6 +87,7 @@ Progress: [██████████] 100%
 | Phase 18 P01 | 7 | 2 tasks | 7 files |
 | Phase 18 P02 | 7 | 2 tasks | 3 files |
 | Phase 18-code-review-bug-fixes-wave-2 P04 | 8 | 2 tasks | 2 files |
+| Phase 18 P09 | 3 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -204,6 +205,10 @@ Recent decisions affecting current work:
 - [Phase 18-02]: Socket.IO dev mode stays permissive — forcing auth in dev would break local development without JWT infrastructure; production strict
 - [Phase 18-07]: AbortController with setTimeout for per-request timeout budget in narrate.ts — wraps individual code paths, clearTimeout in finally/returns
 - [Phase 18-07]: activeSSEStreams in separate module (activeStreams.ts) — avoids circular import between chat.ts (adds) and index.ts (drains on shutdown)
+- [Phase 18-09]: React.memo wraps MessageBubble; useMemo caches stripTTSTags/expandPhrasesForDisplay output — prevents re-renders on every keystroke in MessageInput
+- [Phase 18-09]: TTS Object URLs tracked in useRef<string[]> (not useState); revoked on audio ended event + all remaining on hook unmount — prevents memory leaks
+- [Phase 18-09]: React.lazy added export default to MultiplayerLobby/Game; named exports preserved; Suspense fallback shows "Loading multiplayer/game..." text
+- [Phase 18-09]: CHARACTER_CLASS_IDS as const array in shared-types; CharacterClassId = typeof array[number]; VALID_CHARACTER_CLASSES: Set<string> annotation allows .has() on arbitrary user input
 - [Phase 18-05]: inMemoryRefreshTokens Map as Redis fallback for refresh tokens — 7-day TTL via expiresAt, cleaned at lookup time
 - [Phase 18-05]: issueRefreshToken() helper centralizes Redis/in-memory dispatch — avoids duplication across login/register/refresh endpoints
 - [Phase 18-05]: Register auto-issues token + refreshToken — player starts playing immediately without separate login step
@@ -258,5 +263,5 @@ Mood-aware background music system spanning 12 files (+411/-153 lines):
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 18-05-PLAN.md (client auth integration, JWT refresh rotation, login form, Bearer headers)
-Resume context: Phase 18 plan 05 complete. Server: 15m JWT access tokens, POST /api/auth/refresh with rotation (Redis + in-memory fallback), register auto-issues tokens. Client: auth.ts utility with localStorage persistence, LoginForm component, authHeaders() on /api/chat + /api/narrate, 401 retry with refreshAccessToken(), Socket.IO auth callback. App gated behind login form. TypeScript compiles clean in both server/ and client/. 53 tests pass. Plans 06, 08, 09 still pending.
+Stopped at: Completed 18-09-PLAN.md (MessageBubble memoization, TTS Object URL cleanup, React.lazy code-splitting, shared CHARACTER_CLASS_IDS)
+Resume context: Phase 18 complete. All 10 plans executed. Plan 09: React.memo on MessageBubble with useMemo for content transformation, TTS Object URLs tracked in useRef and revoked on ended/unmount, React.lazy + Suspense for MultiplayerLobby/Game, CHARACTER_CLASS_IDS in @ai-dm/shared-types imported by both ClassSelect.tsx and inputSanitizer.ts. TypeScript compiles clean in both server/ and client/.

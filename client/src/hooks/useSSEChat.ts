@@ -7,7 +7,8 @@ import { changeMood } from '../services/backgroundMusic';
 import { changeScene, resetScenes } from '../services/sceneVideo';
 import { pushError } from '../services/errorStore';
 import { authHeaders, refreshAccessToken } from '../services/auth';
-import { MINIMAX_TTS_PER_CHAR, stripTTSTags, expandPhrasesForDisplay } from '@ai-dm/shared-types';
+import { API_BASE } from '../services/apiBase';
+import { MINIMAX_TTS_PER_CHAR, stripTTSTags, expandPhrasesForDisplay } from '@dnd-adventures/shared-types';
 
 export interface UsageBreakdown {
   bedrockInputTokens: number;
@@ -88,7 +89,7 @@ export function useSSEChat() {
         ...(pronounsRef.current ? { pronouns: pronounsRef.current } : {}),
       });
 
-      let res = await fetch('/api/chat', {
+      let res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: chatBody,
@@ -99,7 +100,7 @@ export function useSSEChat() {
       if (res.status === 401) {
         const refreshed = await refreshAccessToken();
         if (refreshed) {
-          res = await fetch('/api/chat', {
+          res = await fetch(`${API_BASE}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...authHeaders() },
             body: chatBody,
@@ -239,7 +240,7 @@ export function useSSEChat() {
     // --- 3. Fetch TTS, then reveal text + play audio at the same moment ---
     const ttsPayload = ttsText || fullContent;
     try {
-      const ttsRes = await fetch('/api/narrate', {
+      const ttsRes = await fetch(`${API_BASE}/api/narrate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ text: ttsPayload, conversationId: conversationId.current }),
@@ -321,6 +322,23 @@ export function useSSEChat() {
     void fetchDMResponse(content, diceResult);
   }, [fetchDMResponse]);
 
+  // Called when resuming a saved adventure. Injects the saved conversationId and
+  // optional character class/pronouns so the next sendMessage picks up the right session.
+  const resumeSession = useCallback((
+    savedConversationId: string,
+    characterClass?: string,
+    pronouns?: string
+  ) => {
+    conversationId.current = savedConversationId;
+    if (characterClass) characterClassRef.current = { name: characterClass } as CharacterClass;
+    if (pronouns) pronounsRef.current = pronouns;
+    // Messages stay empty — the caller (App.tsx handleResumeSave) will call sendMessage
+    // to trigger the DM's contextual resume response
+  }, []);
+
+  // Exposes the current conversationId for the Save button in App.tsx
+  const getConversationId = useCallback(() => conversationId.current, []);
+
   const reset = useCallback(() => {
     abortRef.current?.abort();
     stopGlobalAudio();
@@ -337,5 +355,5 @@ export function useSSEChat() {
 
   const sessionCost = usageBreakdown.bedrockCost + usageBreakdown.ttsCost;
 
-  return { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, replayMessageAudio, sessionCost, usageBreakdown };
+  return { messages, isLoading, sendMessage, startAdventure, resumeSession, getConversationId, reset, skip, stopAudio, replayMessageAudio, sessionCost, usageBreakdown };
 }

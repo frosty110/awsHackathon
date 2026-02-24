@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { CHARACTER_CLASS_IDS } from '@ai-dm/shared-types';
-import type { CharacterClassId } from '@ai-dm/shared-types';
+import { CHARACTER_CLASS_IDS } from '@dnd-adventures/shared-types';
+import type { CharacterClassId } from '@dnd-adventures/shared-types';
 
 export interface CharacterClass {
   id: CharacterClassId;
@@ -15,7 +15,7 @@ export interface CharacterClass {
 // TypeScript will error if any id does not conform to CharacterClassId
 type _ClassIdCheck = typeof CHARACTER_CLASS_IDS[number] extends CharacterClassId ? true : never;
 
-const CLASSES: CharacterClass[] = [
+export const CLASSES: CharacterClass[] = [
   {
     id: 'fighter',
     name: 'Fighter',

@@ -61,8 +61,8 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 **Goal:** Enable players to save their D&D adventures and resume them later, with a user-visible save slot system backed by Redis sorted sets and REST endpoints.
 **Depends on:** Phase 0
-**Plans:** 2 plans
+**Plans:** 2 plans — completed 2026-02-23
 
 Plans:
-- [ ] 01-01-PLAN.md — Backend save system (saveStore service, REST endpoints, rate limiter, chat auto-update)
-- [ ] 01-02-PLAN.md — Client save/resume flow (API service, SaveSlotList UI, useSSEChat resume, App wiring)
+- [x] 01-01-PLAN.md — Backend save system (saveStore service, REST endpoints, rate limiter, chat auto-update)
+- [x] 01-02-PLAN.md — Client save/resume flow (API service, SaveSlotList UI, useSSEChat resume, App wiring)

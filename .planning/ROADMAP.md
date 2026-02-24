@@ -66,3 +66,23 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 Plans:
 - [x] 01-01-PLAN.md — Backend save system (saveStore service, REST endpoints, rate limiter, chat auto-update)
 - [x] 01-02-PLAN.md — Client save/resume flow (API service, SaveSlotList UI, useSSEChat resume, App wiring)
+
+### Phase 2: Add userId to usage tracking pipeline
+
+**Goal:** Thread userId from JWT-authenticated request context through the usage tracking pipeline so every UsageEntry is attributed to a specific user, enabling per-user cost reporting and preparing for Phase 3 Bear Lumen integration.
+**Depends on:** Phase 1
+**Requirements:** [USAGE-01, USAGE-02, USAGE-03, USAGE-04, USAGE-05]
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — UsageEntry type update, record function signatures, getUserUsage, tests
+- [ ] 02-02-PLAN.md — Route call site threading (chat.ts, narrate.ts) + /api/usage per-user endpoint
+
+### Phase 3: Persist usage data with Bear Lumen integration
+
+**Goal:** [To be planned]
+**Depends on:** Phase 2
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 3 to break down)

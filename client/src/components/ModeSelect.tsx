@@ -3,10 +3,11 @@ import { useRef } from 'react';
 interface ModeSelectProps {
   onSinglePlayer: () => void;
   onMultiplayer: () => void;
+  onSavedGames: () => void;
   onFirstInteraction?: () => void;
 }
 
-export function ModeSelect({ onSinglePlayer, onMultiplayer, onFirstInteraction }: ModeSelectProps) {
+export function ModeSelect({ onSinglePlayer, onMultiplayer, onSavedGames, onFirstInteraction }: ModeSelectProps) {
   const fired = useRef(false);
 
   function handleClick() {
@@ -70,6 +71,28 @@ export function ModeSelect({ onSinglePlayer, onMultiplayer, onFirstInteraction }
             </p>
             <p className="font-fell text-parchment/60 text-lg">
               Join forces with fellow adventurers
+            </p>
+          </div>
+        </button>
+
+        {/* Saved Adventures — spans full width on sm+ screens */}
+        <button
+          onClick={onSavedGames}
+          className="
+            group flex flex-col items-center gap-4 p-8 border rounded
+            border-blood/30 bg-surface
+            hover:border-dm-gold/50 hover:bg-dm-gold/5
+            transition-all duration-200 cursor-pointer
+            sm:col-span-2
+          "
+        >
+          <span className="text-5xl" aria-hidden="true">📜</span>
+          <div className="text-center">
+            <p className="font-cinzel font-bold text-xl text-parchment tracking-wide mb-1">
+              Saved Adventures
+            </p>
+            <p className="font-fell text-parchment/60 text-lg">
+              Resume a previous quest
             </p>
           </div>
         </button>

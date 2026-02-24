@@ -7,11 +7,14 @@ import { AudioPlayer, type NarrateResult } from './components/AudioPlayer';
 import { ChatWindow } from './components/ChatWindow';
 import { MessageInput } from './components/MessageInput';
 import { DiceRoller } from './components/DiceRoller';
-import { ClassSelect, type CharacterClass } from './components/ClassSelect';
+import { ClassSelect, CLASSES, type CharacterClass } from './components/ClassSelect';
 import { CostTooltip } from './components/CostTooltip';
 import { ErrorNotification } from './components/ErrorNotification';
 import { ModeSelect } from './components/ModeSelect';
+import { SaveSlotList } from './components/SaveSlotList';
 import { LoginForm } from './components/LoginForm';
+import { createSave } from './services/saves';
+import type { SaveRecord } from './services/saves';
 
 // Code-split multiplayer components — only loaded when user enters multiplayer mode
 const MultiplayerLobby = lazy(() => import('./components/MultiplayerLobby'));
@@ -26,7 +29,7 @@ export default function App() {
   const [multiplayerRoomCode, setMultiplayerRoomCode] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<CharacterClass | null>(null);
   const [selectedPronouns, setSelectedPronouns] = useState<string>('They/Them');
-  const { messages, isLoading, sendMessage, startAdventure, reset, skip, stopAudio, replayMessageAudio, sessionCost, usageBreakdown } = useSSEChat();
+  const { messages, isLoading, sendMessage, startAdventure, resumeSession, getConversationId, reset, skip, stopAudio, replayMessageAudio, sessionCost, usageBreakdown } = useSSEChat();
 
   // On mount, attempt to restore auth from localStorage.
   // If successful, skip login and go to mode select. Otherwise, show login form.
@@ -104,6 +107,39 @@ export default function App() {
     setAppState('modeSelect');
   }
 
+  // ----- Save/resume handlers -----
+
+  function handleSavedGames() {
+    setAppState('savedGames');
+  }
+
+  function handleResumeSave(save: SaveRecord) {
+    // Look up full CharacterClass object by name for correct icon/description display
+    const fullClass = CLASSES.find(cls => cls.name === save.characterClass) ?? null;
+    setSelectedClass(fullClass);
+    setSelectedPronouns(save.pronouns || 'They/Them');
+    resumeSession(save.conversationId, save.characterClass, save.pronouns);
+    setAppState('adventure');
+    startBackgroundMusic("tavern");
+    // Trigger DM resume response so player does not see a blank chat window
+    sendMessage('Continue the adventure from where we left off.');
+  }
+
+  async function handleSaveGame() {
+    const convId = getConversationId();
+    if (!convId) return;
+    const name = window.prompt('Name your adventure (max 50 characters):');
+    if (!name || !name.trim()) return;
+    const trimmedName = name.trim().slice(0, 50);
+    await createSave(
+      convId,
+      trimmedName,
+      selectedClass?.name ?? '',
+      selectedPronouns,
+      multiplayerRoomCode ? 'multi' : 'single'
+    );
+  }
+
   // Show Reset button for single-player adventure and multiplayer game
   const showReset = appState === 'adventure' || appState === 'multiplayerGame';
   const onResetClick = appState === 'multiplayerGame' ? handleMultiplayerLeave : handleReset;
@@ -128,7 +164,7 @@ export default function App() {
               textShadow: '0 0 12px oklch(0.75 0.15 55 / 0.6)',
             }}
           >
-            AI Dungeon Master
+            D&D Adventures
           </span>
           <div className="flex items-center gap-4">
             <AudioControls />
@@ -143,6 +179,14 @@ export default function App() {
               <span className="font-cinzel text-xs text-parchment/50 tracking-wider">
                 {getUsername()}
               </span>
+            )}
+            {appState === 'adventure' && (
+              <button
+                onClick={() => void handleSaveGame()}
+                className="font-cinzel text-sm text-dm-gold hover:text-parchment"
+              >
+                Save
+              </button>
             )}
             {showReset && (
               <button
@@ -168,7 +212,12 @@ export default function App() {
           {appState === 'login' ? (
             <LoginForm onSuccess={() => setAppState('modeSelect')} />
           ) : appState === 'modeSelect' ? (
-            <ModeSelect onSinglePlayer={handleSinglePlayer} onMultiplayer={handleMultiplayer} onFirstInteraction={startRandomMusic} />
+            <ModeSelect onSinglePlayer={handleSinglePlayer} onMultiplayer={handleMultiplayer} onSavedGames={handleSavedGames} onFirstInteraction={startRandomMusic} />
+          ) : appState === 'savedGames' ? (
+            <SaveSlotList
+              onResume={handleResumeSave}
+              onBack={() => setAppState('modeSelect')}
+            />
           ) : appState === 'idle' ? (
             <ClassSelect onSelect={handleClassSelected} />
           ) : appState === 'classSelect' ? (

@@ -93,6 +93,7 @@ Progress: [██████████] 100% (v1.0)
 | Phase 18 P08 | 5 | 2 tasks | 4 files |
 | Phase 19 P01 | 3 | 2 tasks | 3 files |
 | Phase 19 P02 | 6 | 2 tasks | 10 files |
+| Phase 01-session-persistence-save-resume P01 | 4 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -31832,6 +31833,7 @@ a$ — correct format for constant-time user-not-found comparison
 - Phase 17 added: Code Review Bug Fixes Wave 1 — Fix critical/high-severity bugs from comprehensive code review (auth enforcement, JWT pinning, input validation, error handling, graceful shutdown)
 - Phase 18 added: Code Review Bug Fixes Wave 2 — IDOR access control, client auth integration, memory safety, prompt injection hardening, Redis optimization, SSE backpressure, DmTurnService extraction, frontend memoization, and architectural improvements (42 findings from 4-agent comprehensive review)
 - Phase 19 added: Code Review Bug Fixes Wave 3 — Schema leakage, distributed locks, registration race, refresh token security, lockout expiry, lore cache LRU (3 critical + 5 high + 8 medium + 6 low from AI-powered code review)
+- Phase 1 added (v1.1): Session Persistence & Save/Resume — Expose "continue adventure" on login so players can return to in-progress sessions. Leverage existing Redis-backed conversation storage.
 
 ### Pending Todos
 

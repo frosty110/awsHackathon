@@ -56,3 +56,13 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 17. Code Review W1 | v1.0 | 3/3 | Complete | 2026-02-22 |
 | 18. Code Review W2 | v1.0 | 10/10 | Complete | 2026-02-22 |
 | 19. Code Review W3 | v1.0 | 2/2 | Complete | 2026-02-22 |
+
+### Phase 1: Session Persistence & Save/Resume
+
+**Goal:** Enable players to save their D&D adventures and resume them later, with a user-visible save slot system backed by Redis sorted sets and REST endpoints.
+**Depends on:** Phase 0
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Backend save system (saveStore service, REST endpoints, rate limiter, chat auto-update)
+- [ ] 01-02-PLAN.md — Client save/resume flow (API service, SaveSlotList UI, useSSEChat resume, App wiring)

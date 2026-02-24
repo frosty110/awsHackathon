@@ -4,6 +4,7 @@ import {
   getOrCreate,
   appendMessage,
   ConversationOwnershipError,
+  HISTORY_WINDOW_SIZE,
   type Conversation,
 } from "../services/conversationStore.js";
 import { buildRequestId, logEvent } from "../services/logger.js";
@@ -14,6 +15,7 @@ import { sanitizeUserInput, validateCharacterClass, sanitizePronouns } from "../
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { activeSSEStreams } from "../services/activeStreams.js";
 import { executeDmTurn } from "../services/dmTurn.js";
+import { findByConversationId, upsertSave } from "../services/saveStore.js";
 
 const chatBodySchema = z.object({
   conversationId: z.string().uuid().optional(),
@@ -127,7 +129,7 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
 
   // Use local conversation object for windowed history — we already have the full
   // history from getOrCreate + appendMessage(user), so no extra Redis read needed.
-  const history = conversation.history.slice(-12);
+  const history = conversation.history.slice(-HISTORY_WINDOW_SIZE);
 
   let fullText = "";
   let streamErrored = false;
@@ -194,6 +196,27 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
 
       const costUsd = recordBedrockUsage(conversation.id, "chat", inputTokens, outputTokens);
       checkedWrite({ usage: { inputTokens, outputTokens, costUsd, model: "bedrock-haiku", feature: "chat" } });
+
+      // Auto-update existing save metadata (fire-and-forget, never blocks stream)
+      if (req.userId) {
+        void (async () => {
+          try {
+            const existingSave = await findByConversationId(req.userId!, conversation.id);
+            if (existingSave) {
+              await upsertSave(req.userId!, conversation.id, {
+                ...existingSave,
+                turnCount: Math.floor(conversation.history.length / 2),
+                lastPlayedAt: Date.now(),
+              });
+            }
+          } catch (err) {
+            logEvent("warn", "chat.save_auto_update_failed", {
+              conversationId: conversation.id,
+              requestId,
+            }, err);
+          }
+        })();
+      }
     }
 
     res.write("data: [DONE]\n\n");

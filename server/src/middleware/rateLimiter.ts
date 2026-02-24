@@ -1,6 +1,7 @@
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import { redisClient, isRedisAvailable } from "../services/redis.js";
+import { logEvent } from "../services/logger.js";
 import type { AuthenticatedRequest } from "./auth.js";
 
 /**
@@ -15,81 +16,108 @@ function createStore(prefix: string) {
       prefix,
     });
   }
-  // Default MemoryStore (in-process, resets on restart — acceptable for single-instance dev)
   return undefined;
 }
 
-/**
- * chatRateLimiter — 20 requests per minute per authenticated user (or IP for unauthenticated).
- * Applied to /api/chat.
- */
-export const chatRateLimiter = rateLimit({
-  windowMs: 60 * 1000,
+// ── Factory ──────────────────────────────────────────────────────────────────
+
+interface LimiterConfig {
+  prefix: string;
+  limit: number;
+  windowMs?: number;
+  keyType: "userId" | "ip";
+  message: string;
+}
+
+function createLimiter({ prefix, limit, windowMs = 60_000, keyType, message }: LimiterConfig) {
+  const limiterName = prefix.replace(/^rl:|:$/g, "");
+  return rateLimit({
+    windowMs,
+    limit,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    keyGenerator:
+      keyType === "userId"
+        ? (req) => (req as AuthenticatedRequest).userId ?? ipKeyGenerator(req.ip ?? "unknown")
+        : (req) => ipKeyGenerator(req.ip ?? "unknown"),
+    store: createStore(prefix),
+    handler: (req, res) => {
+      logEvent("warn", "rate_limit.exceeded", {
+        route: req.originalUrl,
+        key:
+          keyType === "userId"
+            ? (req as AuthenticatedRequest).userId ?? req.ip ?? "unknown"
+            : req.ip ?? "unknown",
+        limiter: limiterName,
+      });
+      res.status(429).json({ error: message });
+    },
+  });
+}
+
+// ── Authenticated endpoint limiters (userId-keyed) ───────────────────────────
+
+export const chatRateLimiter = createLimiter({
+  prefix: "rl:chat:",
   limit: 20,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  keyGenerator: (req) =>
-    (req as AuthenticatedRequest).userId ?? ipKeyGenerator(req.ip ?? "unknown"),
-  store: createStore("rl:chat:"),
-  message: { error: "Too many chat requests, slow down" },
+  keyType: "userId",
+  message: "Too many chat requests, slow down",
 });
 
-/**
- * narrateRateLimiter — 10 requests per minute per authenticated user (or IP for unauthenticated).
- * Applied to /api/narrate (TTS is expensive — stricter limit).
- */
-export const narrateRateLimiter = rateLimit({
-  windowMs: 60 * 1000,
+export const narrateRateLimiter = createLimiter({
+  prefix: "rl:narrate:",
   limit: 10,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  keyGenerator: (req) =>
-    (req as AuthenticatedRequest).userId ?? ipKeyGenerator(req.ip ?? "unknown"),
-  store: createStore("rl:narrate:"),
-  message: { error: "Too many narrate requests, slow down" },
+  keyType: "userId",
+  message: "Too many narrate requests, slow down",
 });
 
-/**
- * registerLimiter — 3 requests per minute per IP.
- * Prevents registration spam and account farming.
- * Auth endpoints are IP-keyed (not userId-keyed) because auth hasn't happened yet.
- */
-export const registerLimiter = rateLimit({
-  windowMs: 60 * 1000,
+export const musicLimiter = createLimiter({
+  prefix: "rl:music:",
+  limit: 20,
+  keyType: "userId",
+  message: "Rate limit exceeded. Slow down, adventurer.",
+});
+
+export const sceneVideoLimiter = createLimiter({
+  prefix: "rl:scene-video:",
+  limit: 20,
+  keyType: "userId",
+  message: "Too many scene video requests, slow down",
+});
+
+export const usageLimiter = createLimiter({
+  prefix: "rl:usage:",
+  limit: 30,
+  keyType: "userId",
+  message: "Too many usage requests, slow down",
+});
+
+export const savesLimiter = createLimiter({
+  prefix: "rl:saves:",
+  limit: 30,
+  keyType: "userId",
+  message: "Too many save requests, slow down",
+});
+
+// ── Auth endpoint limiters (IP-keyed) ────────────────────────────────────────
+
+export const registerLimiter = createLimiter({
+  prefix: "rl:register:",
   limit: 3,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
-  store: createStore("rl:register:"),
-  message: { error: "Too many registration attempts, slow down" },
+  keyType: "ip",
+  message: "Too many registration attempts, slow down",
 });
 
-/**
- * loginLimiter — 10 requests per minute per IP.
- * Prevents credential stuffing attacks on the login endpoint.
- * Auth endpoints are IP-keyed (not userId-keyed) because auth hasn't happened yet.
- */
-export const loginLimiter = rateLimit({
-  windowMs: 60 * 1000,
+export const loginLimiter = createLimiter({
+  prefix: "rl:login:",
   limit: 10,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
-  store: createStore("rl:login:"),
-  message: { error: "Too many login attempts, slow down" },
+  keyType: "ip",
+  message: "Too many login attempts, slow down",
 });
 
-/**
- * refreshLimiter — 5 requests per minute per IP.
- * Prevents token refresh abuse / replay attempts.
- * Auth endpoints are IP-keyed because auth hasn't happened yet.
- */
-export const refreshLimiter = rateLimit({
-  windowMs: 60 * 1000,
+export const refreshLimiter = createLimiter({
+  prefix: "rl:refresh:",
   limit: 5,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
-  store: createStore("rl:refresh:"),
-  message: { error: "Too many token refresh attempts, slow down" },
+  keyType: "ip",
+  message: "Too many token refresh attempts, slow down",
 });

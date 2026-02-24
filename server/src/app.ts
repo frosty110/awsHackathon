@@ -7,11 +7,11 @@ import musicRouter from "./routes/music.js";
 import sceneVideoRouter from "./routes/sceneVideo.js";
 import usageRouter from "./routes/usage.js";
 import authRouter from "./routes/auth.js";
+import savesRouter from "./routes/saves.js";
 import { buildRequestId, logEvent } from "./services/logger.js";
 import { optionalAuth, requireAuth } from "./middleware/auth.js";
-import { chatRateLimiter, narrateRateLimiter, registerLimiter, loginLimiter, refreshLimiter } from "./middleware/rateLimiter.js";
+import { chatRateLimiter, narrateRateLimiter, musicLimiter, sceneVideoLimiter, usageLimiter, registerLimiter, loginLimiter, refreshLimiter, savesLimiter } from "./middleware/rateLimiter.js";
 import { helmetMiddleware, corsMiddleware } from "./middleware/security.js";
-import { musicLimiter } from "./middleware/rateLimits.js";
 
 export function createApp(): Express {
   const app = express();
@@ -44,8 +44,9 @@ export function createApp(): Express {
   app.use("/api/chat", requireAuth, chatRateLimiter);
   app.use("/api/narrate", requireAuth, narrateRateLimiter);
   app.use("/api/music", requireAuth, musicLimiter);
-  app.use("/api/scene-video", requireAuth);
-  app.use("/api/usage", requireAuth);
+  app.use("/api/scene-video", requireAuth, sceneVideoLimiter);
+  app.use("/api/usage", requireAuth, usageLimiter);
+  app.use("/api/saves", requireAuth, savesLimiter);
 
   // 8. Route handlers
   app.use(chatRouter);
@@ -53,6 +54,7 @@ export function createApp(): Express {
   app.use(musicRouter);
   app.use(sceneVideoRouter);
   app.use(usageRouter);
+  app.use(savesRouter);
 
   // 9. Global error handler
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {

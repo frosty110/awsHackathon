@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 02-add-userid-to-usage-tracking-pipeline — Plan 01 complete, Plan 02 next.
+**Current focus:** Phase 02-add-userid-to-usage-tracking-pipeline — COMPLETE. Phase 03-persist-usage-data-with-bear-lumen-integration next.
 
 ## Current Position
 
 Phase: 02-add-userid-to-usage-tracking-pipeline
-Plan: 02 (Plan 01 complete)
-Status: In progress — Plan 01 complete 2026-02-25
-Last activity: 2026-02-25 — Completed 02-01 (add userId to UsageEntry type and record functions)
+Plan: COMPLETE (2/2 plans done)
+Status: Complete — Phase 02 complete 2026-02-25
+Last activity: 2026-02-25 — Completed 02-02 (thread userId through route call sites, add per-user usage to /api/usage)
 
-Progress: [██████████] 100% (v1.0) | Phase 02: 1/2 plans
+Progress: [██████████] 100% (v1.0) | Phase 02: 2/2 plans
 
 ## Performance Metrics
 
@@ -95,6 +95,8 @@ Progress: [██████████] 100% (v1.0) | Phase 02: 1/2 plans
 | Phase 19 P02 | 6 | 2 tasks | 10 files |
 | Phase 01-session-persistence-save-resume P01 | 4 | 2 tasks | 5 files |
 | Phase 01-session-persistence-save-resume P02 | 2 | 2 tasks | 7 files |
+| Phase 02-add-userid-to-usage-tracking-pipeline P01 | 2 | 2 tasks | 3 files |
+| Phase 02-add-userid-to-usage-tracking-pipeline P02 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -209,6 +211,7 @@ Recent decisions affecting current work:
 - [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
 - [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
 - [Phase 02-add-userid-to-usage-tracking-pipeline P01]: userId optional last param on all record* functions — backward-compatible; getUserUsage filters by strict equality to prevent null collisions
+- [Phase 02-add-userid-to-usage-tracking-pipeline P02]: /api/usage derives userId from req.userId (JWT) never from query param — prevents cross-user cost data leakage; req.userId ?? null at call sites ensures null type matches string | null param signature
 - [Phase 18-02]: bcrypt dummy hash uses Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 

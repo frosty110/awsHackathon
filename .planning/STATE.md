@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** Phase 03-persist-usage-data-with-bear-lumen-integration — Plan 01 complete. Plan 02 next.
+**Current focus:** Phase 03-persist-usage-data-with-bear-lumen-integration — Complete (both plans done).
 
 ## Current Position
 
 Phase: 03-persist-usage-data-with-bear-lumen-integration
-Plan: 1/? (03-01 done)
-Status: In progress — Phase 03 Plan 01 complete 2026-02-25
-Last activity: 2026-02-25 — Completed 03-01 (Bear Lumen REST forwarder, pushToBearLumen wired into all 4 record* functions)
+Plan: 2/2 (03-01 and 03-02 done)
+Status: Phase 03 complete — 2026-02-25
+Last activity: 2026-02-25 — Completed 03-02 (Bear Lumen SDK integration, SDK batching replaces REST, graceful shutdown hook)
 
-Progress: [██████████] 100% (v1.0) | Phase 03: 1/? plans
+Progress: [██████████] 100% (v1.0) | Phase 03: 2/2 plans
 
 ## Performance Metrics
 
@@ -213,6 +213,7 @@ Recent decisions affecting current work:
 - [Phase 02-add-userid-to-usage-tracking-pipeline P01]: userId optional last param on all record* functions — backward-compatible; getUserUsage filters by strict equality to prevent null collisions
 - [Phase 02-add-userid-to-usage-tracking-pipeline P02]: /api/usage derives userId from req.userId (JWT) never from query param — prevents cross-user cost data leakage; req.userId ?? null at call sites ensures null type matches string | null param signature
 - [Phase 03-persist-usage-data-with-bear-lumen-integration P01]: Bear Lumen endpoint is /usage/events/batch (not /v1/usage-events); BEAR_LUMEN_ENABLED evaluated once at module load; user_id ?? undefined drops null from JSON payload; no cost field (Bear Lumen derives server-side); warnOnBlankConfig not gated behind production check
+- [Phase 03-persist-usage-data-with-bear-lumen-integration P02]: resolveProvider returns ProviderId (not string) — required by SDK's TrackOptions.provider type; bear.track(null, {...}) for manual tracking (not stream wrapping); SDK null when BEAR_LUMEN_API_KEY empty (constructor throws on empty string); shutdownBearLumen at step 0.5 in shutdown — after SSE drain, before Socket.IO close
 - [Phase 18-02]: bcrypt dummy hash uses Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 

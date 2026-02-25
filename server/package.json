@@ -13,10 +13,11 @@
     "test:bedrock": "tsx --env-file=../.env src/scripts/test-bedrock.ts"
   },
   "dependencies": {
-    "@ai-dm/shared-types": "1.0.0",
     "@aws-sdk/client-bedrock-runtime": "^3.0.0",
     "@aws-sdk/client-s3": "^3.995.0",
     "@aws-sdk/s3-request-presigner": "^3.995.0",
+    "@bearlumen/node-sdk": "^0.2.0",
+    "@dnd-adventures/shared-types": "1.0.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",

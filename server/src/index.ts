@@ -16,6 +16,7 @@ import { initRag } from "./services/rag.js";
 import { activeSSEStreams } from "./services/activeStreams.js";
 import { ensureOpeningBundles } from "./services/openingBundleService.js";
 import { logEvent } from "./services/logger.js";
+import { shutdownBearLumen } from "./services/bearLumenSdk.js";
 
 async function main(): Promise<void> {
   warnOnBlankConfig(
@@ -111,6 +112,8 @@ async function main(): Promise<void> {
       } catch { /* stream already closed */ }
     }
     activeSSEStreams.clear();
+    // 0.5. Flush Bear Lumen event queue (requires HTTP to still be up)
+    await shutdownBearLumen();
     // 1. Close Socket.IO first — sends disconnect packets while HTTP is still up
     io.close();
     // 2. Stop accepting new HTTP connections

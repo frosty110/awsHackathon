@@ -11,7 +11,7 @@ import neo4j from "neo4j-driver";
 import { createApp } from "./app.js";
 import { config, warnOnBlankConfig } from "./services/config.js";
 import { connectRedis, redisClient, isRedisAvailable } from "./services/redis.js";
-import { initSocketIO } from "./sockets/index.js";
+import { initSocketIO, cleanupSocketSubscriber } from "./sockets/index.js";
 import { initRag } from "./services/rag.js";
 import { activeSSEStreams } from "./services/activeStreams.js";
 import { ensureOpeningBundles } from "./services/openingBundleService.js";
@@ -40,6 +40,10 @@ async function main(): Promise<void> {
       "JWT Auth (needed for Phase 9 authentication)"
     );
   }
+  warnOnBlankConfig(
+    ["BEAR_LUMEN_API_KEY"],
+    "Bear Lumen cost intelligence (optional — usage events not forwarded)"
+  );
 
   // Connect Redis before any routes or sockets that depend on it
   await connectRedis();
@@ -59,7 +63,8 @@ async function main(): Promise<void> {
   } else {
     driver = neo4j.driver(
       config.NEO4J_URI,
-      neo4j.auth.basic(config.NEO4J_USERNAME, config.NEO4J_PASSWORD)
+      neo4j.auth.basic(config.NEO4J_USERNAME, config.NEO4J_PASSWORD),
+      { maxConnectionPoolSize: 50, connectionAcquisitionTimeout: 3000 }
     );
 
     if (allowNeo4jSkip) {
@@ -112,7 +117,9 @@ async function main(): Promise<void> {
     server.close();
     // 3. Close Neo4j driver
     if (driver) await driver.close();
-    // 4. Flush pending Redis commands and close TCP connection
+    // 4. Clean up Redis subscriber client (Socket.IO adapter) before main client
+    await cleanupSocketSubscriber();
+    // 5. Flush pending Redis commands and close TCP connection
     if (isRedisAvailable()) await redisClient.quit();
     process.exit(0);
   };

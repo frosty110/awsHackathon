@@ -25,6 +25,8 @@ const envDefaults: Record<string, string> = {
   S3_MEDIA_CACHE_BUCKET: "ai-dm-media-cache",
   REDIS_URL: "",
   JWT_SECRET: "",
+  ALLOWED_ORIGINS: "",
+  BEAR_LUMEN_API_KEY: "",
 };
 
 const envSchema = z.object({
@@ -59,6 +61,8 @@ const envSchema = z.object({
 
   REDIS_URL: z.string(),
   JWT_SECRET: z.string(),
+  ALLOWED_ORIGINS: z.string(),
+  BEAR_LUMEN_API_KEY: z.string(),
 });
 
 const result = envSchema.safeParse({ ...envDefaults, ...process.env });

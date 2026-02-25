@@ -76,13 +76,15 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — UsageEntry type update, record function signatures, getUserUsage, tests
-- [ ] 02-02-PLAN.md — Route call site threading (chat.ts, narrate.ts) + /api/usage per-user endpoint
+- [x] 02-02-PLAN.md — Route call site threading (chat.ts, narrate.ts) + /api/usage per-user endpoint
 
 ### Phase 3: Persist usage data with Bear Lumen integration
 
-**Goal:** [To be planned]
+**Goal:** Forward all usage events to Bear Lumen's persistent analytical layer via fire-and-forget REST API, then upgrade to the official SDK for batched tracking with graceful shutdown — enabling per-user cost trends, feature-level margin analysis, and investor-ready reporting that outlives the 24h in-memory eviction window.
 **Depends on:** Phase 2
-**Plans:** 0 plans
+**Requirements:** [BEAR-01, BEAR-02, BEAR-03, BEAR-04, BEAR-05]
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 3 to break down)
+- [ ] 03-01-PLAN.md — REST API fire-and-forget integration (config, bearLumen.ts, usageTracker wiring)
+- [ ] 03-02-PLAN.md — SDK integration (install @bearlumen/node-sdk, replace REST with batched tracking, shutdown hook)

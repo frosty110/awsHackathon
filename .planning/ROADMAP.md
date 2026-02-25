@@ -38,7 +38,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Scaffold | v1.0 | 3/3 | Complete | 2026-02-20 |
-| 2. Chat UI | v1.0 | 2/2 | Complete | 2026-02-20 |
+| 2. Chat UI | v1.0 | Complete    | 2026-02-25 | 2026-02-20 |
 | 3. Lore Graph Seed | v1.0 | 2/2 | Complete | 2026-02-20 |
 | 4. Bedrock Chat Core | v1.0 | 2/2 | Complete | 2026-02-20 |
 | 5. RAG Pipeline | v1.0 | 2/2 | Complete | 2026-02-20 |
@@ -72,7 +72,7 @@ Plans:
 **Goal:** Thread userId from JWT-authenticated request context through the usage tracking pipeline so every UsageEntry is attributed to a specific user, enabling per-user cost reporting and preparing for Phase 3 Bear Lumen integration.
 **Depends on:** Phase 1
 **Requirements:** [USAGE-01, USAGE-02, USAGE-03, USAGE-04, USAGE-05]
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 02-01-PLAN.md — UsageEntry type update, record function signatures, getUserUsage, tests

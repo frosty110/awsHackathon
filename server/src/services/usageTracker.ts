@@ -7,7 +7,7 @@ import {
   type UsageEntry,
   type UsageSummary,
 } from "@dnd-adventures/shared-types";
-import { pushToBearLumen } from "./bearLumen.js";
+import { trackBearLumen } from "./bearLumenSdk.js";
 
 export type { UsageEntry, UsageSummary };
 
@@ -64,7 +64,7 @@ export function recordBedrockUsage(
     characters: 0,
     costUsd,
   });
-  pushToBearLumen(entries[entries.length - 1]);
+  trackBearLumen(entries[entries.length - 1]);
   return costUsd;
 }
 
@@ -86,7 +86,7 @@ export function recordTtsUsage(
     characters,
     costUsd,
   });
-  pushToBearLumen(entries[entries.length - 1]);
+  trackBearLumen(entries[entries.length - 1]);
   return costUsd;
 }
 
@@ -103,7 +103,7 @@ export function recordMusicUsage(userId?: string | null) {
     characters: 0,
     costUsd: MINIMAX_MUSIC_PER_GENERATION,
   });
-  pushToBearLumen(entries[entries.length - 1]);
+  trackBearLumen(entries[entries.length - 1]);
   return MINIMAX_MUSIC_PER_GENERATION;
 }
 
@@ -120,7 +120,7 @@ export function recordVideoUsage(userId?: string | null) {
     characters: 0,
     costUsd: MINIMAX_VIDEO_PER_GENERATION,
   });
-  pushToBearLumen(entries[entries.length - 1]);
+  trackBearLumen(entries[entries.length - 1]);
   return MINIMAX_VIDEO_PER_GENERATION;
 }
 

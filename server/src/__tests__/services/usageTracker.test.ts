@@ -5,6 +5,7 @@ import {
   recordMusicUsage,
   getGlobalUsage,
   getConversationUsage,
+  getUserUsage,
   evictStaleEntries,
   _testInternals,
 } from '../../services/usageTracker.js';
@@ -44,6 +45,16 @@ describe('recordBedrockUsage', () => {
     recordBedrockUsage(null, 'system', 50, 50);
     expect(internals.entries[0].conversationId).toBeNull();
   });
+
+  it('stores userId when provided', () => {
+    recordBedrockUsage('conv-1', 'chat', 100, 100, 'user-abc');
+    expect(internals.entries[0].userId).toBe('user-abc');
+  });
+
+  it('defaults userId to null when omitted', () => {
+    recordBedrockUsage('conv-1', 'chat', 100, 100);
+    expect(internals.entries[0].userId).toBeNull();
+  });
 });
 
 describe('recordTtsUsage', () => {
@@ -58,6 +69,11 @@ describe('recordTtsUsage', () => {
   it('stores the character count', () => {
     recordTtsUsage('conv-2', 300);
     expect(internals.entries[0].characters).toBe(300);
+  });
+
+  it('stores userId when provided', () => {
+    recordTtsUsage('conv-2', 500, 'user-xyz');
+    expect(internals.entries[0].userId).toBe('user-xyz');
   });
 });
 
@@ -102,6 +118,23 @@ describe('getConversationUsage', () => {
     const summary = getConversationUsage('conv-A');
     expect(summary.entries).toBe(1);
     expect(summary.byFeature['chat'].count).toBe(1);
+  });
+});
+
+describe('getUserUsage', () => {
+  it('returns usage summary filtered by userId', () => {
+    recordBedrockUsage('c1', 'chat', 100, 100, 'user-A');
+    recordBedrockUsage('c2', 'chat', 200, 200, 'user-B');
+    recordTtsUsage('c3', 300, 'user-A');
+    const summary = getUserUsage('user-A');
+    expect(summary.entries).toBe(2);
+    expect(summary.totalCostUsd).toBeGreaterThan(0);
+  });
+
+  it('returns zeroed summary for unknown userId', () => {
+    const summary = getUserUsage('nonexistent');
+    expect(summary.entries).toBe(0);
+    expect(summary.totalCostUsd).toBe(0);
   });
 });
 

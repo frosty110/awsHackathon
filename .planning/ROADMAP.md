@@ -86,5 +86,5 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — REST API fire-and-forget integration (config, bearLumen.ts, usageTracker wiring)
+- [x] 03-01-PLAN.md — REST API fire-and-forget integration (config, bearLumen.ts, usageTracker wiring)
 - [ ] 03-02-PLAN.md — SDK integration (install @bearlumen/node-sdk, replace REST with batched tracking, shutdown hook)

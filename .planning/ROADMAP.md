@@ -75,7 +75,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — UsageEntry type update, record function signatures, getUserUsage, tests
+- [x] 02-01-PLAN.md — UsageEntry type update, record function signatures, getUserUsage, tests
 - [ ] 02-02-PLAN.md — Route call site threading (chat.ts, narrate.ts) + /api/usage per-user endpoint
 
 ### Phase 3: Persist usage data with Bear Lumen integration

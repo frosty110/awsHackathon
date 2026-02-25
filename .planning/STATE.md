@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A production-quality AI Dungeon Master serving ~1000 concurrent players with immersive, open-ended D&D gameplay and full Datadog LLM observability.
-**Current focus:** v1.0 MVP shipped. Planning next milestone.
+**Current focus:** Phase 02-add-userid-to-usage-tracking-pipeline — Plan 01 complete, Plan 02 next.
 
 ## Current Position
 
-Phase: v1.0 complete — all 19 phases shipped.
-Plan: Milestone archived. Next: `/gsd:new-milestone`
-Status: v1.0 MVP shipped 2026-02-23. 19 phases, 52 plans, 288 commits, 16,722 LOC TypeScript.
-Last activity: 2026-02-23 — Completed v1.0 MVP milestone
+Phase: 02-add-userid-to-usage-tracking-pipeline
+Plan: 02 (Plan 01 complete)
+Status: In progress — Plan 01 complete 2026-02-25
+Last activity: 2026-02-25 — Completed 02-01 (add userId to UsageEntry type and record functions)
 
-Progress: [██████████] 100% (v1.0)
+Progress: [██████████] 100% (v1.0) | Phase 02: 1/2 plans
 
 ## Performance Metrics
 
@@ -208,6 +208,7 @@ Recent decisions affecting current work:
 - [Phase 18]: _testInternals gated by NODE_ENV=test ternary; tests use non-null assertion (const internals = _testInternals!)
 - [Phase 18]: narrate.ts getOrCreate bug fixed: was passing characterClass as userId, breaking IDOR ownership tracking
 - [Phase 18]: userId as second param to getOrCreate; migration path for legacy conversations; ConversationOwnershipError re-thrown through Redis catch; crypto.randomBytes(32) once at module load; double-enforcement of auth on /api/usage
+- [Phase 02-add-userid-to-usage-tracking-pipeline P01]: userId optional last param on all record* functions — backward-compatible; getUserUsage filters by strict equality to prevent null collisions
 - [Phase 18-02]: bcrypt dummy hash uses Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
@@ -31835,6 +31836,8 @@ a$ — correct format for constant-time user-not-found comparison
 - Phase 18 added: Code Review Bug Fixes Wave 2 — IDOR access control, client auth integration, memory safety, prompt injection hardening, Redis optimization, SSE backpressure, DmTurnService extraction, frontend memoization, and architectural improvements (42 findings from 4-agent comprehensive review)
 - Phase 19 added: Code Review Bug Fixes Wave 3 — Schema leakage, distributed locks, registration race, refresh token security, lockout expiry, lore cache LRU (3 critical + 5 high + 8 medium + 6 low from AI-powered code review)
 - Phase 1 added (v1.1): Session Persistence & Save/Resume — Expose "continue adventure" on login so players can return to in-progress sessions. Leverage existing Redis-backed conversation storage.
+- Phase 2 added (v1.1): Add userId to usage tracking pipeline — Thread userId from JWT auth into all usage recording functions and UsageEntry type for per-player cost attribution
+- Phase 3 added (v1.1): Persist usage data with Bear Lumen integration — Integrate Bear Lumen SDK/REST API to persist per-player cost data, replace in-memory 24h eviction with durable storage, enable feature-level attribution dashboards and margin analysis
 
 ### Pending Todos
 

@@ -6,7 +6,7 @@ import {
   MINIMAX_VIDEO_PER_GENERATION,
   type UsageEntry,
   type UsageSummary,
-} from "@ai-dm/shared-types";
+} from "@dnd-adventures/shared-types";
 
 export type { UsageEntry, UsageSummary };
 
@@ -46,6 +46,7 @@ export function recordBedrockUsage(
   feature: string,
   inputTokens: number,
   outputTokens: number,
+  userId?: string | null,
 ) {
   evictStaleEntries();
   const costUsd =
@@ -54,6 +55,7 @@ export function recordBedrockUsage(
   entries.push({
     timestamp: Date.now(),
     conversationId,
+    userId: userId ?? null,
     feature,
     model: "bedrock-haiku",
     inputTokens,
@@ -67,12 +69,14 @@ export function recordBedrockUsage(
 export function recordTtsUsage(
   conversationId: string | null,
   characters: number,
+  userId?: string | null,
 ) {
   evictStaleEntries();
   const costUsd = characters * MINIMAX_TTS_PER_CHAR;
   entries.push({
     timestamp: Date.now(),
     conversationId,
+    userId: userId ?? null,
     feature: "tts",
     model: "minimax-tts",
     inputTokens: 0,
@@ -83,11 +87,12 @@ export function recordTtsUsage(
   return costUsd;
 }
 
-export function recordMusicUsage() {
+export function recordMusicUsage(userId?: string | null) {
   evictStaleEntries();
   entries.push({
     timestamp: Date.now(),
     conversationId: null,
+    userId: userId ?? null,
     feature: "music",
     model: "minimax-music-2.5",
     inputTokens: 0,
@@ -98,11 +103,12 @@ export function recordMusicUsage() {
   return MINIMAX_MUSIC_PER_GENERATION;
 }
 
-export function recordVideoUsage() {
+export function recordVideoUsage(userId?: string | null) {
   evictStaleEntries();
   entries.push({
     timestamp: Date.now(),
     conversationId: null,
+    userId: userId ?? null,
     feature: "video",
     model: "minimax-video-01",
     inputTokens: 0,
@@ -152,6 +158,10 @@ export function getGlobalUsage(): UsageSummary {
 
 export function getConversationUsage(conversationId: string): UsageSummary {
   return summarize(entries.filter((e) => e.conversationId === conversationId));
+}
+
+export function getUserUsage(userId: string): UsageSummary {
+  return summarize(entries.filter((e) => e.userId === userId));
 }
 
 /**

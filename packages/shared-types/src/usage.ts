@@ -2,6 +2,7 @@
 export interface UsageEntry {
   timestamp: number;
   conversationId: string | null;
+  userId?: string | null;
   feature: string;
   model: string;
   inputTokens: number;

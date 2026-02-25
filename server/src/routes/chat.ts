@@ -194,7 +194,7 @@ router.post("/api/chat", async (req: AuthenticatedRequest, res) => {
       const [scene] = extractScene(fullText);
       checkedWrite({ ttsText: fullText, mood: mood ?? undefined, scene: scene ?? undefined });
 
-      const costUsd = recordBedrockUsage(conversation.id, "chat", inputTokens, outputTokens);
+      const costUsd = recordBedrockUsage(conversation.id, "chat", inputTokens, outputTokens, req.userId ?? null);
       checkedWrite({ usage: { inputTokens, outputTokens, costUsd, model: "bedrock-haiku", feature: "chat" } });
 
       // Auto-update existing save metadata (fire-and-forget, never blocks stream)

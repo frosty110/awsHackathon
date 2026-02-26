@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd .. && yarn install && yarn build",
+  "buildCommand": "npm run build -w packages/shared-types && cd .. && yarn install && yarn build",
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [

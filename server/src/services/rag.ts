@@ -1,9 +1,9 @@
-import { createHash } from "node:crypto";
 import tracer from "dd-trace";
 import type { Driver } from "neo4j-driver";
 import { LRUCache } from "lru-cache";
 import { queryLore, type LoreRecord } from "./neo4j.js";
 import { logEvent } from "./logger.js";
+import { hashKey } from "./utils.js";
 
 // ── Module-level driver reference (set via initRag) ──────────────────────────
 
@@ -39,10 +39,6 @@ let loreCacheMisses = 0;
 
 function buildLoreCacheKey(entities: string[]): string {
   return entities.slice().sort().join("|");
-}
-
-function hashLoreKey(preHashKey: string): string {
-  return createHash("sha256").update(preHashKey).digest("hex").slice(0, 16);
 }
 
 export function getLoreCacheStats() {
@@ -178,7 +174,7 @@ export async function buildLoreContext(message: string): Promise<string> {
 
   // ── Cache lookup ────────────────────────────────────────────────────────
   const preHashKey = buildLoreCacheKey(entities);
-  const cacheKey = hashLoreKey(preHashKey);
+  const cacheKey = hashKey(preHashKey);
   const cached = loreCache.get(cacheKey);
 
   if (cached) {

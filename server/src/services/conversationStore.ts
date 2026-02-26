@@ -1,8 +1,9 @@
 import crypto from "crypto";
 import { z } from "zod";
+import { LRUCache } from "lru-cache";
 import { redisClient, isRedisAvailable } from "./redis.js";
 import { logEvent } from "./logger.js";
-import type { ChatMessage } from "@ai-dm/shared-types";
+import type { ChatMessage } from "@dnd-adventures/shared-types";
 
 export type { ChatMessage };
 
@@ -40,6 +41,9 @@ export class ConversationOwnershipError extends Error {
 // Conversations expire after 7 days idle (refresh on every access)
 const CONVERSATION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
+/** Number of recent turns sent to the LLM — shared with chat.ts and turnHandlers. */
+export const HISTORY_WINDOW_SIZE = 12;
+
 function redisKey(conversationId: string): string {
   return `conv:${conversationId}`;
 }
@@ -61,7 +65,10 @@ export interface IConversationStore {
 // instances; use the singleton (conversationStore) for production code.
 // ---------------------------------------------------------------------------
 export class InMemoryConversationStore implements IConversationStore {
-  private store = new Map<string, Conversation>();
+  private store = new LRUCache<string, Conversation>({
+    max: 2000,
+    ttl: 60 * 60 * 1000, // 1 hour
+  });
   private locks = new Map<string, Promise<void>>();
 
   private async withLock<T>(conversationId: string, fn: () => Promise<T>): Promise<T> {
@@ -196,7 +203,7 @@ export class InMemoryConversationStore implements IConversationStore {
   // Keep last N turns to stay within token budget
   async getWindowedHistory(
     conversationId: string,
-    maxTurns = 12
+    maxTurns = HISTORY_WINDOW_SIZE
   ): Promise<ChatMessage[]> {
     if (isRedisAvailable()) {
       try {

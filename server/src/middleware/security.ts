@@ -1,12 +1,13 @@
 import helmet from "helmet";
 import cors from "cors";
+import { config } from "../services/config.js";
 
 /**
- * ALLOWED_ORIGINS — sourced from env, defaults to local Vite dev server.
+ * ALLOWED_ORIGINS — sourced from validated config, defaults to local Vite dev server.
  * Exported so Socket.IO can reuse the same allowlist.
  */
-export const ALLOWED_ORIGINS: string[] = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+export const ALLOWED_ORIGINS: string[] = config.ALLOWED_ORIGINS
+  ? config.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
   : ["http://localhost:5173"];
 
 /**

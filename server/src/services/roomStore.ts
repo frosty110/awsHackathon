@@ -1,5 +1,5 @@
 import { customAlphabet } from "nanoid";
-import type { RoomPhase, RoomStatePayload, PlayerPayload } from "@ai-dm/shared-types";
+import type { RoomPhase, RoomStatePayload, PlayerPayload } from "@dnd-adventures/shared-types";
 
 export type { RoomPhase };
 
@@ -24,6 +24,8 @@ export type Room = {
   timerHandle: ReturnType<typeof setTimeout> | null;
   // Accumulates the DM stream text — used to catch up late-joiners
   currentDmText: string;
+  // Track last activity for stale room cleanup
+  lastActivityAt: number;
 };
 
 // Alphabet excludes I and O to avoid visual confusion with 1 and 0
@@ -85,6 +87,7 @@ export class InMemoryRoomStore implements IRoomStore {
       timerStartedAt: null,
       timerHandle: null,
       currentDmText: "",
+      lastActivityAt: Date.now(),
     };
     this.rooms.set(code, room);
     return room;
@@ -117,6 +120,7 @@ export class InMemoryRoomStore implements IRoomStore {
       return false;
     }
     room.players.set(player.socketId, player);
+    room.lastActivityAt = Date.now();
     return true;
   }
 
@@ -193,6 +197,7 @@ export class InMemoryRoomStore implements IRoomStore {
       return false;
     }
     player.submittedAction = action;
+    room!.lastActivityAt = Date.now();
     return true;
   }
 
@@ -293,13 +298,37 @@ export class InMemoryRoomStore implements IRoomStore {
   getActiveRoomCodes(limit = 5): string[] {
     return Array.from(this.rooms.keys()).slice(0, limit);
   }
+
+  /**
+   * Remove rooms where all players disconnected and lastActivityAt > 10 min ago.
+   */
+  cleanupStaleRooms(): number {
+    const STALE_THRESHOLD_MS = 10 * 60 * 1000;
+    const now = Date.now();
+    let cleaned = 0;
+    for (const [code, room] of this.rooms) {
+      const allDisconnected = [...room.players.values()].every((p) => !p.connected);
+      if (allDisconnected && now - room.lastActivityAt > STALE_THRESHOLD_MS) {
+        if (room.timerHandle !== null) {
+          clearTimeout(room.timerHandle);
+        }
+        this.rooms.delete(code);
+        cleaned++;
+      }
+    }
+    return cleaned;
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Singleton — production code uses these; swap implementation here for Redis.
 // ---------------------------------------------------------------------------
-const roomStore: IRoomStore = new InMemoryRoomStore();
+const _roomStoreImpl = new InMemoryRoomStore();
+const roomStore: IRoomStore = _roomStoreImpl;
 export { roomStore };
+
+// Periodic sweep: clean up stale rooms every 5 minutes
+setInterval(() => _roomStoreImpl.cleanupStaleRooms(), 5 * 60 * 1000).unref();
 
 // ---------------------------------------------------------------------------
 // Backward-compatible free function exports — no callers need to change.

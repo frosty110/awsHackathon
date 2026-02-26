@@ -1,8 +1,9 @@
-import { createHash } from "node:crypto";
 import { LRUCache } from "lru-cache";
 import tracer from "dd-trace";
 import { config } from "./config.js";
 import { logEvent } from "./logger.js";
+import { hashKey } from "./utils.js";
+import { isCircuitOpen, recordSuccess, recordFailure } from "./minimaxCircuitBreaker.js";
 import { buildKey, get as s3Get, put as s3Put } from "./mediaCache.js";
 import {
   type SceneMood,
@@ -17,7 +18,7 @@ import {
   stripTTSTags,
   sanitizeForTTS,
   expandPhrases,
-} from "@ai-dm/shared-types";
+} from "@dnd-adventures/shared-types";
 
 export type { SceneMood, SceneId, CharacterVoice };
 export { extractMood, extractScene, splitVoiceSegments, stripTTSTags, sanitizeForTTS, expandPhrases };
@@ -74,10 +75,6 @@ let ttsCacheMisses = 0;
 
 function buildTTSCacheKey(text: string, voice: CharacterVoice, mood: SceneMood | undefined, model: TTSModel, emotion?: string): string {
   return `${model}|${voice}|${mood ?? "none"}|${emotion ?? "auto"}|${text}`;
-}
-
-function hashKey(preHashKey: string): string {
-  return createHash("sha256").update(preHashKey).digest("hex").slice(0, 16);
 }
 
 export function getTTSCacheStats() {
@@ -170,6 +167,11 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
     cacheSize: ttsCache.size,
     reason: "not_found",
   });
+
+  // ── Circuit breaker check ────────────────────────────────────────────
+  if (isCircuitOpen()) {
+    throw new Error("MiniMax circuit breaker is open — too many consecutive failures");
+  }
 
   // ── API call (cache miss) ─────────────────────────────────────────────
   return tracer.llmobs.trace(
@@ -264,9 +266,13 @@ export async function generateTTS(text: string, options: TTSOptions = {}): Promi
         cacheSize: ttsCache.size,
       });
 
+      recordSuccess();
       return result;
     }
-  );
+  ).catch((err) => {
+    recordFailure();
+    throw err;
+  });
 }
 
 /**

@@ -9,12 +9,8 @@ import {
   BEDROCK_HAIKU_OUTPUT_PER_TOKEN,
   type ChatMessage,
   type BedrockResult,
-} from "@ai-dm/shared-types";
+} from "@dnd-adventures/shared-types";
 import { DM_SYSTEM_PROMPT } from "./promptBuilder.js";
-
-// Re-export prompt content for backward compatibility — callers importing from
-// bedrock.ts will continue to work without changes.
-export { DM_SYSTEM_PROMPT, buildMultiplayerSystemPrompt } from "./promptBuilder.js";
 
 export type { ChatMessage, BedrockResult };
 

@@ -40,6 +40,9 @@ export class ConversationOwnershipError extends Error {
 // Conversations expire after 7 days idle (refresh on every access)
 const CONVERSATION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
+/** Number of recent turns sent to Bedrock per request (matches getWindowedHistory default). */
+export const HISTORY_WINDOW_SIZE = 12;
+
 function redisKey(conversationId: string): string {
   return `conv:${conversationId}`;
 }

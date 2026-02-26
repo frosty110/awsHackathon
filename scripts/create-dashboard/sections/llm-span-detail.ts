@@ -18,7 +18,7 @@ export const llmSpanDetail = {
               response_format: 'event_list',
               query: {
                 data_source: 'llm_observability_stream',
-                query_string: '@ml_app:ai-dm @event_type:span @parent_id:* (@meta.span.kind:llm OR @meta.span.kind:embedding)',
+                query_string: '@ml_app:dnd-adventures @event_type:span @parent_id:* (@meta.span.kind:llm OR @meta.span.kind:embedding)',
                 indexes: ['llmobs'],
                 sort: { column: '@metrics.estimated_total_cost', order: 'desc' },
               },

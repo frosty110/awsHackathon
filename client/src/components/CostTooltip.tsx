@@ -3,7 +3,7 @@ import {
   BEDROCK_HAIKU_INPUT_PER_TOKEN,
   BEDROCK_HAIKU_OUTPUT_PER_TOKEN,
   MINIMAX_TTS_PER_CHAR,
-} from '@ai-dm/shared-types';
+} from '@dnd-adventures/shared-types';
 
 function fmtCost(n: number): string {
   return `$${n.toFixed(4)}`;

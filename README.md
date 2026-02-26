@@ -1,10 +1,10 @@
-# AI Dungeon Master
+# D&D Adventures
 
 A production-quality AI-powered Dungeon Master for tabletop D&D, serving ~1000 concurrent players with immersive open-ended gameplay, voice narration, and full observability.
 
 ## Features
 
-- **AI Dungeon Master** -- Claude via AWS Bedrock generates narrative responses with full D&D context
+- **AI Dungeon Master** -- Claude via AWS Bedrock generates narrative responses with full D&D context (the AI DM powering D&D Adventures)
 - **Single-Player & Multiplayer** -- Solo adventures or 2-4 player parties with real-time turn management
 - **Voice Narration** -- MiniMax TTS with emotion tags, mood prosody, and multi-character voices
 - **Knowledge Graph RAG** -- Neo4j-powered lore retrieval injects world context into every response
@@ -130,8 +130,8 @@ awsHackathon/
 
 Live dashboards:
 
-- [LLM Observability -- Traces & Spans](https://app.datadoghq.com/llm/applications?query=%40ml_app%3Aai-dm&compareLens=inputs&fromUser=false&selectedTab=overview)
-- [Hackathon Dashboard -- AI Dungeon Master](https://app.datadoghq.com/dashboard/agm-v77-h47/hackathon-ai-dungeon-master---llm-observability)
+- [LLM Observability -- Traces & Spans](https://app.datadoghq.com/llm/applications?query=%40ml_app%3Adnd-adventures&compareLens=inputs&fromUser=false&selectedTab=overview)
+- [Hackathon Dashboard -- D&D Adventures](https://app.datadoghq.com/dashboard/agm-v77-h47/hackathon-dnd-adventures---llm-observability)
 
 ### Creating / Updating the Dashboard
 
@@ -147,10 +147,10 @@ Tracing bootstraps via `NODE_OPTIONS='--import dd-trace/initialize.mjs'`:
 
 | Variable | Purpose |
 |----------|---------|
-| `DD_SERVICE` | Service name for APM (`ai-dungeon-master`) |
+| `DD_SERVICE` | Service name for APM (`dnd-adventures`) |
 | `DD_ENV` | Environment tag (`hackathon`) |
 | `DD_LLMOBS_ENABLED` | Enable LLM Observability |
-| `DD_LLMOBS_ML_APP` | ML app name for span filtering (`ai-dm`) |
+| `DD_LLMOBS_ML_APP` | ML app name for span filtering (`dnd-adventures`) |
 | `DD_LLMOBS_AGENTLESS_ENABLED` | Send LLMObs data directly (no Agent) |
 | `DD_TRACE_AWS_SDK_BEDROCKRUNTIME_ENABLED` | Auto-instrument Bedrock calls |
 

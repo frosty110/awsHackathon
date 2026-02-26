@@ -18,8 +18,8 @@ This is a community product targeting ~1000 concurrent users. Balance speed with
 
 ## Project Snapshot
 
-- Name: AI Dungeon Master
-- Goal: A community-facing AI Dungeon Master game supporting ~1000 concurrent players with full Datadog LLM observability.
+- Name: D&D Adventures
+- Goal: A community-facing D&D Adventures game supporting ~1000 concurrent players with full Datadog LLM observability.
 - Stack: React frontend, Node.js/Express backend, AWS Bedrock (Claude), Neo4j, Datadog, MiniMax TTS.
 
 ## Current Scope

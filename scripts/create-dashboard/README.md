@@ -1,6 +1,6 @@
-# AI Dungeon Master — Datadog Dashboard
+# D&D Adventures — Datadog Dashboard
 
-Programmatic Datadog dashboard creation via the REST API. Produces a single ordered dashboard titled **[Hackathon] AI Dungeon Master - LLM Observability** containing 12 widget groups that cover the full observability stack.
+Programmatic Datadog dashboard creation via the REST API. Produces a single ordered dashboard titled **[Hackathon] D&D Adventures - LLM Observability** containing 12 widget groups that cover the full observability stack.
 
 ## Usage
 
@@ -30,7 +30,7 @@ The dashboard exposes two template variables used across all widget queries:
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `$env` | `hackathon` | Filter by environment tag |
-| `$service` | `ai-dungeon-master` | Filter by service tag |
+| `$service` | `dnd-adventures` | Filter by service tag |
 
 ## Dashboard Sections
 
@@ -177,9 +177,9 @@ General service health and live trace inspection.
 | Source | Used by | Query pattern |
 |--------|---------|---------------|
 | APM metrics (`metrics`) | Sections 1, 4, 7, 12 | `trace.express.request.*`, `trace.aws.bedrockruntime.command.*` |
-| LLM Observability (`llm_observability`) | Sections 2, 3, 5, 6, 8 | `@ml_app:ai-dm @event_type:span` with span filters |
+| LLM Observability (`llm_observability`) | Sections 2, 3, 5, 6, 8 | `@ml_app:dnd-adventures @event_type:span` with span filters |
 | LLM Observability stream (`llm_observability_stream`) | Section 9 | Same base query, rendered as live event list |
-| Logs (`logs`) | Section 10 | `service:ai-dungeon-master @event:<event_name>` |
+| Logs (`logs`) | Section 10 | `service:dnd-adventures @event:<event_name>` |
 | Custom metrics / DogStatsD (`metrics`) | Section 11 | `cache.hit`, `cache.miss` with `cache_type` and `source` tags |
 | APM trace stream (`trace_stream`) | Section 12 | `service:$service env:$env` |
 

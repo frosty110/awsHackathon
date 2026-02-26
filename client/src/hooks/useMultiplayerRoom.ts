@@ -10,7 +10,7 @@ import type {
   GenderId,
   RoomState,
 } from '../types/multiplayer';
-import { stripTTSTags, expandPhrasesForDisplay } from '@ai-dm/shared-types';
+import { stripTTSTags, expandPhrasesForDisplay } from '@dnd-adventures/shared-types';
 
 export interface DmMessage {
   id: string;

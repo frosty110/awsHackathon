@@ -35,14 +35,14 @@ if (!DD_API_KEY || !DD_APP_KEY) {
 }
 
 const dashboard = {
-  title: '[Hackathon] AI Dungeon Master - LLM Observability',
+  title: '[Hackathon] D&D Adventures - LLM Observability',
   description:
-    'Full-stack observability for the AI Dungeon Master hackathon demo. ' +
+    'Full-stack observability for the D&D Adventures hackathon demo. ' +
     'Covers API reliability, LLM cost/latency, Bedrock, Neo4j RAG, MiniMax TTS, and runtime health.',
   layout_type: 'ordered',
   template_variables: [
     { name: 'env', available_values: [], default: 'hackathon' },
-    { name: 'service', available_values: [], default: 'ai-dungeon-master' },
+    { name: 'service', available_values: [], default: 'dnd-adventures' },
   ],
   widgets: [
     apiReliability,

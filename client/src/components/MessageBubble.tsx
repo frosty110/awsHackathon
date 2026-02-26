@@ -4,7 +4,7 @@ import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import type { Message } from '../types/chat';
 import { getPlayingMessageId, subscribe } from '../services/audioController';
-import { stripTTSTags, expandPhrasesForDisplay } from '@ai-dm/shared-types';
+import { stripTTSTags, expandPhrasesForDisplay } from '@dnd-adventures/shared-types';
 
 interface MessageBubbleProps {
   message: Message;

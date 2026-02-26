@@ -53,7 +53,7 @@ Open the relevant `sections/*.ts` file and add a new object to its `widgets` arr
 |--------|---------|
 | `LIVE_1H` | Default time window: `{ type: 'live', unit: 'hour', value: 1 }` |
 | `SVC_ENV` | Template variable tag filter: `{service:$service,env:$env}` |
-| `llm(extra?)` | LLM Observability base query: `@ml_app:ai-dm @event_type:span` with optional extra filters |
+| `llm(extra?)` | LLM Observability base query: `@ml_app:dnd-adventures @event_type:span` with optional extra filters |
 
 ## Data Sources
 
@@ -61,7 +61,7 @@ Sections use three Datadog data sources:
 
 - **`metrics`** — APM trace metrics (e.g. `trace.express.request.hits`). Use `SVC_ENV` for template variable filtering.
 - **`llm_observability`** — LLM Obs spans. Use `llm()` helper for the base query. Filter with `@parent_id:*`, `@name:`, `@status:error`, `@meta.span.kind:`.
-- **`logs`** — Structured log events (cache hits/misses). Filter with `service:ai-dungeon-master @event:<event_name>`.
+- **`logs`** — Structured log events (cache hits/misses). Filter with `service:dnd-adventures @event:<event_name>`.
 
 ## Environment Variables
 

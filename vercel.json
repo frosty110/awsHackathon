@@ -1,6 +1,6 @@
 {
-  "buildCommand": "npm run build -w packages/shared-types && cd .. && yarn install && yarn build",
-  "outputDirectory": "dist",
+  "buildCommand": "yarn workspace @dnd-adventures/shared-types build && yarn workspace client build",
+  "outputDirectory": "client/dist",
   "framework": "vite",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }

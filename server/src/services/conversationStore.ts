@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { redisClient, isRedisAvailable } from "./redis.js";
 import { logEvent } from "./logger.js";
-import type { ChatMessage } from "@ai-dm/shared-types";
+import type { ChatMessage } from "@dnd-adventures/shared-types";
 
 export type { ChatMessage };
 

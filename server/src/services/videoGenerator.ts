@@ -2,21 +2,15 @@ import { LRUCache } from "lru-cache";
 import tracer from "dd-trace";
 import { config } from "./config.js";
 import { logEvent } from "./logger.js";
+import { isCircuitOpen, recordSuccess, recordFailure } from "./minimaxCircuitBreaker.js";
 import { buildKey, get as s3Get, put as s3Put } from "./mediaCache.js";
 import { recordVideoUsage } from "./usageTracker.js";
-import type { SceneId } from "@ai-dm/shared-types";
+import { type GenerationEntry, getOrCreate, tryStartGeneration, recordGenerationFailure } from "./mediaGenerationHelpers.js";
+import type { SceneId } from "@dnd-adventures/shared-types";
 import { SCENE_PROMPTS } from "../content/scenePrompts.js";
 
-interface SceneCacheEntry {
-  generating: boolean;
-  error: string | null;
-  lastFailedAt: number | null;
-  retryCount: number;
-  generationStartedAt: number | null;
-}
-
 /** Metadata map: tracks generation state per scene */
-const sceneVideoCache = new Map<SceneId, SceneCacheEntry>();
+const sceneVideoCache = new Map<SceneId, GenerationEntry>();
 
 /** LRU buffer cache: stores actual video Buffers with 500MB byte budget and 1-hour TTL */
 const videoBufferCache = new LRUCache<string, Buffer>({
@@ -88,32 +82,23 @@ export function hasVideoBuffer(scene: SceneId): boolean {
   return videoBufferCache.has(scene);
 }
 
-export function getOrCreateEntry(scene: SceneId): SceneCacheEntry {
-  let entry = sceneVideoCache.get(scene);
-  if (!entry) {
-    entry = { generating: false, error: null, lastFailedAt: null, retryCount: 0, generationStartedAt: null };
-    sceneVideoCache.set(scene, entry);
-  }
-  return entry;
+export function getOrCreateEntry(scene: SceneId): GenerationEntry {
+  return getOrCreate(sceneVideoCache, scene);
 }
 
 export function startGeneration(scene: SceneId) {
   const entry = getOrCreateEntry(scene);
-  if (entry.generating || videoBufferCache.has(scene)) return;
-  if (entry.retryCount >= MAX_RETRIES) return;
-  if (entry.error && entry.lastFailedAt && Date.now() - entry.lastFailedAt < RETRY_COOLDOWN_MS) return;
-  if (entry.error) {
-    entry.retryCount++;
+  const previousError = entry.error;
+  if (!tryStartGeneration(entry, videoBufferCache.has(scene), { maxRetries: MAX_RETRIES, cooldownMs: RETRY_COOLDOWN_MS })) return;
+
+  if (previousError) {
     logEvent("info", "video.retrying_after_failure", {
       scene,
-      previousError: entry.error,
+      previousError,
       retryCount: entry.retryCount,
       maxRetries: MAX_RETRIES,
     });
-    entry.error = null;
   }
-  entry.generating = true;
-  entry.generationStartedAt = Date.now();
 
   logEvent("info", "video.generation_started", {
     scene,
@@ -130,6 +115,10 @@ async function runGeneration(scene: SceneId) {
   const prompt = SCENE_PROMPTS[scene];
 
   try {
+    if (isCircuitOpen()) {
+      throw new Error("MiniMax circuit breaker is open — too many consecutive failures");
+    }
+
     const apiKey = config.MINIMAX_API_KEY;
 
     // Step 1: Submit video generation task
@@ -275,6 +264,8 @@ async function runGeneration(scene: SceneId) {
       );
     } catch { /* tracing failure should not affect video delivery */ }
 
+    recordSuccess();
+
     logEvent("info", "video.generation_completed", {
       scene,
       generationDurationMs,
@@ -282,8 +273,8 @@ async function runGeneration(scene: SceneId) {
       videoSizeKB: Math.round(videoSizeBytes / 1024),
     });
   } catch (err) {
-    entry.error = String(err);
-    entry.lastFailedAt = Date.now();
+    recordFailure();
+    recordGenerationFailure(entry, String(err));
     const totalMs = Date.now() - overallStart;
 
     try {

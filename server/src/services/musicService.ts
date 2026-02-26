@@ -2,10 +2,12 @@ import { LRUCache } from "lru-cache";
 import tracer from "dd-trace";
 import { config } from "./config.js";
 import { logEvent } from "./logger.js";
+import { isCircuitOpen, recordSuccess, recordFailure } from "./minimaxCircuitBreaker.js";
 import { get as s3Get, put as s3Put, listKeys } from "./mediaCache.js";
 import { recordMusicUsage } from "./usageTracker.js";
+import { type GenerationEntry, getOrCreate, tryStartGeneration, recordGenerationFailure } from "./mediaGenerationHelpers.js";
 import { randomUUID } from "node:crypto";
-import { type SceneMood, VALID_MOODS } from "@ai-dm/shared-types";
+import { type SceneMood, VALID_MOODS } from "@dnd-adventures/shared-types";
 
 export type { SceneMood };
 export { VALID_MOODS };
@@ -29,16 +31,8 @@ function buildMusicS3Key(mood: SceneMood, variant: number): string {
 
 // ── Per-variant in-memory cache ──────────────────────────────────────────────
 
-interface MoodCacheEntry {
-  generating: boolean;
-  error: string | null;
-  lastFailedAt: number | null;
-  retryCount: number;
-  generationStartedAt: number | null;
-}
-
 /** Metadata map: tracks generation state per mood-variant key e.g. "combat-3" */
-const moodCache = new Map<string, MoodCacheEntry>();
+const moodCache = new Map<string, GenerationEntry>();
 
 /** LRU buffer cache: stores actual audio Buffers with 200MB byte budget and 1-hour TTL */
 const musicBufferCache = new LRUCache<string, Buffer>({
@@ -84,34 +78,115 @@ function variantKey(mood: SceneMood, variant: number): string {
   return `${mood}-${variant}`;
 }
 
-function getOrCreateEntry(key: string): MoodCacheEntry {
-  let entry = moodCache.get(key);
-  if (!entry) {
-    entry = { generating: false, error: null, lastFailedAt: null, retryCount: 0, generationStartedAt: null };
-    moodCache.set(key, entry);
+function getOrCreateEntry(key: string): GenerationEntry {
+  return getOrCreate(moodCache, key);
+}
+
+// ── Shared MiniMax music API call ─────────────────────────────────────────────
+
+interface MusicAPIResult {
+  buffer: Buffer;
+  apiMs: number;
+  cdnMs: number;
+}
+
+async function callMiniMaxMusicAPI(
+  prompt: string,
+  metadata: Record<string, unknown>,
+): Promise<MusicAPIResult> {
+  if (isCircuitOpen()) {
+    throw new Error("MiniMax circuit breaker is open — too many consecutive failures");
   }
-  return entry;
+
+  const apiKey = config.MINIMAX_MUSIC_API_KEY || config.MINIMAX_API_KEY;
+  if (!apiKey) throw new Error("No MiniMax API key configured");
+
+  const apiStart = Date.now();
+  const res = await fetch("https://api.minimax.io/v1/music_generation", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "music-2.5",
+      prompt,
+      lyrics: "[instrumental]",
+      audio_setting: { sample_rate: 44100, bitrate: 256000, format: "mp3" },
+      output_format: "url",
+    }),
+    signal: AbortSignal.timeout(90_000),
+  });
+  const apiMs = Date.now() - apiStart;
+
+  if (!res.ok) throw new Error(`MiniMax music HTTP ${res.status}`);
+
+  const json = (await res.json()) as {
+    base_resp?: { status_code: number; status_msg: string };
+    data?: { audio?: string };
+  };
+
+  if (json.base_resp && json.base_resp.status_code !== 0) {
+    throw new Error(`MiniMax music error: ${json.base_resp.status_msg}`);
+  }
+
+  const audioUrl = json.data?.audio;
+  if (!audioUrl) throw new Error("No audio URL in response");
+
+  const cdnStart = Date.now();
+  const audioRes = await fetch(audioUrl, { signal: AbortSignal.timeout(30_000) });
+  if (!audioRes.ok) throw new Error(`CDN fetch failed: ${audioRes.status}`);
+
+  const buffer = Buffer.from(await audioRes.arrayBuffer());
+  const cdnMs = Date.now() - cdnStart;
+
+  recordMusicUsage();
+
+  try {
+    tracer.llmobs.trace(
+      { kind: "tool", name: "minimax.music_generation" },
+      (span) => {
+        tracer.llmobs.annotate(span, {
+          inputData: JSON.stringify({ prompt, model: "music-2.5", ...metadata }),
+          outputData: JSON.stringify({
+            audioSizeBytes: buffer.length,
+            format: "mp3",
+            sampleRate: 44100,
+            bitrate: 256000,
+          }),
+          metrics: { apiCallDurationMs: apiMs, cdnDownloadDurationMs: cdnMs, audioSizeBytes: buffer.length },
+          tags: {
+            "music.provider": "minimax",
+            "music.model": "music-2.5",
+            "music.format": "mp3",
+            ...Object.fromEntries(
+              Object.entries(metadata).map(([k, v]) => [`music.${k}`, String(v)])
+            ),
+          },
+        });
+      }
+    );
+  } catch { /* tracing failure should not affect music delivery */ }
+
+  recordSuccess();
+  return { buffer, apiMs, cdnMs };
 }
 
 function startGeneration(mood: SceneMood, variant: number) {
   const key = variantKey(mood, variant);
   const entry = getOrCreateEntry(key);
-  if (entry.generating || musicBufferCache.has(key)) return;
-  if (entry.retryCount >= MAX_SERVER_RETRIES) return;
-  if (entry.error && entry.lastFailedAt && Date.now() - entry.lastFailedAt < RETRY_COOLDOWN_MS) return;
-  if (entry.error) {
-    entry.retryCount++;
+  const previousError = entry.error;
+  if (!tryStartGeneration(entry, musicBufferCache.has(key), { maxRetries: MAX_SERVER_RETRIES, cooldownMs: RETRY_COOLDOWN_MS })) return;
+
+  if (previousError) {
     logEvent("info", "music.retrying_after_failure", {
       mood,
       variant,
-      previousError: entry.error,
+      previousError,
       retryCount: entry.retryCount,
       maxRetries: MAX_SERVER_RETRIES,
     });
-    entry.error = null;
   }
-  entry.generating = true;
-  entry.generationStartedAt = Date.now();
 
   logEvent("info", "music.generation_started", {
     mood,
@@ -128,138 +203,38 @@ async function runGeneration(mood: SceneMood, variant: number) {
   const entry = getOrCreateEntry(key);
   const overallStart = Date.now();
   const prompt = MOOD_PROMPTS[mood];
-  let apiCallDurationMs: number | null = null;
-  let cdnDownloadDurationMs: number | null = null;
   let progressTimer: ReturnType<typeof setInterval> | undefined;
 
   try {
-    const apiKey = config.MINIMAX_MUSIC_API_KEY || config.MINIMAX_API_KEY;
-
-    const apiStart = Date.now();
     progressTimer = setInterval(() => {
       logEvent("info", "music.generation_progress", {
         mood,
         variant,
-        elapsedMs: Date.now() - apiStart,
+        elapsedMs: Date.now() - overallStart,
         phase: "awaiting_api_response",
       });
     }, 30_000);
-    const res = await fetch("https://api.minimax.io/v1/music_generation", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "music-2.5",
-        prompt,
-        lyrics: "[instrumental]",
-        audio_setting: {
-          sample_rate: 44100,
-          bitrate: 256000,
-          format: "mp3",
-        },
-        output_format: "url",
-      }),
-      signal: AbortSignal.timeout(90_000),
-    });
-    apiCallDurationMs = Date.now() - apiStart;
 
-    if (!res.ok) throw new Error(`MiniMax music HTTP ${res.status}`);
+    const { buffer, apiMs, cdnMs } = await callMiniMaxMusicAPI(prompt, { mood, variant: String(variant) });
+    musicBufferCache.set(key, buffer);
 
-    const json = (await res.json()) as {
-      base_resp?: { status_code: number; status_msg: string };
-      data?: { audio?: string };
-    };
-
-    if (json.base_resp && json.base_resp.status_code !== 0) {
-      throw new Error(`MiniMax music error: ${json.base_resp.status_msg}`);
-    }
-
-    const audioUrl = json.data?.audio;
-    if (!audioUrl) throw new Error("No audio URL in response");
-
-    const cdnStart = Date.now();
-    const audioRes = await fetch(audioUrl, {
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!audioRes.ok) throw new Error(`CDN fetch failed: ${audioRes.status}`);
-
-    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
-    musicBufferCache.set(key, audioBuffer);
-    cdnDownloadDurationMs = Date.now() - cdnStart;
-
-    // L2: fire-and-forget S3 persist with readable key
+    // L2: fire-and-forget S3 persist
     const s3Key = buildMusicS3Key(mood, variant);
-    s3Put(s3Key, audioBuffer, "audio/mpeg", { mood, variant: String(variant), model: "music-2.5" })
+    s3Put(s3Key, buffer, "audio/mpeg", { mood, variant: String(variant), model: "music-2.5" })
       .catch((err) => logEvent("warn", "music.s3_cache_put_failed", { mood, variant, error: String(err) }));
-
-    const generationDurationMs = Date.now() - overallStart;
-    const audioSizeBytes = audioBuffer.length;
-    recordMusicUsage();
-
-    try {
-      tracer.llmobs.trace(
-        { kind: "tool", name: "minimax.music_generation" },
-        (span) => {
-          tracer.llmobs.annotate(span, {
-            inputData: JSON.stringify({ prompt, model: "music-2.5", mood, variant }),
-            outputData: JSON.stringify({
-              audioSizeBytes,
-              format: "mp3",
-              sampleRate: 44100,
-              bitrate: 256000,
-            }),
-            metrics: {
-              generationDurationMs,
-              apiCallDurationMs: apiCallDurationMs ?? 0,
-              cdnDownloadDurationMs: cdnDownloadDurationMs ?? 0,
-              audioSizeBytes,
-            },
-            tags: {
-              "music.provider": "minimax",
-              "music.model": "music-2.5",
-              "music.format": "mp3",
-              "music.mood": mood,
-              "music.variant": String(variant),
-            },
-          });
-        }
-      );
-    } catch { /* tracing failure should not affect music delivery */ }
 
     logEvent("info", "music.generation_completed", {
       mood,
       variant,
-      generationDurationMs,
-      apiCallDurationMs,
-      cdnDownloadDurationMs,
-      audioSizeBytes,
-      audioSizeKB: Math.round(audioSizeBytes / 1024),
+      generationDurationMs: Date.now() - overallStart,
+      apiCallDurationMs: apiMs,
+      cdnDownloadDurationMs: cdnMs,
+      audioSizeBytes: buffer.length,
+      audioSizeKB: Math.round(buffer.length / 1024),
     });
   } catch (err) {
-    entry.error = String(err);
-    entry.lastFailedAt = Date.now();
-    const totalMs = Date.now() - overallStart;
-
-    try {
-      tracer.llmobs.trace(
-        { kind: "tool", name: "minimax.music_generation" },
-        (span) => {
-          tracer.llmobs.annotate(span, {
-            inputData: JSON.stringify({ prompt, model: "music-2.5", mood, variant }),
-            outputData: JSON.stringify({ error: entry.error }),
-            tags: {
-              "music.provider": "minimax",
-              "music.model": "music-2.5",
-              "music.error": "true",
-              "music.mood": mood,
-              "music.variant": String(variant),
-            },
-          });
-        }
-      );
-    } catch { /* tracing failure should not affect error reporting */ }
+    recordFailure();
+    recordGenerationFailure(entry, String(err));
 
     logEvent(
       "error",
@@ -267,9 +242,7 @@ async function runGeneration(mood: SceneMood, variant: number) {
       {
         mood,
         variant,
-        durationMs: totalMs,
-        apiCallDurationMs,
-        cdnDownloadDurationMs,
+        durationMs: Date.now() - overallStart,
         failureType: "terminal",
       },
       err
@@ -289,101 +262,26 @@ async function generateForRandomPool(): Promise<void> {
   const mood = VALID_MOODS[Math.floor(Math.random() * VALID_MOODS.length)];
   const prompt = MOOD_PROMPTS[mood];
   const trackId = randomUUID();
-  // Random pool tracks use UUID keys so they don't collide with variant slots
   const s3Key = `music/v1/pool-${mood}-${trackId}.mp3`;
   const overallStart = Date.now();
 
   logEvent("info", "music.random_pool_generation_started", { mood, trackId });
 
   try {
-    const apiKey = config.MINIMAX_MUSIC_API_KEY || config.MINIMAX_API_KEY;
-    if (!apiKey) {
-      logEvent("warn", "music.random_pool_no_api_key");
-      return;
-    }
-
-    const apiStart = Date.now();
-    const res = await fetch("https://api.minimax.io/v1/music_generation", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "music-2.5",
-        prompt,
-        lyrics: "[instrumental]",
-        audio_setting: { sample_rate: 44100, bitrate: 256000, format: "mp3" },
-        output_format: "url",
-      }),
-      signal: AbortSignal.timeout(90_000),
-    });
-    const apiCallDurationMs = Date.now() - apiStart;
-
-    if (!res.ok) throw new Error(`MiniMax music HTTP ${res.status}`);
-
-    const json = (await res.json()) as {
-      base_resp?: { status_code: number; status_msg: string };
-      data?: { audio?: string };
-    };
-
-    if (json.base_resp && json.base_resp.status_code !== 0) {
-      throw new Error(`MiniMax music error: ${json.base_resp.status_msg}`);
-    }
-
-    const audioUrl = json.data?.audio;
-    if (!audioUrl) throw new Error("No audio URL in response");
-
-    const cdnStart = Date.now();
-    const audioRes = await fetch(audioUrl, { signal: AbortSignal.timeout(30_000) });
-    if (!audioRes.ok) throw new Error(`CDN fetch failed: ${audioRes.status}`);
-
-    const buffer = Buffer.from(await audioRes.arrayBuffer());
-    const cdnDownloadDurationMs = Date.now() - cdnStart;
-    const generationDurationMs = Date.now() - overallStart;
+    const { buffer, apiMs, cdnMs } = await callMiniMaxMusicAPI(prompt, { mood, pool: "random" });
 
     await s3Put(s3Key, buffer, "audio/mpeg", { mood, model: "music-2.5", pool: "random" });
-    recordMusicUsage();
-
-    try {
-      tracer.llmobs.trace(
-        { kind: "tool", name: "minimax.music_generation" },
-        (span) => {
-          tracer.llmobs.annotate(span, {
-            inputData: JSON.stringify({ prompt, model: "music-2.5", mood, pool: "random" }),
-            outputData: JSON.stringify({
-              audioSizeBytes: buffer.length,
-              format: "mp3",
-              sampleRate: 44100,
-              bitrate: 256000,
-            }),
-            metrics: {
-              generationDurationMs,
-              apiCallDurationMs,
-              cdnDownloadDurationMs,
-              audioSizeBytes: buffer.length,
-            },
-            tags: {
-              "music.provider": "minimax",
-              "music.model": "music-2.5",
-              "music.format": "mp3",
-              "music.mood": mood,
-              "music.pool": "random",
-            },
-          });
-        }
-      );
-    } catch { /* tracing failure should not affect music delivery */ }
 
     logEvent("info", "music.random_pool_generation_completed", {
       mood,
       trackId,
-      generationDurationMs,
-      apiCallDurationMs,
-      cdnDownloadDurationMs,
+      generationDurationMs: Date.now() - overallStart,
+      apiCallDurationMs: apiMs,
+      cdnDownloadDurationMs: cdnMs,
       audioSizeBytes: buffer.length,
     });
   } catch (err) {
+    recordFailure();
     logEvent("error", "music.random_pool_generation_failed", { mood, trackId, error: String(err) }, err);
   } finally {
     randomPoolGenerating = false;

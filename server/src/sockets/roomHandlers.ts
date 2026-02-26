@@ -21,12 +21,14 @@ import {
 import { getOrCreate } from "../services/conversationStore.js";
 import { sanitizeUserInput } from "../services/inputSanitizer.js";
 import { logEvent } from "../services/logger.js";
+import { CHARACTER_CLASS_IDS } from "@dnd-adventures/shared-types";
+import { triggerDMOpening, triggerDMResponse, startCountdownTimer } from "./turnOrchestrator.js";
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 
 // Valid character class and gender values for socket field validation
-const VALID_CHARACTER_CLASSES = new Set(["warrior", "mage", "rogue", "cleric", "ranger", "bard"]);
+const VALID_CHARACTER_CLASSES = new Set<string>(CHARACTER_CLASS_IDS);
 const VALID_GENDERS = new Set(["male", "female", "nonbinary"]);
 const DISPLAY_NAME_RE = /^[\w\s\-']{1,20}$/;
 
@@ -190,16 +192,7 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
       }
       io.to(roomCode).emit("room:started");
 
-      // Trigger the DM opening monologue — imported lazily to avoid circular deps
-      // We use dynamic import to break the circular dependency:
-      // roomHandlers -> turnHandlers -> roomHandlers (disconnect handler)
-      import("./turnHandlers.js")
-        .then(({ triggerDMOpening }) => {
-          triggerDMOpening(io, roomCode);
-        })
-        .catch((err: unknown) => {
-          logEvent("error", "roomHandlers.dm_opening_failed", {}, err);
-        });
+      triggerDMOpening(io, roomCode);
     }
   });
 
@@ -244,23 +237,9 @@ export function registerRoomHandlers(io: IO, socket: TypedSocket): void {
             clearTimeout(room.timerHandle);
             room.timerHandle = null;
           }
-          // Trigger DM response
-          import("./turnHandlers.js")
-            .then(({ triggerDMResponse }) => {
-              triggerDMResponse(io, roomCode);
-            })
-            .catch((err: unknown) => {
-              logEvent("error", "roomHandlers.dm_response_after_disconnect_failed", {}, err);
-            });
+          triggerDMResponse(io, roomCode);
         } else if (timerNotStarted) {
-          // Auto-fill was the first submission — start countdown for remaining players
-          import("./turnHandlers.js")
-            .then(({ startCountdownTimer }) => {
-              startCountdownTimer(io, roomCode);
-            })
-            .catch((err: unknown) => {
-              logEvent("error", "roomHandlers.countdown_start_after_disconnect_failed", {}, err);
-            });
+          startCountdownTimer(io, roomCode);
         }
       }
     }
